@@ -10,12 +10,12 @@
  * the values before submission. We never auto-submit anything.
  *
  * Configuration (env):
- *   AI_API_KEY        Preferred bearer token for the OpenAI-compatible API.
- *   DASHSCOPE_API_KEY Optional fallback token for Aliyun DashScope.
+ *   AI_GATEWAY_TOKEN  Required Cloudflare AI Gateway bearer token. Sent as
+ *                     `cf-aig-authorization`.
+ *   AI_API_KEY        Optional upstream bearer token for direct API calls.
+ *   DASHSCOPE_API_KEY Optional upstream fallback token for direct DashScope.
  *   AI_API_URL        Optional. Defaults to DashScope when using Qwen,
  *                     otherwise DeepSeek's chat-completions URL.
- *   AI_GATEWAY_TOKEN  Optional Cloudflare AI Gateway bearer token. When set,
- *                     sent as `cf-aig-authorization`.
  *   AI_MODEL          Optional. Defaults to `deepseek-chat`.
  *   AI_PROVIDER       Optional. Set to `aliyun` to force DashScope defaults.
  *   AI_ENABLE_IMAGE_CONTEXT Optional. Set to `true` to force-enable images.
@@ -123,7 +123,7 @@ const aiResponseSchema = z.object({
 /** Call the upstream LLM and return a normalized suggestion. */
 export async function aiParseExpense(input: AiParseInput): Promise<AiParsedExpense> {
   const { apiKey, gatewayToken, model, url, supportsImageContext } = resolveAiConfig();
-  if (!apiKey) throw new AiParseError('NOT_CONFIGURED');
+  if (!gatewayToken) throw new AiParseError('NOT_CONFIGURED');
 
   const text = input.text.trim();
   const images = input.images ?? [];
@@ -168,8 +168,8 @@ export async function aiParseExpense(input: AiParseInput): Promise<AiParsedExpen
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        ...(gatewayToken ? { 'cf-aig-authorization': `Bearer ${gatewayToken}` } : {}),
+        'cf-aig-authorization': `Bearer ${gatewayToken}`,
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
       body: requestBody,
       signal: controller.signal,

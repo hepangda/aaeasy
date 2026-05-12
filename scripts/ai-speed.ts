@@ -97,7 +97,7 @@ function readArgs(): Args {
     }
   }
 
-  if (!args.apiKey) throw new Error('AI_API_KEY or DASHSCOPE_API_KEY is required');
+  if (!args.gatewayToken) throw new Error('AI_GATEWAY_TOKEN is required');
   if (!Number.isInteger(args.runs) || args.runs < 1) {
     throw new Error('--runs must be a positive integer');
   }
@@ -149,8 +149,8 @@ async function runOnce(args: Args, body: string, index: number) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${args.apiKey}`,
-        ...(args.gatewayToken ? { 'cf-aig-authorization': `Bearer ${args.gatewayToken}` } : {}),
+        'cf-aig-authorization': `Bearer ${args.gatewayToken}`,
+        ...(args.apiKey ? { Authorization: `Bearer ${args.apiKey}` } : {}),
       },
       body,
       signal: controller.signal,
