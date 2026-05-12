@@ -14,6 +14,8 @@
  *   DASHSCOPE_API_KEY Optional fallback token for Aliyun DashScope.
  *   AI_API_URL        Optional. Defaults to DashScope when using Qwen,
  *                     otherwise DeepSeek's chat-completions URL.
+ *   AI_GATEWAY_TOKEN  Optional Cloudflare AI Gateway bearer token. When set,
+ *                     sent as `cf-aig-authorization`.
  *   AI_MODEL          Optional. Defaults to `deepseek-chat`.
  *   AI_PROVIDER       Optional. Set to `aliyun` to force DashScope defaults.
  *   AI_ENABLE_IMAGE_CONTEXT Optional. Set to `true` to force-enable images.
@@ -79,8 +81,7 @@ export class AiParseError extends Error {
 
 const MAX_INPUT_CHARS = 1_000;
 const TIMEOUT_MS = 60_000;
-const DASHSCOPE_COMPAT_URL =
-  'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+const DASHSCOPE_COMPAT_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
 const DEEPSEEK_CHAT_URL = 'https://api.deepseek.com/chat/completions';
 
 function shouldLogTiming() {
@@ -100,10 +101,10 @@ function resolveAiConfig() {
 
   return {
     apiKey: process.env.AI_API_KEY ?? process.env.DASHSCOPE_API_KEY,
+    gatewayToken: process.env.AI_GATEWAY_TOKEN,
     model,
     url: explicitUrl ?? (isDashScope ? DASHSCOPE_COMPAT_URL : DEEPSEEK_CHAT_URL),
-    supportsImageContext:
-      process.env.AI_ENABLE_IMAGE_CONTEXT === 'true' || isDashScope,
+    supportsImageContext: process.env.AI_ENABLE_IMAGE_CONTEXT === 'true' || isDashScope,
   };
 }
 
@@ -120,10 +121,8 @@ const aiResponseSchema = z.object({
 });
 
 /** Call the upstream LLM and return a normalized suggestion. */
-export async function aiParseExpense(
-  input: AiParseInput,
-): Promise<AiParsedExpense> {
-  const { apiKey, model, url, supportsImageContext } = resolveAiConfig();
+export async function aiParseExpense(input: AiParseInput): Promise<AiParsedExpense> {
+  const { apiKey, gatewayToken, model, url, supportsImageContext } = resolveAiConfig();
   if (!apiKey) throw new AiParseError('NOT_CONFIGURED');
 
   const text = input.text.trim();
@@ -170,6 +169,7 @@ export async function aiParseExpense(
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
+        ...(gatewayToken ? { 'cf-aig-authorization': `Bearer ${gatewayToken}` } : {}),
       },
       body: requestBody,
       signal: controller.signal,
@@ -199,6 +199,7 @@ export async function aiParseExpense(
     console.info('[ai-parse] upstream timing', {
       model,
       host: new URL(url).host,
+      aiGateway: Boolean(gatewayToken),
       textChars: text.length,
       imageCount: images.length,
       requestBytes: Buffer.byteLength(requestBody),
@@ -209,9 +210,11 @@ export async function aiParseExpense(
   }
 
   // OpenAI-compatible shape: { choices: [{ message: { content: string } }] }
-  const content = (raw as {
-    choices?: { message?: { content?: string } }[];
-  })?.choices?.[0]?.message?.content;
+  const content = (
+    raw as {
+      choices?: { message?: { content?: string } }[];
+    }
+  )?.choices?.[0]?.message?.content;
   if (typeof content !== 'string') throw new AiParseError('UPSTREAM_INVALID');
 
   let json: unknown;
@@ -253,7 +256,9 @@ export async function aiParseExpense(
 
   let amount: string | null = null;
   if (data.amount != null) {
-    const a = String(data.amount).trim().replace(/[^\d.]/g, '');
+    const a = String(data.amount)
+      .trim()
+      .replace(/[^\d.]/g, '');
     if (a && /^\d+(\.\d+)?$/.test(a)) amount = a;
   }
 
@@ -262,9 +267,7 @@ export async function aiParseExpense(
     const want = data.payerName.trim().toLowerCase();
     const hit =
       input.members.find((m) => m.displayName.toLowerCase() === want) ??
-      input.members.find((m) =>
-        m.displayName.toLowerCase().includes(want),
-      );
+      input.members.find((m) => m.displayName.toLowerCase().includes(want));
     payerMemberId = hit?.id ?? null;
   }
 

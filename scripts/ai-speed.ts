@@ -10,6 +10,7 @@ type Args = {
   model: string;
   url: string;
   apiKey?: string;
+  gatewayToken?: string;
   maxTokens?: number;
 };
 
@@ -53,6 +54,7 @@ function readArgs(): Args {
     model,
     url: process.env.AI_API_URL ?? (isDashScope ? DASH_SCOPE_URL : DEEPSEEK_URL),
     apiKey: process.env.AI_API_KEY ?? process.env.DASHSCOPE_API_KEY,
+    gatewayToken: process.env.AI_GATEWAY_TOKEN,
   };
 
   const raw = process.argv.slice(2);
@@ -148,6 +150,7 @@ async function runOnce(args: Args, body: string, index: number) {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${args.apiKey}`,
+        ...(args.gatewayToken ? { 'cf-aig-authorization': `Bearer ${args.gatewayToken}` } : {}),
       },
       body,
       signal: controller.signal,
@@ -207,6 +210,7 @@ async function main() {
 
   console.log(`model=${args.model}`);
   console.log(`host=${new URL(args.url).host}`);
+  console.log(`ai_gateway=${args.gatewayToken ? 'true' : 'false'}`);
   console.log(`runs=${args.runs}`);
   console.log(`text_chars=${args.text.length}`);
   if (args.image) console.log(`image=${basename(args.image)}`);
