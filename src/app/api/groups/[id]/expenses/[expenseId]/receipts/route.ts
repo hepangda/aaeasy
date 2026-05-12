@@ -6,6 +6,7 @@ import {
   ALLOWED_RECEIPT_MIMES,
   MAX_RECEIPT_BYTES,
   buildReceiptPrefix,
+  getReceiptBlob,
   isAllowedReceiptMime,
 } from '@/lib/storage/blob';
 import { publish } from '@/lib/realtime/pgNotify';
@@ -64,6 +65,16 @@ export async function POST(
   const prefix = buildReceiptPrefix(groupId, expenseId);
   if (!parsed.data.key.startsWith(prefix)) {
     return NextResponse.json({ error: 'INVALID_KEY' }, { status: 400 });
+  }
+
+  const blob = await getReceiptBlob(parsed.data.key).catch(() => null);
+  if (
+    !blob ||
+    blob.statusCode !== 200 ||
+    blob.blob.contentType !== parsed.data.mime ||
+    blob.blob.size !== parsed.data.size
+  ) {
+    return NextResponse.json({ error: 'INVALID_BLOB' }, { status: 400 });
   }
 
   const uploadedById = access.kind === 'user' ? access.userId : null;

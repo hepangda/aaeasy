@@ -32,6 +32,10 @@ automatically with high-precision arithmetic.
 | Theming | next-themes (light / dark / system) |
 | Tests | Vitest |
 
+PDF exports bundle Noto Sans SC so Chinese text renders on Vercel. For custom
+self-hosted deployments, set `PDF_CJK_FONT_PATH` / `PDF_CJK_FONT_BOLD_PATH` to
+override the bundled font.
+
 ## Quick start (development)
 
 ```sh

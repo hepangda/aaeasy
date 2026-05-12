@@ -6,16 +6,9 @@
  * of an abstract split-rule label.
  */
 
-import {
-  renderToBuffer,
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-  Font,
-} from '@react-pdf/renderer';
+import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import type { ExportPayload, ExportRowExpense, ExportRowMember } from './data';
 
 const BORDER = '#d7dde5';
@@ -26,10 +19,34 @@ const TEXT = '#111827';
 const GREEN = '#047857';
 const RED = '#b91c1c';
 const CJK_FONT_FAMILY = 'AAEasyCJK';
+const require = createRequire(import.meta.url);
 
 let registeredFontFamily: string | null = null;
 
-function resolveCjkFontPath(): string | null {
+interface PdfFontFiles {
+  regular: string;
+  bold: string;
+}
+
+function resolvePackageFontPath(path: string): string | null {
+  try {
+    return require.resolve(path);
+  } catch {
+    return null;
+  }
+}
+
+function resolveCjkFontFiles(): PdfFontFiles | null {
+  const bundledRegular = resolvePackageFontPath(
+    '@expo-google-fonts/noto-sans-sc/400Regular/NotoSansSC_400Regular.ttf',
+  );
+  const bundledBold = resolvePackageFontPath(
+    '@expo-google-fonts/noto-sans-sc/700Bold/NotoSansSC_700Bold.ttf',
+  );
+  if (bundledRegular && bundledBold) {
+    return { regular: bundledRegular, bold: bundledBold };
+  }
+
   const candidates = [
     process.env.PDF_CJK_FONT_PATH,
     // Docker / Alpine with `font-noto-cjk` installed.
@@ -43,13 +60,16 @@ function resolveCjkFontPath(): string | null {
     '/System/Library/Fonts/Supplemental/Songti.ttc',
   ].filter(Boolean) as string[];
 
-  return candidates.find((path) => existsSync(path)) ?? null;
+  const regular = candidates.find((path) => existsSync(path));
+  if (!regular) return null;
+  const bold = process.env.PDF_CJK_FONT_BOLD_PATH;
+  return { regular, bold: bold && existsSync(bold) ? bold : regular };
 }
 
 function ensurePdfFont(): string {
   if (registeredFontFamily) return registeredFontFamily;
-  const fontPath = resolveCjkFontPath();
-  if (!fontPath) {
+  const fontFiles = resolveCjkFontFiles();
+  if (!fontFiles) {
     registeredFontFamily = 'Helvetica';
     return registeredFontFamily;
   }
@@ -57,8 +77,8 @@ function ensurePdfFont(): string {
   Font.register({
     family: CJK_FONT_FAMILY,
     fonts: [
-      { src: fontPath, fontWeight: 400 },
-      { src: fontPath, fontWeight: 700 },
+      { src: fontFiles.regular, fontWeight: 400 },
+      { src: fontFiles.bold, fontWeight: 700 },
     ],
   });
   registeredFontFamily = CJK_FONT_FAMILY;
@@ -219,7 +239,7 @@ interface CellProps {
 
 function Cell({ text, width, align, bold, color }: CellProps) {
   return (
-    <View style={[styles.cell, { width }]}> 
+    <View style={[styles.cell, { width }]}>
       <Text
         style={[
           align === 'right' ? styles.cellRight : {},
@@ -381,7 +401,9 @@ export async function buildPdf(payload: ExportPayload): Promise<Buffer> {
             <Text style={styles.h1}>{payload.meta.groupName}</Text>
             <Text style={styles.meta}>{`${l.generated}: ${generated}`}</Text>
           </View>
-          <Text style={styles.badge}>{`${l.defaultCurrency}: ${payload.meta.defaultCurrency}`}</Text>
+          <Text
+            style={styles.badge}
+          >{`${l.defaultCurrency}: ${payload.meta.defaultCurrency}`}</Text>
         </View>
 
         <View style={styles.section}>
@@ -412,7 +434,9 @@ export async function buildPdf(payload: ExportPayload): Promise<Buffer> {
               <Text style={styles.h1}>{payload.meta.groupName}</Text>
               <Text style={styles.meta}>{`${l.memberDetails}: ${member.member}`}</Text>
             </View>
-            <Text style={styles.badge}>{`${l.defaultCurrency}: ${payload.meta.defaultCurrency}`}</Text>
+            <Text
+              style={styles.badge}
+            >{`${l.defaultCurrency}: ${payload.meta.defaultCurrency}`}</Text>
           </View>
 
           <View style={styles.section}>
@@ -424,11 +448,7 @@ export async function buildPdf(payload: ExportPayload): Promise<Buffer> {
               }}
               l={l}
             />
-            <MemberExpenseDetails
-              member={member}
-              expenses={payload.expenses}
-              l={l}
-            />
+            <MemberExpenseDetails member={member} expenses={payload.expenses} l={l} />
           </View>
         </Page>
       ))}
