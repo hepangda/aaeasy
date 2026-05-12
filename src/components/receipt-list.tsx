@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { upload } from '@vercel/blob/client';
 import { FileText, Plus, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { errorToast } from '@/lib/ui/toast';
@@ -16,6 +17,30 @@ const ALLOWED = new Set([
   'image/heic',
   'application/pdf',
 ]);
+
+function extFromMime(mime: string): string {
+  switch (mime) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    case 'image/heic':
+      return 'heic';
+    case 'application/pdf':
+      return 'pdf';
+    default:
+      return 'bin';
+  }
+}
+
+function buildReceiptPathname(groupId: string, expenseId: string, mime: string): string {
+  const id = crypto.randomUUID().replaceAll('-', '');
+  return `group/${groupId}/expense/${expenseId}/${id}.${extFromMime(mime)}`;
+}
 
 interface Receipt {
   id: string;
@@ -55,35 +80,18 @@ export function ReceiptList({
       }
       try {
         setUploading(true);
-        // 1. Get presigned URL
-        const signRes = await fetch(
-          `/api/groups/${groupId}/expenses/${expenseId}/receipts/sign`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mime: file.type, size: file.size }),
-          },
-        );
-        if (!signRes.ok) throw new Error('SIGN_FAILED');
-        const { url, key } = (await signRes.json()) as { url: string; key: string };
-
-        // 2. PUT to S3 directly
-        const putRes = await fetch(url, {
-          method: 'PUT',
-          headers: { 'Content-Type': file.type },
-          body: file,
+        const blob = await upload(buildReceiptPathname(groupId, expenseId, file.type), file, {
+          access: 'private',
+          contentType: file.type,
+          handleUploadUrl: `/api/groups/${groupId}/expenses/${expenseId}/receipts/sign`,
+          clientPayload: JSON.stringify({ mime: file.type, size: file.size }),
         });
-        if (!putRes.ok) throw new Error('PUT_FAILED');
 
-        // 3. Confirm with server
-        const confirmRes = await fetch(
-          `/api/groups/${groupId}/expenses/${expenseId}/receipts`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, mime: file.type, size: file.size }),
-          },
-        );
+        const confirmRes = await fetch(`/api/groups/${groupId}/expenses/${expenseId}/receipts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: blob.pathname, mime: file.type, size: file.size }),
+        });
         if (!confirmRes.ok) throw new Error('CONFIRM_FAILED');
       } catch {
         errorToast(t('upload_failed'));
@@ -107,41 +115,41 @@ export function ReceiptList({
     <div className="flex flex-col gap-2">
       <ul className="flex flex-wrap gap-2">
         {receipts.map((r) => (
-            <li key={r.id} className="group relative">
-              {r.mime.startsWith('image/') ? (
-                <a
-                  href={`/api/groups/${groupId}/expenses/${expenseId}/receipts/${r.id}`}
-                  target="_blank"
-                  rel="noopener"
-                  className="block overflow-hidden rounded border"
-                >
-                  <img
-                    src={`/api/groups/${groupId}/expenses/${expenseId}/receipts/${r.id}`}
-                    alt=""
-                    className="size-16 object-cover"
-                    loading="lazy"
-                  />
-                </a>
-              ) : (
-                <a
-                  href={`/api/groups/${groupId}/expenses/${expenseId}/receipts/${r.id}`}
-                  target="_blank"
-                  rel="noopener"
-                  className="bg-muted text-muted-foreground hover:bg-accent flex size-16 items-center justify-center rounded border text-xs"
-                >
-                  <FileText className="size-6" />
-                </a>
-              )}
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => remove(r.id)}
-                  className="bg-background/90 absolute -top-1.5 -right-1.5 hidden size-5 items-center justify-center rounded-full border shadow group-hover:flex"
-                  aria-label={t('remove_receipt')}
-                >
-                  <Trash2 className="text-destructive size-3" />
-                </button>
-              )}
+          <li key={r.id} className="group relative">
+            {r.mime.startsWith('image/') ? (
+              <a
+                href={`/api/groups/${groupId}/expenses/${expenseId}/receipts/${r.id}`}
+                target="_blank"
+                rel="noopener"
+                className="block overflow-hidden rounded border"
+              >
+                <img
+                  src={`/api/groups/${groupId}/expenses/${expenseId}/receipts/${r.id}`}
+                  alt=""
+                  className="size-16 object-cover"
+                  loading="lazy"
+                />
+              </a>
+            ) : (
+              <a
+                href={`/api/groups/${groupId}/expenses/${expenseId}/receipts/${r.id}`}
+                target="_blank"
+                rel="noopener"
+                className="bg-muted text-muted-foreground hover:bg-accent flex size-16 items-center justify-center rounded border text-xs"
+              >
+                <FileText className="size-6" />
+              </a>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => remove(r.id)}
+                className="bg-background/90 absolute -top-1.5 -right-1.5 hidden size-5 items-center justify-center rounded-full border shadow group-hover:flex"
+                aria-label={t('remove_receipt')}
+              >
+                <Trash2 className="text-destructive size-3" />
+              </button>
+            )}
           </li>
         ))}
         {canEdit && (

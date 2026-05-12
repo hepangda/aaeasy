@@ -13,7 +13,7 @@ automatically with high-precision arithmetic.
 - 👥 One-shot groups: settle once, then archive (with a one-click reopen if you need to keep going)
 - 🧮 Three split rules: equal, subset-equal, weighted (integer "shares" UI by default)
 - 💰 Multi-currency with frozen FX rate per expense (frankfurter.app + cache)
-- 📷 Receipt uploads to S3-compatible storage (MinIO by default)
+- 📷 Receipt uploads to Vercel Blob
 - 🔄 Live multi-user editing via Postgres `LISTEN`/`NOTIFY` + SSE
 - 📤 CSV / Excel / PDF export of expenses, summaries, and settlement instructions
 - 🌏 Bilingual (中文 / English) UI
@@ -27,7 +27,7 @@ automatically with high-precision arithmetic.
 | Styling | Tailwind CSS v4 + shadcn/ui + Radix primitives |
 | Data | PostgreSQL 17 + Prisma 6 |
 | Auth | Argon2id (password) + WebAuthn (Passkey) + opaque session tokens |
-| Storage | S3-compatible (MinIO in dev) |
+| Storage | Vercel Blob |
 | i18n | next-intl (cookie-based locale) |
 | Theming | next-themes (light / dark / system) |
 | Tests | Vitest |
@@ -41,8 +41,8 @@ node --version
 # 2. Install dependencies
 pnpm install
 
-# 3. Boot Postgres + MinIO
-docker compose up -d
+# 3. Boot Postgres
+docker compose up -d postgres
 
 # 4. Configure environment
 cp .env.example .env
@@ -56,7 +56,8 @@ pnpm dev
 # → http://localhost:3000
 ```
 
-MinIO console: <http://localhost:9001> (user `aaeasy` / password `aaeasy-secret`).
+Create a Vercel Blob store for the project, then pull `BLOB_READ_WRITE_TOKEN`
+with `vercel env pull` for local receipt uploads.
 
 ## Available scripts
 
@@ -92,7 +93,7 @@ messages/
   zh.json, en.json        Translation dictionaries
 prisma/
   schema.prisma           Database schema
-docker-compose.yml        Local Postgres + MinIO
+docker-compose.yml        Local Postgres
 Dockerfile                Production image (Next.js standalone)
 ```
 

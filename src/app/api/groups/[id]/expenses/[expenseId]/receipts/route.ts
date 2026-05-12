@@ -5,8 +5,9 @@ import { AccessError, requireGroupAccess } from '@/lib/auth/group-access';
 import {
   ALLOWED_RECEIPT_MIMES,
   MAX_RECEIPT_BYTES,
+  buildReceiptPrefix,
   isAllowedReceiptMime,
-} from '@/lib/storage/s3';
+} from '@/lib/storage/blob';
 import { publish } from '@/lib/realtime/pgNotify';
 
 export const runtime = 'nodejs';
@@ -60,7 +61,7 @@ export async function POST(
 
   // Defense in depth: only accept keys under the expected prefix so a client
   // can't trick us into recording a key that points to someone else's object.
-  const prefix = `group/${groupId}/expense/${expenseId}/`;
+  const prefix = buildReceiptPrefix(groupId, expenseId);
   if (!parsed.data.key.startsWith(prefix)) {
     return NextResponse.json({ error: 'INVALID_KEY' }, { status: 400 });
   }

@@ -17,42 +17,5 @@ services:
       timeout: 3s
       retries: 10
 
-  minio:
-    image: minio/minio:latest
-    container_name: aaeasy-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: aaeasy
-      MINIO_ROOT_PASSWORD: aaeasy-secret
-    ports:
-      - '9000:9000' # S3 API
-      - '9001:9001' # Web console
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Pre-creates the receipts bucket on first boot.
-  minio-init:
-    image: minio/mc:latest
-    container_name: aaeasy-minio-init
-    depends_on:
-      minio:
-        condition: service_started
-    entrypoint:
-      - sh
-      - -c
-      - |
-        until mc alias set local http://minio:9000 aaeasy aaeasy-secret >/dev/null 2>&1; do
-          echo 'waiting for minio…'; sleep 1;
-        done
-        mc mb -p local/aaeasy-receipts || true
-        echo 'bucket ready'
-
 volumes:
   postgres_data:
-  minio_data:

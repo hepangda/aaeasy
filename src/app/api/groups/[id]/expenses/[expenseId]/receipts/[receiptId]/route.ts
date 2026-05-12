@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { AccessError, requireGroupAccess } from '@/lib/auth/group-access';
-import { deleteObject, presignGet } from '@/lib/storage/s3';
+import { deleteBlob, getReceiptBlob } from '@/lib/storage/blob';
 import { publish } from '@/lib/realtime/pgNotify';
 
 export const runtime = 'nodejs';
 
-// Redirects to a short-lived presigned URL so <img src=...> works directly.
-// We never proxy receipt bytes through the Next process.
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string; expenseId: string; receiptId: string }> },
@@ -26,14 +24,31 @@ export async function GET(
 
   const r = await prisma.receipt.findUnique({
     where: { id: receiptId },
-    select: { objectKey: true, mime: true, expenseId: true, expense: { select: { groupId: true } } },
+    select: {
+      objectKey: true,
+      mime: true,
+      expenseId: true,
+      expense: { select: { groupId: true } },
+    },
   });
   if (!r || r.expenseId !== expenseId || r.expense.groupId !== groupId) {
     return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
   }
 
-  const url = await presignGet(r.objectKey, 300);
-  return NextResponse.redirect(url, 302);
+  const result = await getReceiptBlob(r.objectKey);
+  if (!result || result.statusCode !== 200) {
+    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  }
+
+  return new NextResponse(result.stream, {
+    headers: {
+      'Content-Type': result.blob.contentType,
+      'Content-Length': result.blob.size.toString(),
+      'Cache-Control': 'private, max-age=300',
+      ETag: result.blob.etag,
+      'Content-Disposition': 'inline',
+    },
+  });
 }
 
 export async function DELETE(
@@ -69,7 +84,7 @@ export async function DELETE(
 
   await prisma.receipt.delete({ where: { id: receiptId } });
   // Best-effort: drop the object too. If it fails we still want the row gone.
-  await deleteObject(r.objectKey).catch(() => {});
+  await deleteBlob(r.objectKey).catch(() => {});
 
   await publish({ type: 'RECEIPT_CHANGED', groupId, expenseId }).catch(() => {});
 
