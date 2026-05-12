@@ -70,8 +70,9 @@ function ensurePdfFont(): string {
   if (registeredFontFamily) return registeredFontFamily;
   const fontFiles = resolveCjkFontFiles();
   if (!fontFiles) {
-    registeredFontFamily = 'Helvetica';
-    return registeredFontFamily;
+    throw new Error(
+      'PDF CJK font files were not found. Ensure @expo-google-fonts/noto-sans-sc is installed and traced into the server bundle.',
+    );
   }
 
   Font.register({
