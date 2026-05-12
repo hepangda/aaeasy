@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { Toaster } from 'sonner';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ThemeProvider } from '@/components/theme-provider';
 import { SiteHeader } from '@/components/site-header';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
@@ -47,6 +48,7 @@ export default async function RootLayout({
               <SiteHeader />
               <main className="flex flex-1 flex-col">{children}</main>
               <ServiceWorkerRegister />
+              <SpeedInsights />
               <Toaster position="top-center" richColors closeButton />
             </ConfirmDialogProvider>
           </NextIntlClientProvider>

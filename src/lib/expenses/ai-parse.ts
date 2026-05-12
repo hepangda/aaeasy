@@ -78,10 +78,14 @@ export class AiParseError extends Error {
 }
 
 const MAX_INPUT_CHARS = 1_000;
-const TIMEOUT_MS = 25_000;
+const TIMEOUT_MS = 60_000;
 const DASHSCOPE_COMPAT_URL =
   'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
 const DEEPSEEK_CHAT_URL = 'https://api.deepseek.com/chat/completions';
+
+function shouldLogTiming() {
+  return process.env.AI_DEBUG_TIMING === 'true';
+}
 
 function resolveAiConfig() {
   const model = process.env.AI_MODEL ?? 'deepseek-chat';
@@ -146,6 +150,18 @@ export async function aiParseExpense(
             image_url: { url: img.dataUrl },
           })),
         ];
+  const requestBody = JSON.stringify({
+    model,
+    temperature: 0.1,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: buildExpenseParseSystemPrompt(input) },
+      { role: 'user', content: userContent },
+    ],
+  });
+  const timingStartedAt = performance.now();
+  let upstreamMs: number | null = null;
+  let responseBytes: number | null = null;
 
   let res: Response;
   try {
@@ -155,17 +171,10 @@ export async function aiParseExpense(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        temperature: 0.1,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: buildExpenseParseSystemPrompt(input) },
-          { role: 'user', content: userContent },
-        ],
-      }),
+      body: requestBody,
       signal: controller.signal,
     });
+    upstreamMs = performance.now() - timingStartedAt;
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw new AiParseError('TIMEOUT');
     throw new AiParseError('UPSTREAM_FAILED', (e as Error).message);
@@ -179,9 +188,24 @@ export async function aiParseExpense(
 
   let raw: unknown;
   try {
-    raw = await res.json();
+    const rawText = await res.text();
+    responseBytes = Buffer.byteLength(rawText);
+    raw = JSON.parse(rawText);
   } catch {
     throw new AiParseError('UPSTREAM_INVALID');
+  }
+
+  if (shouldLogTiming()) {
+    console.info('[ai-parse] upstream timing', {
+      model,
+      host: new URL(url).host,
+      textChars: text.length,
+      imageCount: images.length,
+      requestBytes: Buffer.byteLength(requestBody),
+      upstreamMs: upstreamMs === null ? null : Math.round(upstreamMs),
+      responseBytes,
+      totalMs: Math.round(performance.now() - timingStartedAt),
+    });
   }
 
   // OpenAI-compatible shape: { choices: [{ message: { content: string } }] }
