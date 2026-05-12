@@ -14,10 +14,7 @@ function isFormat(s: string | null): s is Format {
   return !!s && (FORMATS as readonly string[]).includes(s);
 }
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: groupId } = await params;
 
   try {
@@ -29,8 +26,7 @@ export async function GET(
     }
   } catch (e) {
     if (e instanceof AccessError) {
-      const code =
-        e.code === 'UNAUTHENTICATED' ? 401 : e.code === 'FORBIDDEN' ? 403 : 404;
+      const code = e.code === 'UNAUTHENTICATED' ? 401 : e.code === 'FORBIDDEN' ? 403 : 404;
       return NextResponse.json({ error: e.code }, { status: code });
     }
     throw e;
@@ -44,8 +40,17 @@ export async function GET(
 
   const locale = await getLocale();
   const payload = await buildExportPayload(groupId, locale);
-  const safeName = payload.meta.groupName.replace(/[^\w\u4e00-\u9fa5._-]+/g, '_').slice(0, 60) || 'aaeasy';
+  const safeBaseName =
+    payload.meta.groupName.replace(/[^\w\u4e00-\u9fa5._-]+/g, '_').slice(0, 60) || 'aaeasy';
+  const asciiBaseName =
+    payload.meta.groupName.replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 60) || 'aaeasy';
   const stamp = payload.meta.generatedAt.toISOString().slice(0, 10);
+  const fileName = `${safeBaseName}-${stamp}.pdf`;
+  const asciiFileName = `${asciiBaseName}-${stamp}.pdf`;
+  const encodedFileName = encodeURIComponent(fileName).replace(
+    /['()]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 
   switch (fmt) {
     case 'pdf': {
@@ -53,7 +58,7 @@ export async function GET(
       return new Response(buf as unknown as BodyInit, {
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${safeName}-${stamp}.pdf"`,
+          'Content-Disposition': `attachment; filename="${asciiFileName}"; filename*=UTF-8''${encodedFileName}`,
           'Cache-Control': 'no-store',
         },
       });
