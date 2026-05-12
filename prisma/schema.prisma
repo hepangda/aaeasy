@@ -1,0 +1,426 @@
+// AAEasy — production schema for first deployment.
+// Keep this schema and prisma/migrations/20260512000000_init in sync.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Identity ──────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  displayName  String
+  username     String?  @unique
+  passwordHash String?
+  isSuperAdmin Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions       Session[]
+  passkeys       PasskeyCredential[]
+  passwordCredentials PasswordCredential[]
+  authChallenges AuthChallenge[]
+  memberships    GroupMembership[]
+  ownedGroups    Group[]             @relation("GroupCreatedBy")
+  memberLinks    Member[]            @relation("MemberLinkedUser")
+  shareLinks     ShareLink[]         @relation("ShareLinkCreatedBy")
+  expensesCreated Expense[]          @relation("ExpenseCreatedByUser")
+  receiptsUploaded Receipt[]         @relation("ReceiptUploadedBy")
+  settlementsCreated Settlement[]    @relation("SettlementCreatedBy")
+  settlementEntriesCreated SettlementEntry[] @relation("SettlementEntryCreatedBy")
+  @@map("users")
+}
+
+model AllowedUsername {
+  username    String   @id
+  createdAt   DateTime @default(now())
+  createdById String?
+
+  @@map("allowed_usernames")
+}
+
+model PasswordCredential {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordHash String
+  label        String?
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
+  @@map("password_credentials")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // sha256(rawToken) — raw token only ever lives in the cookie
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  userAgent String?
+  ipHash    String?
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model PasskeyCredential {
+  id           String   @id // base64url credentialId
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicKey    Bytes
+  counter      BigInt
+  transports   String[] @default([])
+  deviceLabel  String?
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
+  @@map("passkey_credentials")
+}
+
+enum AuthChallengeType {
+  REG
+  AUTH
+}
+
+model AuthChallenge {
+  id        String            @id @default(cuid())
+  type      AuthChallengeType
+  challenge String
+  userId    String?
+  user      User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime          @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_challenges")
+}
+
+// ─── Groups ────────────────────────────────────────────────────────────────
+
+enum GroupStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+/// OWNER  — full control, can delete the group.
+/// MANAGER — every operation OWNER can do, except DELETE_GROUP.
+/// MEMBER — can only act on entries that target themselves (the Member
+///          this user is linked to via Member.linkedUserId).
+/// VIEWER — read-only.
+enum GroupRole {
+  OWNER
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+model Group {
+  id              String      @id @default(cuid())
+  name            String
+  defaultCurrency String      @default("CNY")
+  status          GroupStatus @default(ACTIVE)
+  createdById     String
+  createdBy       User        @relation("GroupCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  members     Member[]
+  memberships GroupMembership[]
+  shareLinks  ShareLink[]
+  expenses    Expense[]
+  settlements Settlement[]
+  settlementEntries SettlementEntry[]
+  auditLogs   AuditLog[]
+
+  @@index([createdById])
+  @@map("groups")
+}
+
+model Member {
+  id           String   @id @default(cuid())
+  groupId      String
+  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  displayName  String
+  linkedUserId String?
+  linkedUser   User?    @relation("MemberLinkedUser", fields: [linkedUserId], references: [id], onDelete: SetNull)
+  color        String?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  expensesPaid Expense[]      @relation("ExpensePayer")
+  splits       ExpenseSplit[]
+  settlementsFrom SettlementEntry[] @relation("SettlementFrom")
+  settlementsTo   SettlementEntry[] @relation("SettlementTo")
+  shareLinks   ShareLink[]    @relation("ShareLinkMember")
+
+  @@index([groupId])
+  @@index([linkedUserId])
+  @@map("members")
+}
+
+model GroupMembership {
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  role      GroupRole @default(MEMBER)
+  joinedAt  DateTime  @default(now())
+
+  @@id([userId, groupId])
+  @@index([groupId])
+  @@map("group_memberships")
+}
+
+// ─── Anonymous share links ────────────────────────────────────────────────
+
+enum ShareScope {
+  READ
+  WRITE
+}
+
+model ShareLink {
+  id             String     @id @default(cuid())
+  groupId        String
+  group          Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // We store sha256(rawToken) here; the raw token only ever appears in the
+  // share URL itself and the short-lived ShareSession cookie.
+  tokenHash      String     @unique
+  scope          ShareScope
+  /// Role permanently granted to the visitor's account when they claim
+  /// this link (i.e. bind their User to `member`). Null on legacy rows
+  /// → claim defaults to MEMBER. OWNER is intentionally never allowed
+  /// here (use the dedicated transfer-ownership flow).
+  assignedRole   GroupRole?
+  /// When set, the link "represents" this member: visitors can read the whole
+  /// group, can write expenses where payerMemberId == this member, and can
+  /// add settlement entries involving this member. When null the link is a
+  /// generic read-only link (typically OWNER-issued for an outside viewer).
+  memberId       String?
+  member         Member?    @relation("ShareLinkMember", fields: [memberId], references: [id], onDelete: SetNull)
+  /// Optional fixed expiry. When non-null and in the past, the link
+  /// degrades to read-only (it doesn't disappear). `revokedAt` is the
+  /// hard kill switch.
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  /// Free-form label set by the OWNER for their own bookkeeping (e.g.
+  /// "Alice's iPhone"). Not shown to the visitor.
+  label          String?
+  createdById    String
+  createdBy      User       @relation("ShareLinkCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime   @default(now())
+
+  shareSessions ShareSession[]
+
+  @@index([groupId])
+  @@index([memberId])
+  @@index([createdById])
+  @@map("share_links")
+}
+
+model ShareSession {
+  id          String    @id @default(cuid())
+  // sha256 of the cookie token; raw token lives only in cookie.
+  tokenHash   String    @unique
+  shareLinkId String
+  shareLink   ShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  ipHash      String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([shareLinkId])
+  @@index([expiresAt])
+  @@map("share_sessions")
+}
+
+// ─── Expenses ─────────────────────────────────────────────────────────────
+
+enum SplitRuleType {
+  EQUAL
+  SUBSET
+  WEIGHTED
+}
+
+/// One unit of spending recorded in a group. Money is stored as integer
+/// minor units (BigInt) in its source currency. `fxRateToGroupCurrency`
+/// captures the conversion rate AT CREATION TIME so historical amounts are
+/// stable when rates shift later.
+///
+/// `splitRule` is a JSON document describing how to split — see
+/// `src/lib/split/types.ts` for the discriminated-union schema.
+///
+/// `lockedBySettlementId` is set when this expense is included in a closed
+/// Settlement; once non-null the row becomes read-only at the action layer.
+model Expense {
+  id                    String      @id @default(cuid())
+  groupId               String
+  group                 Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  occurredAt            DateTime
+  title                 String
+  note                  String?
+  currency              String
+  /// Null while the expense is a DRAFT (pending payer to fill amount).
+  amountMinor           BigInt?
+  /// Null while the expense is a DRAFT (computed when amount is filled).
+  fxRateToGroupCurrency Decimal?    @db.Decimal(20, 10)
+  payerMemberId         String
+  payer                 Member      @relation("ExpensePayer", fields: [payerMemberId], references: [id], onDelete: Restrict)
+  /// Null while the expense is a DRAFT (split is applied when amount is filled).
+  splitRule             Json?
+  tags                  String[]    @default([])
+  /// Drafts have no amount yet; the payer (or a manager) is expected
+  /// to fill them in. They are excluded from balances and settlements.
+  isDraft               Boolean     @default(false)
+  /// userId of the creator, OR shareLinkId if created via anonymous share.
+  /// Populated by the action layer; null is allowed only as a safety net.
+  createdByUserId       String?
+  createdByUser         User?       @relation("ExpenseCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByShareLinkId  String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  deletedAt             DateTime?
+  lockedBySettlementId  String?
+  lockedBySettlement    Settlement? @relation(fields: [lockedBySettlementId], references: [id], onDelete: SetNull)
+
+  splits   ExpenseSplit[]
+  receipts Receipt[]
+
+  @@index([groupId, occurredAt])
+  @@index([groupId, deletedAt])
+  @@index([payerMemberId])
+  @@index([lockedBySettlementId])
+  @@map("expenses")
+}
+
+/// Persisted per-member share for an expense. We compute these in code via
+/// `lib/split` and write them on every create/update so audit and exports
+/// don't need to re-derive math.
+model ExpenseSplit {
+  id          String  @id @default(cuid())
+  expenseId   String
+  expense     Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  memberId    String
+  member      Member  @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  shareMinor  BigInt
+
+  @@unique([expenseId, memberId])
+  @@index([memberId])
+  @@map("expense_splits")
+}
+
+model Receipt {
+  id          String   @id @default(cuid())
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  objectKey   String
+  mime        String
+  sizeBytes   Int
+  uploadedById String?
+  uploadedBy   User?   @relation("ReceiptUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([expenseId])
+  @@map("receipts")
+}
+
+// ─── FX cache ─────────────────────────────────────────────────────────────
+
+/// Cached exchange rates keyed by (base, quote, date). Filled lazily by
+/// `lib/fx` on first need and reused forever — historical rates don't move.
+model FxRateCache {
+  base      String
+  quote     String
+  date      DateTime @db.Date
+  rate      Decimal  @db.Decimal(20, 10)
+  source    String   @default("frankfurter")
+  fetchedAt DateTime @default(now())
+
+  @@id([base, quote, date])
+  @@map("fx_rate_cache")
+}
+
+// ─── Settlements ──────────────────────────────────────────────────────────
+
+/// A "closing" snapshot. Includes every expense's contribution, the
+/// summary table, and the transfer instructions captured as JSON so future
+/// schema/algorithm changes won't rewrite history.
+model Settlement {
+  id           String   @id @default(cuid())
+  groupId      String
+  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  snapshotJson Json
+  createdById  String
+  createdBy    User     @relation("SettlementCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+
+  lockedExpenses Expense[]
+
+  @@index([groupId])
+  @@map("settlements")
+}
+
+/// A real money movement between two members — either recorded by clicking
+/// "执行" on a suggested clearing instruction, or added freely (e.g. cash
+/// handed over). Group-scoped (NOT settlement-scoped) so it survives a
+/// reopen.
+///
+/// Always denominated in `Group.defaultCurrency` to keep the math simple.
+model SettlementEntry {
+  id           String   @id @default(cuid())
+  groupId      String
+  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMemberId String
+  fromMember   Member   @relation("SettlementFrom", fields: [fromMemberId], references: [id], onDelete: Restrict)
+  toMemberId   String
+  toMember     Member   @relation("SettlementTo", fields: [toMemberId], references: [id], onDelete: Restrict)
+  amountMinor  BigInt
+  note         String?
+  occurredAt   DateTime @default(now())
+  createdById  String?
+  createdBy    User?    @relation("SettlementEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([groupId, occurredAt])
+  @@index([fromMemberId])
+  @@index([toMemberId])
+  @@map("settlement_entries")
+}
+
+// ─── Audit log ────────────────────────────────────────────────────────────
+
+enum AuditActorType {
+  USER
+  SHARE
+}
+
+model AuditLog {
+  id         String         @id @default(cuid())
+  groupId    String
+  group      Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actorType  AuditActorType
+  /// userId or shareLinkId depending on actorType. No FK so we don't lose
+  /// audit history when the underlying actor is deleted.
+  actorId    String
+  action     String
+  targetType String
+  targetId   String
+  diffJson   Json?
+  createdAt  DateTime       @default(now())
+
+  @@index([groupId, createdAt])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
