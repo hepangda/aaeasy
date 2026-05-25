@@ -11,14 +11,14 @@ export async function SiteHeader() {
   const ctx = await getCurrentSession();
   return (
     <header className="border-border/60 sticky top-0 z-40 w-full border-b backdrop-blur-sm">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+      <div className="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
+        <Link href="/" className="flex min-w-0 items-center gap-2 font-semibold tracking-tight">
           <span className="bg-foreground text-background grid size-7 place-items-center rounded-md text-xs font-bold">
             AA
           </span>
-          {t('app.name')}
+          <span className="truncate">{t('app.name')}</span>
         </Link>
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
           <LocaleSwitcher />
           <ThemeToggle />
           {ctx ? (

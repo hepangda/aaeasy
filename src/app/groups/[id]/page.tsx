@@ -61,18 +61,13 @@ export default async function GroupPage({
   // Mirror of the server-side matrix in `requireGroupAccess` — used to
   // hide UI entry points for actions the caller couldn't perform anyway.
   const role = access.kind === 'user' ? access.role : null;
-  const linkedMemberId =
-    access.kind === 'user' ? access.linkedMemberId : null;
+  const linkedMemberId = access.kind === 'user' ? access.linkedMemberId : null;
   const isOwner = role === 'OWNER';
   const canManage = role === 'OWNER' || role === 'MANAGER';
   // The member.id this caller's writes are constrained to (null = no
   // constraint, i.e. they can act on any member's behalf).
   const boundMemberId: string | null =
-    access.kind === 'share'
-      ? access.boundMemberId
-      : role === 'MEMBER'
-        ? linkedMemberId
-        : null;
+    access.kind === 'share' ? access.boundMemberId : role === 'MEMBER' ? linkedMemberId : null;
   const isArchived = group.status === 'ARCHIVED';
   const canWrite =
     !isArchived &&
@@ -85,12 +80,8 @@ export default async function GroupPage({
     (role === 'MEMBER' && linkedMemberId !== null) ||
     (access.kind === 'share' && access.scope === 'WRITE') ||
     (access.kind === 'share' && access.boundMemberId !== null);
-  const openExpenseCount = expenses.filter(
-    (e) => !e.lockedBySettlementId && !e.isDraft,
-  ).length;
-  const draftExpenseCount = expenses.filter(
-    (e) => !e.lockedBySettlementId && e.isDraft,
-  ).length;
+  const openExpenseCount = expenses.filter((e) => !e.lockedBySettlementId && !e.isDraft).length;
+  const draftExpenseCount = expenses.filter((e) => !e.lockedBySettlementId && e.isDraft).length;
 
   // Drafts the current caller is allowed to fill in. Bound writers (per-
   // member share visitor or signed-in MEMBER role) only see drafts where
@@ -129,8 +120,7 @@ export default async function GroupPage({
     : null;
 
   // Used by the per-member share UI to render absolute URLs.
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? (await deriveBaseUrlFromHeaders());
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (await deriveBaseUrlFromHeaders());
 
   // Existing share links — only relevant to managers, who are the only
   // roles that can create or revoke them.
@@ -150,8 +140,7 @@ export default async function GroupPage({
           },
         })
       ).map((l) => {
-        const expired =
-          l.expiresAt !== null && l.expiresAt <= new Date();
+        const expired = l.expiresAt !== null && l.expiresAt <= new Date();
         return {
           id: l.id,
           memberId: l.memberId,
@@ -173,9 +162,7 @@ export default async function GroupPage({
     ? members
         .filter(
           (m) =>
-            m.linkedUserId !== null &&
-            m.linkedUserId !== selfUserId &&
-            m.linkedUsername !== null,
+            m.linkedUserId !== null && m.linkedUserId !== selfUserId && m.linkedUsername !== null,
         )
         .map((m) => ({
           userId: m.linkedUserId as string,
@@ -183,22 +170,79 @@ export default async function GroupPage({
         }))
     : [];
 
+  type ExpenseRow = (typeof expenses)[number];
+
+  const renderExpenseSplitBadge = (expense: ExpenseRow) => {
+    const parsedRule = splitRuleSchema.safeParse(expense.splitRule);
+    const kind = classifySplit({
+      splits: expense.splits,
+      splitRule: parsedRule.success ? parsedRule.data : null,
+    });
+    const shares = members.flatMap((member) => {
+      const shareMinor =
+        expense.splits.find((split) => split.memberId === member.id)?.shareMinor ?? 0n;
+      if (shareMinor <= 0n) return [];
+      return [
+        {
+          memberId: member.id,
+          memberName: member.displayName,
+          amountText: formatMoney(shareMinor, expense.currency, locale),
+          isPayer: expense.payerMemberId === member.id,
+        },
+      ];
+    });
+
+    return <SplitBadge kind={kind} shares={shares} />;
+  };
+
+  const renderExpenseActions = (expense: ExpenseRow) => {
+    const isMine = boundMemberId === null || expense.payerMemberId === boundMemberId;
+    const editable = canWrite && !expense.lockedBySettlementId && isMine;
+
+    return (
+      <div className="flex min-h-8 items-center justify-end gap-0.5">
+        <ReceiptActionsButton
+          groupId={id}
+          expenseId={expense.id}
+          receipts={expense.receipts}
+          canEdit={editable}
+        />
+        {editable && (
+          <>
+            <Button
+              asChild
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              aria-label={t('common.edit')}
+            >
+              <Link href={`/groups/${id}/expenses/${expense.id}/edit`}>
+                <Pencil />
+              </Link>
+            </Button>
+            <DeleteExpenseButton groupId={id} expenseId={expense.id} />
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-6 py-10">
+    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:gap-10 sm:px-6 sm:py-10 lg:px-8">
       <GroupLiveRefresher groupId={id} />
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">{group.name}</h1>
             {isArchived && (
-              <span className="bg-secondary text-secondary-foreground inline-flex rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide">
+              <span className="bg-secondary text-secondary-foreground inline-flex rounded px-2 py-0.5 text-xs font-medium tracking-wide uppercase">
                 {t('expenses.locked_badge')}
               </span>
             )}
           </div>
           <p className="text-muted-foreground text-sm">{group.defaultCurrency}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end [&>a]:w-full sm:[&>a]:w-auto [&>button]:w-full sm:[&>button]:w-auto">
           {canWrite && (
             <Button asChild>
               <Link href={`/groups/${id}/expenses/new`}>
@@ -240,148 +284,166 @@ export default async function GroupPage({
                     {t('expenses.empty')}
                   </p>
                 ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <colgroup>
-                <col className="w-[88px]" />
-                <col className="w-[28%]" />
-                <col className="w-[80px]" />
-                <col className="w-[110px]" />
-                <col />
-                <col className="w-[88px]" />
-              </colgroup>
-              <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wide">
-                <tr>
-                  <th className="px-3 py-2.5 text-left font-medium">{t('expenses.date')}</th>
-                  <th className="px-3 py-2.5 text-left font-medium">
-                    {t('expenses.title_field')}
-                  </th>
-                  <th className="px-3 py-2.5 text-left font-medium">{t('expenses.payer')}</th>
-                  <th className="px-3 py-2.5 text-right font-medium">{t('expenses.amount')}</th>
-                  <th className="px-3 py-2.5 text-left font-medium">
-                    {t('expenses.split_rule')}
-                  </th>
-                  <th className="px-3 py-2.5 text-right font-medium">
-                    {t('common.actions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {expensesPage.slice.map((e) => {
-                  const payer = memberById.get(e.payerMemberId);
-                  return (
-                    <tr key={e.id} className="border-t align-middle">
-                      <td className="text-muted-foreground px-3 py-3 align-middle whitespace-nowrap tabular-nums">
-                        {fmt.dateTime(e.occurredAt, 'short')}
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span className="font-medium leading-tight">{e.title}</span>
-                            {e.isDraft && (
-                              <span className="bg-amber-500/15 text-amber-700 dark:text-amber-400 inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-                                {t('expenses.draft_badge')}
-                              </span>
-                            )}
-                            {e.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="bg-accent text-accent-foreground inline-flex rounded px-1.5 py-0.5 text-[10px]"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                          {e.note && (
-                            <span className="text-muted-foreground text-xs leading-snug">
-                              {e.note}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 align-middle whitespace-nowrap">
-                        {payer?.displayName ?? '?'}
-                      </td>
-                      <td className="px-3 py-3 text-right font-mono align-middle whitespace-nowrap tabular-nums">
-                        {e.amountMinor != null
-                          ? formatMoney(e.amountMinor, e.currency, locale)
-                          : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        {(() => {
-                          const parsedRule = splitRuleSchema.safeParse(e.splitRule);
-                          const kind = classifySplit({
-                            splits: e.splits,
-                            splitRule: parsedRule.success ? parsedRule.data : null,
-                          });
-                          const shares = members
-                            .map((m) => {
-                              const v =
-                                e.splits.find((s) => s.memberId === m.id)?.shareMinor ?? 0n;
-                              return {
-                                memberId: m.id,
-                                memberName: m.displayName,
-                                amountText: formatMoney(v, e.currency, locale),
-                                isPayer: e.payerMemberId === m.id,
-                                shareMinor: v,
-                              };
-                            })
-                            .filter((s) => s.shareMinor > 0n)
-                            .map(({ shareMinor: _, ...rest }) => {
-                              void _;
-                              return rest;
-                            });
-                          return <SplitBadge kind={kind} shares={shares} />;
-                        })()}
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        <div className="flex min-h-8 items-center justify-end gap-0.5">
-                          {(() => {
-                            // Bound share visitors can only modify expenses
-                            // they paid for; same constraint hides the controls.
-                            const isMine =
-                              boundMemberId === null ||
-                              e.payerMemberId === boundMemberId;
-                            const editable =
-                              canWrite && !e.lockedBySettlementId && isMine;
-                            return (
-                              <>
-                                <ReceiptActionsButton
-                                  groupId={id}
-                                  expenseId={e.id}
-                                  receipts={e.receipts}
-                                  canEdit={editable}
-                                />
-                                {editable && (
-                                  <>
-                                    <Button
-                                      asChild
-                                      size="icon"
-                                      variant="ghost"
-                                      className="size-8"
-                                      aria-label={t('common.edit')}
-                                    >
-                                      <Link href={`/groups/${id}/expenses/${e.id}/edit`}>
-                                        <Pencil />
-                                      </Link>
-                                    </Button>
-                                    <DeleteExpenseButton groupId={id} expenseId={e.id} />
-                                  </>
+                  <>
+                    <ul className="grid gap-3 md:hidden">
+                      {expensesPage.slice.map((e) => {
+                        const payer = memberById.get(e.payerMemberId);
+                        return (
+                          <li key={e.id} className="bg-card rounded-md border p-3 text-sm">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                  <span className="leading-tight font-medium">{e.title}</span>
+                                  {e.isDraft && (
+                                    <span className="inline-flex rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-amber-700 uppercase dark:text-amber-400">
+                                      {t('expenses.draft_badge')}
+                                    </span>
+                                  )}
+                                </div>
+                                {e.note && (
+                                  <p className="text-muted-foreground mt-1 line-clamp-2 text-xs leading-snug">
+                                    {e.note}
+                                  </p>
                                 )}
-                              </>
+                              </div>
+                              <div className="shrink-0">{renderExpenseActions(e)}</div>
+                            </div>
+
+                            {e.tags.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {e.tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="bg-accent text-accent-foreground inline-flex rounded px-1.5 py-0.5 text-[10px]"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                              <div>
+                                <dt className="text-muted-foreground">{t('expenses.date')}</dt>
+                                <dd className="mt-0.5 tabular-nums">
+                                  {fmt.dateTime(e.occurredAt, 'short')}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-muted-foreground">{t('expenses.payer')}</dt>
+                                <dd className="mt-0.5 truncate">{payer?.displayName ?? '?'}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-muted-foreground">{t('expenses.amount')}</dt>
+                                <dd className="mt-0.5 font-mono tabular-nums">
+                                  {e.amountMinor != null ? (
+                                    formatMoney(e.amountMinor, e.currency, locale)
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-muted-foreground">
+                                  {t('expenses.split_rule')}
+                                </dt>
+                                <dd className="mt-0.5">{renderExpenseSplitBadge(e)}</dd>
+                              </div>
+                            </dl>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    <div className="hidden overflow-x-auto rounded-md border md:block">
+                      <table className="w-full text-sm">
+                        <colgroup>
+                          <col className="w-[88px]" />
+                          <col className="w-[28%]" />
+                          <col className="w-[80px]" />
+                          <col className="w-[110px]" />
+                          <col />
+                          <col className="w-[88px]" />
+                        </colgroup>
+                        <thead className="bg-muted/40 text-muted-foreground text-xs tracking-wide uppercase">
+                          <tr>
+                            <th className="px-3 py-2.5 text-left font-medium">
+                              {t('expenses.date')}
+                            </th>
+                            <th className="px-3 py-2.5 text-left font-medium">
+                              {t('expenses.title_field')}
+                            </th>
+                            <th className="px-3 py-2.5 text-left font-medium">
+                              {t('expenses.payer')}
+                            </th>
+                            <th className="px-3 py-2.5 text-right font-medium">
+                              {t('expenses.amount')}
+                            </th>
+                            <th className="px-3 py-2.5 text-left font-medium">
+                              {t('expenses.split_rule')}
+                            </th>
+                            <th className="px-3 py-2.5 text-right font-medium">
+                              {t('common.actions')}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {expensesPage.slice.map((e) => {
+                            const payer = memberById.get(e.payerMemberId);
+                            return (
+                              <tr key={e.id} className="border-t align-middle">
+                                <td className="text-muted-foreground px-3 py-3 align-middle whitespace-nowrap tabular-nums">
+                                  {fmt.dateTime(e.occurredAt, 'short')}
+                                </td>
+                                <td className="px-3 py-3 align-middle">
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                      <span className="leading-tight font-medium">{e.title}</span>
+                                      {e.isDraft && (
+                                        <span className="inline-flex rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-amber-700 uppercase dark:text-amber-400">
+                                          {t('expenses.draft_badge')}
+                                        </span>
+                                      )}
+                                      {e.tags.map((tag) => (
+                                        <span
+                                          key={tag}
+                                          className="bg-accent text-accent-foreground inline-flex rounded px-1.5 py-0.5 text-[10px]"
+                                        >
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                    {e.note && (
+                                      <span className="text-muted-foreground text-xs leading-snug">
+                                        {e.note}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3 align-middle whitespace-nowrap">
+                                  {payer?.displayName ?? '?'}
+                                </td>
+                                <td className="px-3 py-3 text-right align-middle font-mono whitespace-nowrap tabular-nums">
+                                  {e.amountMinor != null ? (
+                                    formatMoney(e.amountMinor, e.currency, locale)
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-3 align-middle">
+                                  {renderExpenseSplitBadge(e)}
+                                </td>
+                                <td className="px-3 py-3 align-middle">
+                                  {renderExpenseActions(e)}
+                                </td>
+                              </tr>
                             );
-                          })()}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
                 <Pagination
                   paramKey="ep"
                   totalItems={expenses.length}
@@ -395,65 +457,121 @@ export default async function GroupPage({
             label: t('summary.title'),
             content: (
               <section className="flex flex-col gap-3">
-                <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">{t('summary.member')}</th>
-                <th className="px-3 py-2 text-right font-medium">{t('summary.paid')}</th>
-                <th className="px-3 py-2 text-right font-medium">{t('summary.owed')}</th>
-                <th className="px-3 py-2 text-right font-medium">
-                  {ledger.settlementEntries.length > 0
-                    ? t('settlements.before')
-                    : t('summary.net')}
-                </th>
-                {ledger.settlementEntries.length > 0 && (
-                  <th className="px-3 py-2 text-right font-medium">
-                    {t('settlements.current')}
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {summary.map((s) => {
-                const m = memberById.get(s.memberId)!;
-                const toneFor = (v: bigint) =>
-                  v > 0n
-                    ? 'text-emerald-600'
-                    : v < 0n
-                      ? 'text-destructive'
-                      : 'text-muted-foreground';
-                return (
-                  <tr key={s.memberId} className="border-t">
-                    <td className="px-3 py-2 font-medium">{m.displayName}</td>
-                    <td className="px-3 py-2 text-right font-mono">
-                      {formatMoney(s.paidMinorInGroup, group.defaultCurrency, locale)}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono">
-                      {formatMoney(s.owedMinorInGroup, group.defaultCurrency, locale)}
-                    </td>
-                    <td
-                      className={`px-3 py-2 text-right font-mono ${toneFor(s.netMinorInGroup)}`}
-                    >
-                      {formatMoney(s.netMinorInGroup, group.defaultCurrency, locale)}
-                    </td>
-                    {ledger.settlementEntries.length > 0 && (
-                      <td
-                        className={`px-3 py-2 text-right font-mono ${toneFor(s.adjustedNetMinorInGroup)}`}
-                      >
-                        {formatMoney(
-                          s.adjustedNetMinorInGroup,
-                          group.defaultCurrency,
-                          locale,
+                <div className="grid gap-3 md:hidden">
+                  {summary.map((s) => {
+                    const m = memberById.get(s.memberId)!;
+                    const toneFor = (v: bigint) =>
+                      v > 0n
+                        ? 'text-emerald-600'
+                        : v < 0n
+                          ? 'text-destructive'
+                          : 'text-muted-foreground';
+                    return (
+                      <article key={s.memberId} className="bg-card rounded-md border p-3 text-sm">
+                        <h3 className="font-medium">{m.displayName}</h3>
+                        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                          <div>
+                            <dt className="text-muted-foreground">{t('summary.paid')}</dt>
+                            <dd className="mt-0.5 font-mono tabular-nums">
+                              {formatMoney(s.paidMinorInGroup, group.defaultCurrency, locale)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground">{t('summary.owed')}</dt>
+                            <dd className="mt-0.5 font-mono tabular-nums">
+                              {formatMoney(s.owedMinorInGroup, group.defaultCurrency, locale)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground">
+                              {ledger.settlementEntries.length > 0
+                                ? t('settlements.before')
+                                : t('summary.net')}
+                            </dt>
+                            <dd
+                              className={`mt-0.5 font-mono tabular-nums ${toneFor(s.netMinorInGroup)}`}
+                            >
+                              {formatMoney(s.netMinorInGroup, group.defaultCurrency, locale)}
+                            </dd>
+                          </div>
+                          {ledger.settlementEntries.length > 0 && (
+                            <div>
+                              <dt className="text-muted-foreground">{t('settlements.current')}</dt>
+                              <dd
+                                className={`mt-0.5 font-mono tabular-nums ${toneFor(s.adjustedNetMinorInGroup)}`}
+                              >
+                                {formatMoney(
+                                  s.adjustedNetMinorInGroup,
+                                  group.defaultCurrency,
+                                  locale,
+                                )}
+                              </dd>
+                            </div>
+                          )}
+                        </dl>
+                      </article>
+                    );
+                  })}
+                </div>
+                <div className="hidden overflow-x-auto rounded-md border md:block">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">{t('summary.member')}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t('summary.paid')}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t('summary.owed')}</th>
+                        <th className="px-3 py-2 text-right font-medium">
+                          {ledger.settlementEntries.length > 0
+                            ? t('settlements.before')
+                            : t('summary.net')}
+                        </th>
+                        {ledger.settlementEntries.length > 0 && (
+                          <th className="px-3 py-2 text-right font-medium">
+                            {t('settlements.current')}
+                          </th>
                         )}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.map((s) => {
+                        const m = memberById.get(s.memberId)!;
+                        const toneFor = (v: bigint) =>
+                          v > 0n
+                            ? 'text-emerald-600'
+                            : v < 0n
+                              ? 'text-destructive'
+                              : 'text-muted-foreground';
+                        return (
+                          <tr key={s.memberId} className="border-t">
+                            <td className="px-3 py-2 font-medium">{m.displayName}</td>
+                            <td className="px-3 py-2 text-right font-mono">
+                              {formatMoney(s.paidMinorInGroup, group.defaultCurrency, locale)}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono">
+                              {formatMoney(s.owedMinorInGroup, group.defaultCurrency, locale)}
+                            </td>
+                            <td
+                              className={`px-3 py-2 text-right font-mono ${toneFor(s.netMinorInGroup)}`}
+                            >
+                              {formatMoney(s.netMinorInGroup, group.defaultCurrency, locale)}
+                            </td>
+                            {ledger.settlementEntries.length > 0 && (
+                              <td
+                                className={`px-3 py-2 text-right font-mono ${toneFor(s.adjustedNetMinorInGroup)}`}
+                              >
+                                {formatMoney(
+                                  s.adjustedNetMinorInGroup,
+                                  group.defaultCurrency,
+                                  locale,
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </section>
             ),
           },

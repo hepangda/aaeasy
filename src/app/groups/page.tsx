@@ -27,8 +27,8 @@ export default async function GroupsPage() {
   });
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10">
-      <header className="flex items-center justify-between gap-4">
+    <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-10 lg:px-8">
+      <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">{t('my_groups')}</h1>
         <Button asChild>
           <Link href="/groups/new">
@@ -42,12 +42,12 @@ export default async function GroupsPage() {
           {t('empty')}
         </p>
       ) : (
-        <ul className="grid gap-3">
+        <ul className="grid gap-3 sm:grid-cols-2">
           {groups.map((g) => (
             <li key={g.id}>
               <Link
                 href={`/groups/${g.id}`}
-                className="group bg-card hover:border-foreground/20 flex flex-col gap-1 rounded-lg border px-4 py-4 transition-colors sm:flex-row sm:items-center sm:justify-between"
+                className="group bg-card hover:border-foreground/20 flex min-h-28 flex-col justify-between gap-4 rounded-lg border px-4 py-4 transition-colors"
               >
                 <div className="flex flex-col gap-0.5">
                   <span className="font-medium">{g.name}</span>
