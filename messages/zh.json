@@ -338,6 +338,12 @@
   "share": {
     "title": "分享链接",
     "share": "分享",
+    "group_share": "账本分享",
+    "group_share_desc": "为整个账本生成仅可查看的链接，不会绑定账号。",
+    "group_dialog_title": "分享账本",
+    "group_dialog_desc": "通过该链接访问的人只能查看账本，不能绑定账号，也不能进行修改。",
+    "group_default_label": "账本查看",
+    "group_label_placeholder": "例如：审计查看",
     "dialog_title_for": "分享：{name}",
     "dialog_desc": "为该成员生成代表其身份的访问链接。访问者可在此账本中以该成员身份记账与执行清算。",
     "no_active_links": "暂无链接。",

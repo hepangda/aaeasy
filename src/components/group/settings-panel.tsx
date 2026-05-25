@@ -7,6 +7,7 @@ import { UnlinkMemberButton } from '@/components/group/unlink-member-button';
 import { MemberRenameButton } from '@/components/group/member-rename-button';
 import { MemberRoleControl } from '@/components/group/member-role-control';
 import { MemberShareDialog, type ExistingShareLink } from '@/components/share/member-share-dialog';
+import { GroupShareDialog } from '@/components/share/group-share-dialog';
 import { DeleteGroupButton } from '@/components/group/delete-group-button';
 import { TransferOwnershipButton, type OwnerCandidate } from '@/components/group/transfer-ownership-button';
 import { ReopenSettlementButton } from '@/components/settle/reopen-settlement-button';
@@ -28,6 +29,7 @@ interface SettingsPanelProps {
   isArchived: boolean;
   settlementId?: string;
   existingShareLinks: ExistingShareLink[];
+  groupShareLinks: ExistingShareLink[];
   baseUrl: string;
   ownerCandidates: OwnerCandidate[];
 }
@@ -41,6 +43,7 @@ export function SettingsPanel({
   isArchived,
   settlementId,
   existingShareLinks,
+  groupShareLinks,
   baseUrl,
   ownerCandidates,
 }: SettingsPanelProps) {
@@ -51,6 +54,19 @@ export function SettingsPanel({
       {/* Members Section */}
       <div className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">{t('members.title')}</h2>
+        {canManage && (
+          <div className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1">
+              <h3 className="text-sm font-medium">{t('share.group_share')}</h3>
+              <p className="text-muted-foreground text-xs">{t('share.group_share_desc')}</p>
+            </div>
+            <GroupShareDialog
+              groupId={groupId}
+              existingLinks={groupShareLinks}
+              baseUrl={baseUrl}
+            />
+          </div>
+        )}
         {canManage && <AddMemberForm groupId={groupId} />}
         <ul className="divide-y rounded-md border">
           {membersPage.slice.map((m) => {

@@ -38,6 +38,11 @@ const memberShareSchema = z.object({
   label: z.string().trim().max(60).optional().or(z.literal('')),
 });
 
+const groupShareSchema = z.object({
+  groupId: z.string().min(1),
+  label: z.string().trim().max(60).optional().or(z.literal('')),
+});
+
 function expiryFor(choice: ExpiresChoice): {
   expiresAt: Date | null;
   scope: 'READ' | 'WRITE';
@@ -111,6 +116,44 @@ export async function createMemberShareLinkAction(
       expiresAt,
       assignedRole,
       label: label?.trim() ? label.trim() : member.displayName,
+      createdById: userCtx.user.id,
+    },
+  });
+
+  revalidatePath(`/groups/${groupId}`);
+  return { ok: true, token };
+}
+
+/**
+ * Create a ledger-level anonymous share link. These links are intentionally
+ * unbound (`memberId = null`), read-only, and never claimable by an account.
+ */
+export async function createGroupShareLinkAction(
+  _prev: ShareActionState,
+  formData: FormData,
+): Promise<ShareActionState> {
+  const parsed = groupShareSchema.safeParse({
+    groupId: formData.get('groupId'),
+    label: formData.get('label') ?? undefined,
+  });
+  if (!parsed.success) return { ok: false, error: 'errors.invalid_input' };
+
+  const { groupId, label } = parsed.data;
+  await requireGroupAccess(groupId, 'MANAGE_SHARES');
+  const userCtx = await requireUser();
+
+  const token = generateSessionToken();
+  const tokenHash = hashSessionToken(token);
+
+  await prisma.shareLink.create({
+    data: {
+      groupId,
+      memberId: null,
+      tokenHash,
+      scope: 'READ',
+      expiresAt: null,
+      assignedRole: null,
+      label: label?.trim() ? label.trim() : null,
       createdById: userCtx.user.id,
     },
   });

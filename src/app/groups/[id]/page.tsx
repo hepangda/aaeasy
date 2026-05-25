@@ -13,7 +13,6 @@ import { DraftFillPanel, type DraftRow } from '@/components/expense/draft-fill-p
 import { GroupLiveRefresher } from '@/components/group/group-live-refresher';
 import { ReceiptActionsButton } from '@/components/expense/receipt-actions-button';
 import { SettleButton } from '@/components/settle/settle-button';
-import { ReopenSettlementButton } from '@/components/settle/reopen-settlement-button';
 import { TransfersPanel } from '@/components/settle/transfers-panel';
 import { ExportMenu } from '@/components/settle/export-menu';
 import { SettingsPanel } from '@/components/group/settings-panel';
@@ -133,12 +132,12 @@ export default async function GroupPage({
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ?? (await deriveBaseUrlFromHeaders());
 
-  // Existing per-member share links — only relevant to managers, who are
-  // the only roles that can create or revoke them.
+  // Existing share links — only relevant to managers, who are the only
+  // roles that can create or revoke them.
   const existingShareLinks: ExistingShareLink[] = canManage
     ? (
         await prisma.shareLink.findMany({
-          where: { groupId: id, memberId: { not: null } },
+          where: { groupId: id },
           orderBy: { createdAt: 'desc' },
           select: {
             id: true,
@@ -503,7 +502,8 @@ export default async function GroupPage({
                 canManage={canManage}
                 isArchived={isArchived}
                 settlementId={latestSettlement?.id}
-                existingShareLinks={existingShareLinks}
+                existingShareLinks={existingShareLinks.filter((l) => l.memberId !== null)}
+                groupShareLinks={existingShareLinks.filter((l) => l.memberId === null)}
                 baseUrl={baseUrl}
                 ownerCandidates={ownerCandidates}
               />
