@@ -7,6 +7,7 @@
 
 export type ExpenseParsePromptInput = {
   members: { id: string; displayName: string }[];
+  groupName: string;
   defaultCurrency: string;
   locale: string;
   today?: string;
@@ -29,7 +30,8 @@ export const EXPENSE_PARSE_OUTPUT_PROMPT = [
   '  "amount": "decimal string without currency symbol" | null,',
   '  "payerName": "exact member display name" | null,',
   '  "note": string | null,',
-  '  "reasoning": string | null',
+  '  "reasoning": string | null,',
+  '  "ambiguousHint": string | null',
   '}',
 ].join('\n');
 
@@ -38,10 +40,11 @@ export const EXPENSE_PARSE_FIELD_RULES_PROMPT = [
   '- title: short label, at most 120 characters; do not include currency or payer name.',
   '- occurredAt: ISO date string YYYY-MM-DD. Resolve relative dates using Today.',
   '- currency: uppercase 3-letter currency code. Use group default currency when the user clearly gives an amount but omits currency.',
-  '- amount: decimal string such as "87.50"; no currency symbol, no thousands separators.',
+  '- amount: the TOTAL amount for the expense, as a decimal string such as "87.50"; no currency symbol, no thousands separators. If the user gives a per-person amount (e.g. "人均663"), multiply by the number of members in the group to compute the total.',
   '- payerName: must exactly match one member display name from Members. If unsure, use null.',
   '- note: concise useful details only, at most 500 characters.',
   '- reasoning: one short sentence explaining important choices, at most 200 characters.',
+  '- ambiguousHint: if anything is ambiguous or multiple interpretations exist, set this to a brief explanation in the user\'s language (at most 200 characters). Examples: currency is unclear, a name partially matches multiple members, date could be interpreted differently. Use null when everything is clear.',
 ].join('\n');
 
 export const EXPENSE_PARSE_SAFETY_PROMPT = [
@@ -77,10 +80,11 @@ export function buildExpenseParseSystemPrompt(
     EXPENSE_PARSE_FIELD_RULES_PROMPT,
     EXPENSE_PARSE_SAFETY_PROMPT,
     EXPENSE_PARSE_IMAGE_PROMPT,
+    `Group name: ${input.groupName}.`,
     `Group default currency: ${input.defaultCurrency}.`,
     `User locale: ${input.locale}.`,
     `Today: ${input.today ?? new Date().toISOString().slice(0, 10)}.`,
-    'Members:',
+    `Members (${input.members.length} total):`,
     memberList,
   ].join('\n\n');
 }

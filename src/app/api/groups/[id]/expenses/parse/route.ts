@@ -120,6 +120,7 @@ export async function POST(
     prisma.group.findUnique({
       where: { id: groupId },
       select: {
+        name: true,
         defaultCurrency: true,
         members: {
           orderBy: { sortOrder: 'asc' },
@@ -140,6 +141,7 @@ export async function POST(
         text: parsed.data.text,
         images: parsed.data.images,
         members: group.members,
+        groupName: group.name,
         defaultCurrency: group.defaultCurrency,
         locale,
       }),

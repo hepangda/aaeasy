@@ -486,6 +486,7 @@ export function ExpenseForm({
   const [aiText, setAiText] = useState('');
   const [aiPending, setAiPending] = useState(false);
   const [aiReasoning, setAiReasoning] = useState<string | null>(null);
+  const [aiAmbiguousHint, setAiAmbiguousHint] = useState<string | null>(null);
   const [aiImage, setAiImage] = useState<AiImageContext | null>(null);
 
   function setFieldValue(name: string, value: string) {
@@ -509,6 +510,7 @@ export function ExpenseForm({
     opts?.setLoading?.(true);
     setAiPending(true);
     setAiReasoning(null);
+    setAiAmbiguousHint(null);
     try {
       const res = await fetch(`/api/groups/${groupId}/expenses/parse`, {
         method: 'POST',
@@ -559,6 +561,7 @@ export function ExpenseForm({
           payerMemberId: string | null;
           note: string | null;
           reasoning: string | null;
+          ambiguousHint: string | null;
         };
       };
       if (suggestion.title) setFieldValue('title', suggestion.title);
@@ -575,6 +578,7 @@ export function ExpenseForm({
       }
       if (suggestion.note) setFieldValue('note', suggestion.note);
       setAiReasoning(suggestion.reasoning);
+      setAiAmbiguousHint(suggestion.ambiguousHint);
     } catch {
       showI18nError(t, 'errors.ai_failed');
     } finally {
@@ -704,6 +708,7 @@ export function ExpenseForm({
                     setAiOpen(false);
                     setAiText('');
                     setAiReasoning(null);
+                    setAiAmbiguousHint(null);
                     setAiImage(null);
                   }}
                   aria-label={t('expenses.clear')}
@@ -735,6 +740,11 @@ export function ExpenseForm({
                 onChange={(e) => setAiText(e.target.value)}
                 placeholder={t('expenses.ai_placeholder')}
               />
+              {aiAmbiguousHint && (
+                <p className="bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200 rounded-md px-2 py-1 text-xs">
+                  {aiAmbiguousHint}
+                </p>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-muted-foreground text-xs">
                   {aiReasoning ?? t('expenses.ai_hint')}

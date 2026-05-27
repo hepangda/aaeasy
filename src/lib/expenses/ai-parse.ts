@@ -38,6 +38,8 @@ export type AiParseInput = {
   images?: { mime: string; dataUrl: string; name?: string }[];
   /** Members of the target group, used to resolve the payer. */
   members: { id: string; displayName: string }[];
+  /** The group's name, used as context to help infer currency, category, etc. */
+  groupName: string;
   /** The group's default currency, used as the fallback when the model
    *  doesn't pick one explicitly. */
   defaultCurrency: string;
@@ -61,6 +63,8 @@ export type AiParsedExpense = {
   note: string | null;
   /** A short rationale the model returned, to surface to the user. */
   reasoning: string | null;
+  /** A hint when the AI is uncertain, to warn the user. */
+  ambiguousHint: string | null;
 };
 
 export class AiParseError extends Error {
@@ -118,6 +122,7 @@ const aiResponseSchema = z.object({
   payerName: z.string().nullable().optional(),
   note: z.string().max(500).nullable().optional(),
   reasoning: z.string().max(500).nullable().optional(),
+  ambiguousHint: z.string().max(300).nullable().optional(),
 });
 
 /** Call the upstream LLM and return a normalized suggestion. */
@@ -241,6 +246,7 @@ export async function aiParseExpense(input: AiParseInput): Promise<AiParsedExpen
   const title = data.title?.trim() || null;
   const note = data.note?.trim() || null;
   const reasoning = data.reasoning?.trim() || null;
+  const ambiguousHint = data.ambiguousHint?.trim() || null;
 
   let occurredAt: string | null = null;
   if (data.occurredAt) {
@@ -279,5 +285,6 @@ export async function aiParseExpense(input: AiParseInput): Promise<AiParsedExpen
     payerMemberId,
     note,
     reasoning,
+    ambiguousHint,
   };
 }
