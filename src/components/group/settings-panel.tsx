@@ -9,6 +9,7 @@ import { MemberRoleControl } from '@/components/group/member-role-control';
 import { MemberShareDialog, type ExistingShareLink } from '@/components/share/member-share-dialog';
 import { GroupShareDialog } from '@/components/share/group-share-dialog';
 import { DeleteGroupButton } from '@/components/group/delete-group-button';
+import { LeaveGroupButton } from '@/components/group/leave-group-button';
 import { TransferOwnershipButton, type OwnerCandidate } from '@/components/group/transfer-ownership-button';
 import { ReopenSettlementButton } from '@/components/settle/reopen-settlement-button';
 import { Pagination } from '@/components/ui/pagination';
@@ -162,7 +163,7 @@ export function SettingsPanel({
       )}
 
       {/* Danger Zone */}
-      {isOwner && (
+      {isOwner ? (
         <div className="border-t pt-6 flex flex-col gap-2">
           <h2 className="text-lg font-semibold text-destructive">
             {t('account.danger_zone')}
@@ -171,6 +172,16 @@ export function SettingsPanel({
             {t('groups.delete_desc')}
           </p>
           <DeleteGroupButton groupId={groupId} />
+        </div>
+      ) : (
+        <div className="border-t pt-6 flex flex-col gap-2">
+          <h2 className="text-lg font-semibold text-destructive">
+            {t('account.danger_zone')}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            {t('groups.leave_desc')}
+          </p>
+          <LeaveGroupButton groupId={groupId} />
         </div>
       )}
     </section>

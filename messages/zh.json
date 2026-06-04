@@ -47,6 +47,7 @@
     "invalid_link": "链接无效或已撤销",
     "not_found": "未找到该费用",
     "forbidden": "没有权限",
+    "cannot_leave_as_owner": "账本所有者无法离开账本，请先转让所有权或删除账本。",
     "expense_locked": "费用已包含在已结算的账单中，不可修改",
     "invalid_amount": "金额格式不正确",
     "amount_negative": "金额不能为负",
@@ -192,7 +193,10 @@
     "transfer_confirm": "转移",
     "transfer_transferring": "转移中…",
     "settings": "设置",
-    "delete_desc": "永久删除该账本及其所有数据。此操作不可恢复。"
+    "delete_desc": "永久删除该账本及其所有数据。此操作不可恢复。",
+    "leave": "离开账本",
+    "leave_desc": "离开后你将立即失去对该账本的访问权限，且无法自行恢复。账本及历史记录不受影响。",
+    "confirm_leave": "确定要离开此账本吗？你将立即失去访问权，且无法自行恢复。"
   },
   "members": {
     "title": "成员",

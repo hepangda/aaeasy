@@ -47,6 +47,7 @@
     "invalid_link": "This link is invalid or has been revoked",
     "not_found": "Expense not found",
     "forbidden": "Not allowed",
+    "cannot_leave_as_owner": "The group owner can't leave the group. Transfer ownership or delete the group instead.",
     "expense_locked": "This expense is part of a closed settlement and cannot be edited",
     "invalid_amount": "Invalid amount",
     "amount_negative": "Amount must be non-negative",
@@ -192,7 +193,10 @@
     "transfer_confirm": "Transfer",
     "transfer_transferring": "Transferring…",
     "settings": "Settings",
-    "delete_desc": "Permanently delete this group and all its data. This action cannot be undone."
+    "delete_desc": "Permanently delete this group and all its data. This action cannot be undone.",
+    "leave": "Leave group",
+    "leave_desc": "Leaving immediately revokes your access to this group and cannot be undone by you. The group and its history are unaffected.",
+    "confirm_leave": "Leave this group? You will immediately lose access and cannot restore it yourself."
   },
   "members": {
     "title": "Members",

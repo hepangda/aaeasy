@@ -326,6 +326,42 @@ export async function unlinkMemberAction(input: {
   return { ok: true };
 }
 
+/**
+ * Self-service: the current user leaves a group they have non-OWNER access
+ * to. Mirrors `unlinkMemberAction` but is initiated by the affected user
+ * themselves, so no MANAGE_MEMBERS check — just proof of current membership.
+ * OWNER cannot leave (would orphan the group); they must transfer ownership
+ * or delete the group instead.
+ */
+export async function leaveGroupAction(groupId: string): Promise<ActionState> {
+  const ctx = await requireUser();
+  const userId = ctx.user.id;
+
+  const membership = await prisma.groupMembership.findUnique({
+    where: { userId_groupId: { userId, groupId } },
+    select: { role: true },
+  });
+  if (!membership) return { ok: false, error: 'errors.forbidden' };
+  if (membership.role === 'OWNER') {
+    return { ok: false, error: 'errors.cannot_leave_as_owner' };
+  }
+
+  await prisma.$transaction([
+    prisma.member.updateMany({
+      where: { groupId, linkedUserId: userId },
+      data: { linkedUserId: null },
+    }),
+    prisma.groupMembership.delete({
+      where: { userId_groupId: { userId, groupId } },
+    }),
+  ]);
+
+  revalidatePath(`/groups/${groupId}`);
+  revalidatePath('/groups');
+  await publish({ type: 'MEMBER_CHANGED', groupId }).catch(() => {});
+  return { ok: true };
+}
+
 export async function deleteGroupAction(groupId: string): Promise<void> {
   await requireGroupAccess(groupId, 'DELETE_GROUP');
   await prisma.group.delete({ where: { id: groupId } });
