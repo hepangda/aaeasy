@@ -1,6 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,8 +9,9 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { deleteGroupAction } from '@/lib/groups/actions';
 
 export function DeleteGroupButton({ groupId }: { groupId: string }) {
-  const t = useTranslations('groups');
+  const t = useTranslations();
   const confirm = useConfirm();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
     <Button
@@ -18,13 +20,19 @@ export function DeleteGroupButton({ groupId }: { groupId: string }) {
       size="sm"
       disabled={pending}
       onClick={async () => {
-        if (!(await confirm({ message: t('confirm_delete') }))) return;
+        if (!(await confirm({ message: t('groups.confirm_delete') }))) return;
         startTransition(async () => {
-          await deleteGroupAction(groupId);
+          const res = await deleteGroupAction(groupId);
+          if (res.ok) {
+            router.push('/groups');
+            router.refresh();
+          } else {
+            await confirm({ message: t(res.error ?? 'errors.unknown') });
+          }
         });
       }}
     >
-      <Trash2 className="text-destructive" /> {t('delete')}
+      <Trash2 className="text-destructive" /> {t('groups.delete')}
     </Button>
   );
 }

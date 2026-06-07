@@ -6,6 +6,10 @@ import { prisma } from '@/lib/db';
 import { AccessError, requireGroupAccess } from '@/lib/auth/group-access';
 import { formatMinor } from '@/lib/money';
 import { splitRuleSchema, type SplitRule } from '@/lib/split/types';
+import {
+  splitInputStateSchema,
+  type SplitInputState,
+} from '@/lib/split/input-state';
 import { Button } from '@/components/ui/button';
 import { ExpenseForm } from '@/components/expense/expense-form';
 
@@ -61,6 +65,7 @@ export default async function EditExpensePage({
         fxRateToGroupCurrency: true,
         payerMemberId: true,
         splitRule: true,
+        splitInputState: true,
         deletedAt: true,
         lockedBySettlementId: true,
         isDraft: true,
@@ -71,7 +76,7 @@ export default async function EditExpensePage({
   if (expense.lockedBySettlementId) {
     // Locked: render a read-only message instead of the form.
     return (
-      <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-6 py-10">
+      <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6 sm:gap-6 sm:px-6 sm:py-10">
         <Button asChild variant="ghost" size="sm" className="-ml-2 self-start">
           <Link href={`/groups/${id}`}>
             <ChevronLeft /> {group.name}
@@ -94,9 +99,15 @@ export default async function EditExpensePage({
   const splitRule: SplitRule = splitRuleParsed.success
     ? splitRuleParsed.data
     : { type: 'EQUAL', memberIds: group.members.map((m) => m.id) };
+  const splitInputStateParsed = splitInputStateSchema.safeParse(
+    expense.splitInputState,
+  );
+  const splitInputState: SplitInputState | null = splitInputStateParsed.success
+    ? splitInputStateParsed.data
+    : null;
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10">
+    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-10">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2">
           <Link href={`/groups/${id}`}>
@@ -104,7 +115,7 @@ export default async function EditExpensePage({
           </Link>
         </Button>
       </div>
-      <h1 className="text-2xl font-semibold tracking-tight">{t('expenses.edit')}</h1>
+      <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t('expenses.edit')}</h1>
       <ExpenseForm
         groupId={id}
         groupCurrency={group.defaultCurrency}
@@ -123,6 +134,7 @@ export default async function EditExpensePage({
           amountMinor: expense.amountMinor ?? 0n,
           payerMemberId: expense.payerMemberId,
           splitRule,
+          splitInputState,
           fxRateOverride: null,
           isDraft: expense.isDraft,
         }}

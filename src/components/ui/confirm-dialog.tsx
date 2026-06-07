@@ -6,7 +6,6 @@ import {
   useContext,
   useMemo,
   useState,
-  useTransition,
 } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -46,7 +45,6 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
     opts: ConfirmOptions;
     resolve: Resolver;
   } | null>(null);
-  const [pending, startTransition] = useTransition();
 
   const confirm = useCallback((opts: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
@@ -56,16 +54,12 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
 
   const finish = useCallback(
     (ok: boolean) => {
-      if (!state) return;
-      // Defer resolve so the dialog has a chance to unmount cleanly before
-      // the caller re-renders or navigates.
-      const r = state.resolve;
-      setState(null);
-      startTransition(() => {
-        r(ok);
+      setState((prev) => {
+        if (prev) prev.resolve(ok);
+        return null;
       });
     },
-    [state],
+    [],
   );
 
   const value = useMemo(() => ({ confirm }), [confirm]);
@@ -85,7 +79,6 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
             type="button"
             variant="ghost"
             onClick={() => finish(false)}
-            disabled={pending}
           >
             {state?.opts.cancelText ?? t('cancel')}
           </Button>
@@ -93,7 +86,6 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
             type="button"
             variant={state?.opts.destructive === false ? 'default' : 'destructive'}
             onClick={() => finish(true)}
-            disabled={pending}
             autoFocus
           >
             {state?.opts.confirmText ?? t('confirm')}

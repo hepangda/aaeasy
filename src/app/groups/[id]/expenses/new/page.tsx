@@ -44,7 +44,7 @@ export default async function NewExpensePage({
   });
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10">
+    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-10">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2">
           <Link href={`/groups/${id}`}>
@@ -52,7 +52,7 @@ export default async function NewExpensePage({
           </Link>
         </Button>
       </div>
-      <h1 className="text-2xl font-semibold tracking-tight">{t('expenses.new_title')}</h1>
+      <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t('expenses.new_title')}</h1>
       <ExpenseForm
         groupId={id}
         groupCurrency={group.defaultCurrency}

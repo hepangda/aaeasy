@@ -14,13 +14,13 @@ export default async function SharePage({
     select: {
       revokedAt: true,
       expiresAt: true,
-      group: { select: { name: true } },
+      group: { select: { name: true, deletedAt: true } },
     },
   });
 
   const t = await getTranslations();
 
-  if (!link || link.revokedAt) {
+  if (!link || link.revokedAt || link.group.deletedAt) {
     return (
       <section className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
         <h1 className="text-xl font-medium">{t('errors.invalid_link')}</h1>

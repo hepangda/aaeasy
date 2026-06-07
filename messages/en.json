@@ -74,7 +74,9 @@
     "member_already_linked": "This member is already linked to an account",
     "user_already_linked_in_group": "This account is already linked to another member in this group",
     "unauthenticated": "Not authenticated",
-    "target_not_linked": "Target user must be a linked member in this group"
+    "target_not_linked": "Target user must be a linked member in this group",
+    "member_in_use": "This member has expenses or settlements and cannot be removed. Use “Unlink account” instead.",
+    "delete_failed": "Delete failed — please try again"
   },
   "common": {
     "login": "Sign in",
@@ -240,9 +242,10 @@
     "rounding_to_payer": "Send rounding to payer",
     "btn_select_all": "Select all",
     "btn_deselect_all": "Deselect all",
+    "btn_equal_split_all": "Equal-split all",
+    "shares_inc": "Add one share",
+    "shares_dec": "Remove one share",
     "clear": "Clear",
-    "mode_equal": "Equal mode",
-    "mode_ratio": "Ratio mode",
     "split_class_solo": "One person",
     "split_class_equal": "Equal",
     "split_class_ratio": "Ratio",

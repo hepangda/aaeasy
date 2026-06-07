@@ -161,10 +161,62 @@ export async function removeMemberAction(input: {
   memberId: string;
 }): Promise<ActionState> {
   await requireGroupAccess(input.groupId, 'MANAGE_MEMBERS');
-  // Note: future expense FK will prevent deletion if member has references.
-  await prisma.member.deleteMany({
-    where: { id: input.memberId, groupId: input.groupId },
-  });
+
+  // Active references (not soft-deleted) block the delete — we preserve
+  // historical balances. SettlementEntry has no soft-delete, every row
+  // counts. Splits / payer rows attached to a soft-deleted expense are
+  // already invisible to balance math, so they get cleaned up below.
+  const [paid, split, settled] = await Promise.all([
+    prisma.expense.count({
+      where: {
+        groupId: input.groupId,
+        payerMemberId: input.memberId,
+        deletedAt: null,
+      },
+    }),
+    prisma.expenseSplit.count({
+      where: {
+        memberId: input.memberId,
+        expense: { groupId: input.groupId, deletedAt: null },
+      },
+    }),
+    prisma.settlementEntry.count({
+      where: {
+        groupId: input.groupId,
+        OR: [{ fromMemberId: input.memberId }, { toMemberId: input.memberId }],
+      },
+    }),
+  ]);
+  if (paid + split + settled > 0) {
+    return { ok: false, error: 'errors.member_in_use' };
+  }
+
+  // Tombstone splits and tombstone-payer expenses still hold the FK with
+  // `onDelete: Restrict`. They are dead data (excluded from every query
+  // and balance), so it's safe to hard-delete them with the member.
+  try {
+    await prisma.$transaction([
+      prisma.expenseSplit.deleteMany({
+        where: {
+          memberId: input.memberId,
+          expense: { groupId: input.groupId, deletedAt: { not: null } },
+        },
+      }),
+      prisma.expense.deleteMany({
+        where: {
+          groupId: input.groupId,
+          payerMemberId: input.memberId,
+          deletedAt: { not: null },
+        },
+      }),
+      prisma.member.deleteMany({
+        where: { id: input.memberId, groupId: input.groupId },
+      }),
+    ]);
+  } catch {
+    return { ok: false, error: 'errors.delete_failed' };
+  }
+
   revalidatePath(`/groups/${input.groupId}`);
   await publish({ type: 'MEMBER_CHANGED', groupId: input.groupId }).catch(() => {});
   return { ok: true };
@@ -362,9 +414,20 @@ export async function leaveGroupAction(groupId: string): Promise<ActionState> {
   return { ok: true };
 }
 
-export async function deleteGroupAction(groupId: string): Promise<void> {
+export async function deleteGroupAction(groupId: string): Promise<ActionState> {
   await requireGroupAccess(groupId, 'DELETE_GROUP');
-  await prisma.group.delete({ where: { id: groupId } });
+  // Soft delete — sets the tombstone column. Every read path filters
+  // `deletedAt: null` so the group disappears from the UI and APIs while
+  // its rows (expenses, settlements, audit history) stay intact.
+  try {
+    const res = await prisma.group.updateMany({
+      where: { id: groupId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+    if (res.count === 0) return { ok: false, error: 'errors.not_found' };
+  } catch {
+    return { ok: false, error: 'errors.delete_failed' };
+  }
   revalidatePath('/groups');
-  redirect('/groups');
+  return { ok: true };
 }

@@ -74,7 +74,9 @@
     "member_already_linked": "该成员已绑定账号",
     "user_already_linked_in_group": "该账号在本账本中已绑定到另一位成员",
     "unauthenticated": "未认证",
-    "target_not_linked": "目标用户必须是该账本中的已绑定成员"
+    "target_not_linked": "目标用户必须是该账本中的已绑定成员",
+    "member_in_use": "该成员已有费用或清算记录，无法移除。如需收回权限，请使用「解除账号绑定」。",
+    "delete_failed": "删除失败，请稍后重试"
   },
   "common": {
     "login": "登录",
@@ -240,9 +242,10 @@
     "rounding_to_payer": "尾差归垫付人",
     "btn_select_all": "全选",
     "btn_deselect_all": "全不选",
+    "btn_equal_split_all": "全部均分",
+    "shares_inc": "增加一份",
+    "shares_dec": "减少一份",
     "clear": "清空",
-    "mode_equal": "均分模式",
-    "mode_ratio": "比例模式",
     "split_class_solo": "单人支付",
     "split_class_equal": "均分",
     "split_class_ratio": "比例",

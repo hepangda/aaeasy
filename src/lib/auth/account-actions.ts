@@ -24,7 +24,7 @@ export async function listOwnedGroups(): Promise<
   const ctx = await getCurrentSession();
   if (!ctx) return [];
   const memberships = await prisma.groupMembership.findMany({
-    where: { userId: ctx.user.id, role: 'OWNER' },
+    where: { userId: ctx.user.id, role: 'OWNER', group: { deletedAt: null } },
     select: {
       group: {
         select: {
@@ -61,19 +61,28 @@ export async function deleteAccountAction(): Promise<never> {
   const ctx = await requireUser();
   const userId = ctx.user.id;
 
-  // Find owned groups.
+  // Find every owned group, INCLUDING soft-deleted ones — the user is
+  // wiping their account, so all of their data should be purged.
   const owned = await prisma.groupMembership.findMany({
     where: { userId, role: 'OWNER' },
     select: { groupId: true },
   });
 
-  // Cascade-delete each owned group. We loop instead of `deleteMany` so
-  // Prisma fires the relational cascades correctly via the FK rules
-  // declared on Member/Expense/etc.
+  // Postgres doesn't order cascade deletes, and Member is referenced by
+  // Expense/ExpenseSplit/SettlementEntry with `onDelete: Restrict`. Tear
+  // the FK-restricted children down by hand first, then drop the group.
   for (const m of owned) {
-    await prisma.group.delete({ where: { id: m.groupId } }).catch(() => {
-      // Group may already be gone (race); ignore.
-    });
+    await prisma
+      .$transaction([
+        prisma.expenseSplit.deleteMany({ where: { expense: { groupId: m.groupId } } }),
+        prisma.settlementEntry.deleteMany({ where: { groupId: m.groupId } }),
+        prisma.expense.deleteMany({ where: { groupId: m.groupId } }),
+        prisma.member.deleteMany({ where: { groupId: m.groupId } }),
+        prisma.group.delete({ where: { id: m.groupId } }),
+      ])
+      .catch(() => {
+        // Group may already be gone (race); ignore.
+      });
   }
 
   await prisma.user.delete({ where: { id: userId } });

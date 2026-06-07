@@ -9,6 +9,7 @@ import { requireGroupAccess, AccessError } from '@/lib/auth/group-access';
 import { parseAmountToMinor, isCurrencyCode } from '@/lib/money';
 import { computeSplit, SplitError } from '@/lib/split';
 import { splitRuleSchema } from '@/lib/split/types';
+import { splitInputStateSchema } from '@/lib/split/input-state';
 import { getFxRate } from '@/lib/fx';
 import { publish } from '@/lib/realtime/pgNotify';
 
@@ -42,6 +43,7 @@ const baseExpenseSchema = z.object({
   /** Manual rate override: amount in `currency` × rate = amount in groupCurrency. */
   fxRateOverride: z.string().optional().or(z.literal('')),
   splitRule: splitRuleSchema.nullable().optional(),
+  splitInputState: splitInputStateSchema.nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
   isDraft: z.boolean().optional().default(false),
 });
@@ -215,6 +217,10 @@ export async function createExpenseAction(
         splitRule: parsed.data.isDraft
           ? Prisma.JsonNull
           : (parsed.data.splitRule as Prisma.InputJsonValue),
+        splitInputState:
+          parsed.data.isDraft || !parsed.data.splitInputState
+            ? Prisma.JsonNull
+            : (parsed.data.splitInputState as unknown as Prisma.InputJsonValue),
         tags: parsed.data.tags ?? [],
         isDraft: parsed.data.isDraft,
         createdByUserId: actor.createdByUserId,
@@ -324,6 +330,10 @@ export async function updateExpenseAction(
         splitRule: parsed.data.isDraft
           ? Prisma.JsonNull
           : (parsed.data.splitRule as Prisma.InputJsonValue),
+        splitInputState:
+          parsed.data.isDraft || !parsed.data.splitInputState
+            ? Prisma.JsonNull
+            : (parsed.data.splitInputState as unknown as Prisma.InputJsonValue),
         tags: parsed.data.tags ?? [],
         isDraft: parsed.data.isDraft,
         splits: mat
@@ -424,6 +434,15 @@ function parseFormData(form: FormData): Record<string, unknown> {
       splitRule = null;
     }
   }
+  const splitInputStateRaw = form.get('splitInputState')?.toString();
+  let splitInputState: unknown = undefined;
+  if (splitInputStateRaw) {
+    try {
+      splitInputState = JSON.parse(splitInputStateRaw);
+    } catch {
+      splitInputState = null;
+    }
+  }
   const tagsRaw = form.get('tags')?.toString();
   const tags = tagsRaw
     ? tagsRaw
@@ -441,6 +460,7 @@ function parseFormData(form: FormData): Record<string, unknown> {
     payerMemberId: form.get('payerMemberId')?.toString() ?? '',
     fxRateOverride: form.get('fxRateOverride')?.toString() ?? '',
     splitRule,
+    splitInputState,
     tags,
     isDraft: form.get('isDraft')?.toString() === 'true',
   };
@@ -601,6 +621,14 @@ export async function fillDraftsAction(
             amountMinor,
             fxRateToGroupCurrency: new Prisma.Decimal(fxRate.toString()),
             splitRule: rule as unknown as Prisma.InputJsonValue,
+            splitInputState: {
+              rows: memberIds.map((memberId) => ({
+                memberId,
+                checked: true,
+                shares: '1',
+                extraText: '',
+              })),
+            } as unknown as Prisma.InputJsonValue,
             isDraft: false,
             splits: {
               create: Array.from(splits, ([memberId, shareMinor]) => ({

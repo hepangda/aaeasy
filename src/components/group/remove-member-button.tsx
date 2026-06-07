@@ -14,7 +14,7 @@ export function RemoveMemberButton({
   groupId: string;
   memberId: string;
 }) {
-  const t = useTranslations('members');
+  const t = useTranslations();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   return (
@@ -24,12 +24,15 @@ export function RemoveMemberButton({
       variant="ghost"
       disabled={pending}
       onClick={async () => {
-        if (!(await confirm({ message: t('confirm_remove') }))) return;
+        if (!(await confirm({ message: t('members.confirm_remove') }))) return;
         startTransition(async () => {
-          await removeMemberAction({ groupId, memberId });
+          const res = await removeMemberAction({ groupId, memberId });
+          if (!res.ok) {
+            await confirm({ message: t(res.error ?? 'errors.unknown') });
+          }
         });
       }}
-      aria-label={t('remove')}
+      aria-label={t('members.remove')}
     >
       <Trash2 className="text-destructive" />
     </Button>

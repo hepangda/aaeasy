@@ -61,9 +61,12 @@ export async function unlockShareAction(
   const { token, claimMemberId } = parsed.data;
   const link = await prisma.shareLink.findUnique({
     where: { tokenHash: hashSessionToken(token) },
+    include: { group: { select: { deletedAt: true } } },
   });
 
-  if (!link || link.revokedAt) return { ok: false, error: 'errors.invalid_link' };
+  if (!link || link.revokedAt || link.group.deletedAt) {
+    return { ok: false, error: 'errors.invalid_link' };
+  }
 
   // ─── Bound link + signed-in visitor ────────────────────────────────
   // For an expired bound link we don't run the claim flow — the link is

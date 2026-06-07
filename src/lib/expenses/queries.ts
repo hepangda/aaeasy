@@ -91,8 +91,8 @@ export interface GroupLedger {
 }
 
 export async function loadGroupLedger(groupId: string): Promise<GroupLedger> {
-  const group = await prisma.group.findUniqueOrThrow({
-    where: { id: groupId },
+  const group = await prisma.group.findFirst({
+    where: { id: groupId, deletedAt: null },
     select: {
       id: true,
       name: true,
@@ -100,6 +100,7 @@ export async function loadGroupLedger(groupId: string): Promise<GroupLedger> {
       status: true,
     },
   });
+  if (!group) throw new Error(`Group ${groupId} not found`);
 
   const [members, expenses, settlementEntries] = await Promise.all([
     prisma.member.findMany({

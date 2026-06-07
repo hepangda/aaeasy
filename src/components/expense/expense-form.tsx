@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Decimal from 'decimal.js';
-import { Paperclip, Sparkles, X } from 'lucide-react';
+import { Minus, Paperclip, Plus, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -20,8 +20,9 @@ import {
   errorToast,
   showI18nError,
 } from '@/lib/ui/toast';
-import { computeSplit } from '@/lib/split';
 import type { SplitRule } from '@/lib/split/types';
+import type { SplitInputState } from '@/lib/split/input-state';
+import { computeSplit } from '@/lib/split';
 import {
   decimalToMinor,
   formatMinor,
@@ -61,6 +62,10 @@ interface Props {
     amountMinor: bigint;
     payerMemberId: string;
     splitRule: SplitRule;
+    /** Raw form state captured at last save. When present, the editor
+     *  restores the exact controls the user typed. Falls back to a smart
+     *  reconstruction from `splitRule` when null (legacy rows). */
+    splitInputState: SplitInputState | null;
     fxRateOverride?: string | null;
     /** True if the existing expense is a DRAFT (no amount yet). */
     isDraft?: boolean;
@@ -149,39 +154,107 @@ function distribute(total: bigint, weights: number[]): bigint[] {
 }
 
 /**
- * Build the initial SplitRow[] from either an EXACT rule or by running
- * `computeSplit` on a legacy rule (EQUAL/SUBSET/WEIGHTED). Either way the
- * result is "amounts as base, extras = 0".
+ * Build the initial SplitRow[] from the user's last-saved form state when
+ * available, otherwise reconstruct from the persisted SplitRule:
+ *   - EQUAL / SUBSET → checked members, shares=1, extras blank.
+ *   - WEIGHTED with integer weights → shares=weight, extras blank.
+ *   - WEIGHTED with non-integer weights, or EXACT → each member's resolved
+ *     amount lands in `extraText`, shares=0; the user can rebalance from
+ *     there or click "Equal-split all" to start over.
+ *   - null rule (brand-new expense) → everyone checked, shares=1, extras blank.
  */
-function rowsFromRule(
+function rowsFromDefaults(
+  state: SplitInputState | null,
   rule: SplitRule | null,
   members: Member[],
   totalMinor: bigint,
   currency: string,
 ): SplitRow[] {
-  // Default: everyone checked, equal split.
-  let amountByMember = new Map<string, bigint>();
-  if (rule && totalMinor > 0n) {
+  if (state) {
+    const byMember = new Map(state.rows.map((r) => [r.memberId, r]));
+    return members.map((m) => {
+      const r = byMember.get(m.id);
+      if (!r) {
+        return { memberId: m.id, checked: false, shares: '0', baseText: '', extraText: '' };
+      }
+      return {
+        memberId: m.id,
+        checked: r.checked,
+        shares: r.shares || (r.checked ? '1' : '0'),
+        baseText: '',
+        extraText: r.extraText,
+      };
+    });
+  }
+  if (!rule) {
+    return members.map((m) => ({
+      memberId: m.id,
+      checked: true,
+      shares: '1',
+      baseText: '',
+      extraText: '',
+    }));
+  }
+  if (rule.type === 'EQUAL' || rule.type === 'SUBSET') {
+    const set = new Set(rule.memberIds);
+    return members.map((m) => {
+      const inUse = set.has(m.id);
+      return {
+        memberId: m.id,
+        checked: inUse,
+        shares: inUse ? '1' : '0',
+        baseText: '',
+        extraText: '',
+      };
+    });
+  }
+  if (rule.type === 'WEIGHTED') {
+    const byMember = new Map(rule.weights.map((w) => [w.memberId, w.weight]));
+    const allInteger = rule.weights.every((w) => /^\d+$/.test(w.weight));
+    if (allInteger) {
+      return members.map((m) => {
+        const w = byMember.get(m.id);
+        const n = w ? parseInt(w, 10) : 0;
+        return {
+          memberId: m.id,
+          checked: n > 0,
+          shares: n > 0 ? String(n) : '0',
+          baseText: '',
+          extraText: '',
+        };
+      });
+    }
+    // Fall through: treat decimal weights like EXACT below (preserve by
+    // dropping into the extras column).
+  }
+  // EXACT (and any non-integer WEIGHTED): each member's resolved amount
+  // goes into `extra` so the totals immediately reconcile and the user can
+  // tweak per-person numbers directly.
+  const amountByMember = new Map<string, bigint>();
+  if (rule.type === 'EXACT') {
+    for (const a of rule.amounts) amountByMember.set(a.memberId, BigInt(a.amountMinor));
+  } else if (rule.type === 'WEIGHTED' && totalMinor > 0n) {
     try {
-      amountByMember = computeSplit({
+      const computed = computeSplit({
         totalMinor,
         rule,
         validMemberIds: new Set(members.map((m) => m.id)),
       });
+      for (const [memberId, share] of computed) {
+        amountByMember.set(memberId, share);
+      }
     } catch {
-      amountByMember = new Map();
+      // best effort — leave the form blank if compute fails
     }
   }
-  const checkedByDefault = !rule;
   return members.map((m) => {
     const amt = amountByMember.get(m.id) ?? 0n;
-    const inUse = rule ? amt > 0n : checkedByDefault;
     return {
       memberId: m.id,
-      checked: inUse,
-      shares: inUse ? '1' : '0',
-      baseText: amt > 0n ? formatMinor(amt, currency) : '',
-      extraText: '',
+      checked: false,
+      shares: '0',
+      baseText: '',
+      extraText: amt > 0n ? formatMinor(amt, currency) : '',
     };
   });
 }
@@ -222,7 +295,8 @@ export function ExpenseForm({
 
   // ─── Split rows ─────────────────────────────────────────────────────
   const [rows, setRows] = useState<SplitRow[]>(() =>
-    rowsFromRule(
+    rowsFromDefaults(
+      defaults?.splitInputState ?? null,
       defaults?.splitRule ?? null,
       members,
       defaults?.amountMinor ?? 0n,
@@ -239,18 +313,13 @@ export function ExpenseForm({
     setRows((cur) => cur.map((r) => (r.memberId === memberId ? { ...r, ...patch } : r)));
   }
 
-  // 'EQUAL' = base shared equally across checked members; ignore the shares
-  // column. 'RATIO' = base shared by the user-supplied integer share counts.
-  // In both modes, the `extra` column contributes to a member's final amount
-  // *regardless* of whether their checkbox is on (extras are direct charges).
-  // The `base` column is always derived from the inputs above — the user
-  // never types in it directly.
-  type Mode = 'EQUAL' | 'RATIO';
-  const [mode, setMode] = useState<Mode>('EQUAL');
+  // Mode is fixed to "share-based"; everyone always contributes by integer
+  // `shares` (1 by default). Equal split is just shares=1 across selected
+  // members, surfaced as a one-click button below.
 
-  // Recompute the `base` column whenever total / mode / checked / shares /
-  // extras change. We only touch `baseText`, leaving the user's typing in
-  // other columns alone, so this never loops back on itself.
+  // Recompute the `base` column whenever total / checked / shares / extras
+  // change. We only touch `baseText`, leaving the user's typing in other
+  // columns alone, so this never loops back on itself.
   function recompute(): void {
     setRows((cur) => {
       if (totalMinor === null) {
@@ -269,7 +338,6 @@ export function ExpenseForm({
       }
       const weights = cur.map((r) => {
         if (!r.checked) return 0;
-        if (mode === 'EQUAL') return 1;
         const n = parseInt(r.shares || '0', 10);
         return Number.isFinite(n) && n > 0 ? n : 0;
       });
@@ -287,12 +355,11 @@ export function ExpenseForm({
   const recomputeKey = useMemo(
     () =>
       JSON.stringify({
-        m: mode,
         c: currency,
         t: totalMinor?.toString() ?? null,
         rows: rows.map((r) => `${r.checked ? 1 : 0}|${r.shares}|${r.extraText}`),
       }),
-    [mode, currency, totalMinor, rows],
+    [currency, totalMinor, rows],
   );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => recompute(), [recomputeKey]);
@@ -307,6 +374,69 @@ export function ExpenseForm({
         checked: !allChecked,
         shares: !allChecked ? r.shares || '1' : '0',
       })),
+    );
+  }
+
+  // Reset all currently-checked rows to a clean equal share (shares=1, extras
+  // cleared). One-click "everybody splits the bill equally".
+  function btnEqualSplitAll() {
+    setRows((cur) => {
+      const anyChecked = cur.some((r) => r.checked);
+      if (!anyChecked) {
+        return cur.map((r) => ({ ...r, checked: true, shares: '1', extraText: '' }));
+      }
+      return cur.map((r) =>
+        r.checked ? { ...r, shares: '1', extraText: '' } : r,
+      );
+    });
+  }
+
+  // Bump a row's integer shares by ±1 (floor at 0). Sliders/dropdowns felt
+  // heavy here — a tap-friendly stepper keeps the table compact.
+  function bumpShares(memberId: string, delta: number) {
+    setRows((cur) =>
+      cur.map((r) => {
+        if (r.memberId !== memberId) return r;
+        const n = parseInt(r.shares || '0', 10);
+        const next = Math.max(0, (Number.isFinite(n) ? n : 0) + delta);
+        const nextStr = String(next);
+        // Bumping from 0 implicitly checks the row; dropping to 0 unchecks.
+        if (next === 0) return { ...r, checked: false, shares: '0' };
+        return { ...r, checked: true, shares: nextStr };
+      }),
+    );
+  }
+
+  // Direct edit of the shares input. Mirrors `bumpShares`'s invariant that
+  // 0 shares is meaningless — a row with no weight gets unchecked rather
+  // than silently dragging the totals out of balance.
+  function setShares(memberId: string, raw: string) {
+    const digits = raw.replace(/\D/g, '');
+    setRows((cur) =>
+      cur.map((r) => {
+        if (r.memberId !== memberId) return r;
+        const n = digits === '' ? 0 : parseInt(digits, 10);
+        if (!Number.isFinite(n) || n <= 0) {
+          return { ...r, checked: false, shares: '0' };
+        }
+        return { ...r, checked: true, shares: String(n) };
+      }),
+    );
+  }
+
+  // Toggle a single row's checkbox. Keeps the "checked ↔ shares > 0"
+  // invariant: checking a row whose current shares is '0' (e.g. legacy
+  // EXACT split surfaced as extras) bumps it back up to 1 so it
+  // immediately contributes to the base pool.
+  function setChecked(memberId: string, checked: boolean) {
+    setRows((cur) =>
+      cur.map((r) => {
+        if (r.memberId !== memberId) return r;
+        if (!checked) return { ...r, checked: false, shares: '0' };
+        const n = parseInt(r.shares || '0', 10);
+        const shares = Number.isFinite(n) && n > 0 ? String(n) : '1';
+        return { ...r, checked: true, shares };
+      }),
     );
   }
 
@@ -357,6 +487,20 @@ export function ExpenseForm({
     const rule: SplitRule = { type: 'EXACT', amounts };
     return JSON.stringify(rule);
   }, [rows, perMemberFinal]);
+
+  // Round-trip the raw editor state so the edit page can restore it without
+  // reverse-engineering the EXACT amounts back into shares/extras.
+  const splitInputStateJson = useMemo(() => {
+    const state: SplitInputState = {
+      rows: rows.map((r) => ({
+        memberId: r.memberId,
+        checked: r.checked,
+        shares: r.shares,
+        extraText: r.extraText,
+      })),
+    };
+    return JSON.stringify(state);
+  }, [rows]);
 
   // ─── Receipt staging ────────────────────────────────────────────────
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -604,14 +748,21 @@ export function ExpenseForm({
     <form
       action={formAction}
       ref={formRef}
-      className="flex w-full max-w-xl flex-col gap-5"
+      className="flex w-full flex-col gap-5"
     >
       <input type="hidden" name="groupId" value={groupId} />
       {/* Only submit a splitRule when we actually have a materialized split.
           In DRAFT mode the row amounts are all zero, which would fail the
           EXACT-rule "min 1 amount" validation server-side. */}
       {!isDraftMode && (
-        <input type="hidden" name="splitRule" value={ruleJson} />
+        <>
+          <input type="hidden" name="splitRule" value={ruleJson} />
+          <input
+            type="hidden"
+            name="splitInputState"
+            value={splitInputStateJson}
+          />
+        </>
       )}
       <input
         type="hidden"
@@ -791,79 +942,103 @@ export function ExpenseForm({
         </div>
       </div>
 
-      {/* ─── Row 2: Amount | Currency | Payer | Attach receipts ──── */}
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
+      {/* ─── Row 2: Amount | Currency | Payer | Attach receipts ────
+          Mobile: amount + currency share one row, then payer + attach
+          stack below. Desktop keeps the original four-column row. */}
+      <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
         {!isDraftMode && (
+          <div className="grid gap-2 sm:contents">
+            <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
+              <div className="grid gap-2">
+                <Label htmlFor="amount">{t('expenses.amount')}</Label>
+                <Input
+                  id="amount"
+                  name="amount"
+                  required
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={amountText}
+                  onChange={(e) => setAmountText(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="currency">{t('expenses.currency')}</Label>
+                <Input
+                  id="currency"
+                  name="currency"
+                  required
+                  minLength={3}
+                  maxLength={3}
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                  className="w-20 uppercase"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+        {isDraftMode && (
           <div className="grid gap-2">
-            <Label htmlFor="amount">{t('expenses.amount')}</Label>
+            <Label htmlFor="currency">{t('expenses.currency')}</Label>
             <Input
-              id="amount"
-              name="amount"
+              id="currency"
+              name="currency"
               required
-              inputMode="decimal"
-              placeholder="0.00"
-              value={amountText}
-              onChange={(e) => setAmountText(e.target.value)}
+              minLength={3}
+              maxLength={3}
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+              className="w-20 uppercase"
             />
           </div>
         )}
-        <div className="grid gap-2">
-          <Label htmlFor="currency">{t('expenses.currency')}</Label>
-          <Input
-            id="currency"
-            name="currency"
-            required
-            minLength={3}
-            maxLength={3}
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-            className="w-20 uppercase"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="payerMemberId">{t('expenses.payer')}</Label>
-          {lockedPayerMemberId ? (
-            <>
-              <input
-                type="hidden"
+        <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
+          <div className="grid gap-2">
+            <Label htmlFor="payerMemberId">{t('expenses.payer')}</Label>
+            {lockedPayerMemberId ? (
+              <>
+                <input
+                  type="hidden"
+                  name="payerMemberId"
+                  value={lockedPayerMemberId}
+                />
+                <p className="border-input bg-muted/50 text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
+                  {members.find((m) => m.id === lockedPayerMemberId)?.displayName ?? '?'}
+                </p>
+              </>
+            ) : (
+              <Select
+                id="payerMemberId"
                 name="payerMemberId"
-                value={lockedPayerMemberId}
-              />
-              <p className="border-input bg-muted/50 text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
-                {members.find((m) => m.id === lockedPayerMemberId)?.displayName ?? '?'}
-              </p>
-            </>
-          ) : (
-            <Select
-              id="payerMemberId"
-              name="payerMemberId"
-              required
-              defaultValue={defaults?.payerMemberId ?? members[0]?.id}
+                required
+                defaultValue={defaults?.payerMemberId ?? members[0]?.id}
+              >
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.displayName}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+          <div className="flex items-end">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => addFiles(e.target.files)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
             >
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.displayName}
-                </option>
-              ))}
-            </Select>
-          )}
-        </div>
-        <div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,application/pdf"
-            className="hidden"
-            onChange={(e) => addFiles(e.target.files)}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Paperclip /> {t('expenses.attach_receipts')}
-          </Button>
+              <Paperclip />
+              <span className="hidden sm:inline">{t('expenses.attach_receipts')}</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -915,42 +1090,22 @@ export function ExpenseForm({
 
       {/* ─── Split rule (hidden in DRAFT mode) ──────────────── */}
       {!isDraftMode && (
-      <fieldset className="grid gap-3 rounded-md border p-4">
+      <fieldset className="grid gap-3 rounded-md border p-3 sm:p-4">
         <legend className="px-2 text-sm font-medium">{t('expenses.split_rule')}</legend>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={btnToggleAll}>
             {rows.every((r) => r.checked)
               ? t('expenses.btn_deselect_all')
               : t('expenses.btn_select_all')}
           </Button>
-          <div className="flex items-center gap-3 text-sm" role="radiogroup">
-            <label className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="radio"
-                name="split-mode"
-                value="EQUAL"
-                checked={mode === 'EQUAL'}
-                onChange={() => setMode('EQUAL')}
-                className="size-4"
-              />
-              {t('expenses.mode_equal')}
-            </label>
-            <label className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="radio"
-                name="split-mode"
-                value="RATIO"
-                checked={mode === 'RATIO'}
-                onChange={() => setMode('RATIO')}
-                className="size-4"
-              />
-              {t('expenses.mode_ratio')}
-            </label>
-          </div>
+          <Button type="button" variant="outline" size="sm" onClick={btnEqualSplitAll}>
+            {t('expenses.btn_equal_split_all')}
+          </Button>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* ─── Desktop: tabular layout ───────────────────────── */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead className="text-muted-foreground text-xs">
               <tr>
@@ -958,15 +1113,13 @@ export function ExpenseForm({
                 <th className="px-2 py-1 text-left font-medium">
                   {t('expenses.col_member')}
                 </th>
-                {mode === 'RATIO' && (
-                  <th className="w-14 px-1 py-1 text-right font-medium">
-                    {t('expenses.col_shares')}
-                  </th>
-                )}
+                <th className="w-32 px-1 py-1 text-center font-medium">
+                  {t('expenses.col_shares')}
+                </th>
                 <th className="w-24 px-1 py-1 text-right font-medium">
                   {t('expenses.col_base')}
                 </th>
-                <th className="w-24 px-1 py-1 text-right font-medium">
+                <th className="w-28 px-1 py-1 text-right font-medium">
                   {t('expenses.col_extra')}
                 </th>
                 <th className="px-2 py-1 text-right font-medium whitespace-nowrap">
@@ -978,66 +1131,40 @@ export function ExpenseForm({
               {rows.map((r, i) => {
                 const m = members.find((x) => x.id === r.memberId);
                 if (!m) return null;
-                // Subtotal includes extras even when unchecked.
                 const hasContribution = r.checked || perMemberFinal[i]! > 0n;
                 const baseShown = r.checked ? r.baseText || formatMinor(0n, currency) : null;
                 return (
                   <tr key={r.memberId} className="border-t">
-                    <td className="px-1 py-1">
+                    <td className="px-1 py-1.5">
                       <input
                         type="checkbox"
                         className="size-4"
                         checked={r.checked}
-                        onChange={(e) =>
-                          updateRow(r.memberId, {
-                            checked: e.target.checked,
-                            shares: e.target.checked ? r.shares || '1' : '0',
-                            baseText: e.target.checked ? r.baseText : '',
-                          })
-                        }
+                        onChange={(e) => setChecked(r.memberId, e.target.checked)}
                       />
                     </td>
-                    <td className="px-2 py-1 font-medium">{m.displayName}</td>
-                    {mode === 'RATIO' && (
-                      <td className="px-1 py-1">
-                        <Input
-                          value={r.shares}
-                          onChange={(e) =>
-                            updateRow(r.memberId, {
-                              shares: e.target.value.replace(/\D/g, ''),
-                            })
-                          }
-                          inputMode="numeric"
-                          disabled={!r.checked}
-                          className="h-8 w-full px-2 text-right tabular-nums"
-                        />
-                      </td>
-                    )}
-                    <td className="px-2 py-1 text-right font-mono tabular-nums">
+                    <td className="px-2 py-1.5 font-medium">{m.displayName}</td>
+                    <td className="px-1 py-1.5">
+                      <SharesStepper
+                        value={r.shares}
+                        disabled={!r.checked}
+                        onChange={(v) => setShares(r.memberId, v)}
+                        onBump={(d) => bumpShares(r.memberId, d)}
+                        decLabel={t('expenses.shares_dec')}
+                        incLabel={t('expenses.shares_inc')}
+                      />
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono tabular-nums">
                       {baseShown ?? <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-1 py-1">
-                      <div className="relative">
-                        <Input
-                          value={r.extraText}
-                          onChange={(e) => updateRow(r.memberId, { extraText: e.target.value })}
-                          inputMode="decimal"
-                          placeholder="0"
-                          className="h-8 w-full pr-7 pl-2 text-right tabular-nums font-mono"
-                        />
-                        {r.extraText && (
-                          <button
-                            type="button"
-                            onClick={() => updateRow(r.memberId, { extraText: '' })}
-                            aria-label={t('expenses.clear')}
-                            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1.5 grid -translate-y-1/2 place-items-center rounded p-0.5"
-                          >
-                            <X className="size-3" />
-                          </button>
-                        )}
-                      </div>
+                    <td className="px-1 py-1.5">
+                      <ExtraInput
+                        value={r.extraText}
+                        onChange={(v) => updateRow(r.memberId, { extraText: v })}
+                        clearLabel={t('expenses.clear')}
+                      />
                     </td>
-                    <td className="px-2 py-1 text-right font-mono tabular-nums whitespace-nowrap">
+                    <td className="px-2 py-1.5 text-right font-mono tabular-nums whitespace-nowrap">
                       {hasContribution ? (
                         <>
                           <span className="text-muted-foreground mr-1 text-xs">
@@ -1055,13 +1182,10 @@ export function ExpenseForm({
             </tbody>
             <tfoot>
               <tr className="border-t font-medium">
-                <td
-                  colSpan={mode === 'RATIO' ? 4 : 3}
-                  className="px-2 py-1.5 text-right text-xs"
-                >
+                <td colSpan={4} className="px-2 py-2 text-right text-xs">
                   {t('expenses.split_total')}
                 </td>
-                <td className="px-1 py-1.5 text-right font-mono text-xs tabular-nums whitespace-nowrap">
+                <td className="px-1 py-2 text-right font-mono text-xs tabular-nums whitespace-nowrap">
                   {totalMinor !== null ? (
                     <>
                       <span className="text-muted-foreground mr-1">{currency}</span>
@@ -1072,7 +1196,7 @@ export function ExpenseForm({
                   )}
                 </td>
                 <td
-                  className={`px-2 py-1.5 text-right font-mono tabular-nums whitespace-nowrap ${
+                  className={`px-2 py-2 text-right font-mono tabular-nums whitespace-nowrap ${
                     sumMatchesTotal
                       ? 'text-emerald-600'
                       : totalMinor === null
@@ -1086,6 +1210,101 @@ export function ExpenseForm({
               </tr>
             </tfoot>
           </table>
+        </div>
+
+        {/* ─── Mobile: stacked card layout ────────────────────
+            Tapping the row toggles the checkbox; stepper sits in the same
+            row so adjustments need only one thumb. */}
+        <ul className="flex flex-col gap-2 md:hidden">
+          {rows.map((r, i) => {
+            const m = members.find((x) => x.id === r.memberId);
+            if (!m) return null;
+            const finalMinor = perMemberFinal[i]!;
+            const hasContribution = r.checked || finalMinor > 0n;
+            return (
+              <li
+                key={r.memberId}
+                className={`flex flex-col gap-2 rounded-md border p-2.5 ${
+                  r.checked ? 'bg-card' : 'bg-muted/30'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    className="size-4 shrink-0"
+                    checked={r.checked}
+                    onChange={(e) => setChecked(r.memberId, e.target.checked)}
+                    aria-label={m.displayName}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {m.displayName}
+                  </span>
+                  <span className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
+                    {hasContribution ? (
+                      <>
+                        <span className="text-muted-foreground mr-1 text-xs">
+                          {currency}
+                        </span>
+                        {formatMinor(finalMinor, currency)}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+                      {t('expenses.col_shares')}
+                    </span>
+                    <SharesStepper
+                      value={r.shares}
+                      disabled={!r.checked}
+                      onChange={(v) => setShares(r.memberId, v)}
+                      onBump={(d) => bumpShares(r.memberId, d)}
+                      decLabel={t('expenses.shares_dec')}
+                      incLabel={t('expenses.shares_inc')}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+                      {t('expenses.col_extra')}
+                    </span>
+                    <ExtraInput
+                      value={r.extraText}
+                      onChange={(v) => updateRow(r.memberId, { extraText: v })}
+                      clearLabel={t('expenses.clear')}
+                    />
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        {/* ─── Totals readout (mobile only — desktop has it in tfoot) ─ */}
+        <div className="flex items-center justify-between gap-3 text-sm md:hidden">
+          <span className="text-muted-foreground text-xs">
+            {t('expenses.split_total')}
+          </span>
+          <span className="flex items-baseline gap-3 font-mono tabular-nums">
+            <span className="text-muted-foreground text-xs">
+              {totalMinor !== null
+                ? formatMinor(totalMinor, currency)
+                : '—'}
+            </span>
+            <span
+              className={
+                sumMatchesTotal
+                  ? 'text-emerald-600'
+                  : totalMinor === null
+                    ? 'text-muted-foreground'
+                    : 'text-destructive'
+              }
+            >
+              {formatMinor(sumMinor, currency)} {currency}
+            </span>
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1132,5 +1351,90 @@ export function ExpenseForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Tap-friendly integer share stepper. The middle input stays editable so
+ * power users can still type, but most adjustments are one tap on ±.
+ */
+function SharesStepper({
+  value,
+  disabled,
+  onChange,
+  onBump,
+  decLabel,
+  incLabel,
+}: {
+  value: string;
+  disabled: boolean;
+  onChange: (v: string) => void;
+  onBump: (delta: number) => void;
+  decLabel: string;
+  incLabel: string;
+}) {
+  const n = parseInt(value || '0', 10);
+  const canDec = !disabled && Number.isFinite(n) && n > 0;
+  return (
+    <div className="border-input bg-background inline-flex h-9 w-full max-w-[120px] items-stretch overflow-hidden rounded-md border">
+      <button
+        type="button"
+        onClick={() => onBump(-1)}
+        disabled={!canDec}
+        aria-label={decLabel}
+        className="hover:bg-accent text-muted-foreground disabled:text-muted-foreground/40 grid w-9 place-items-center disabled:cursor-not-allowed"
+      >
+        <Minus className="size-4" />
+      </button>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        disabled={disabled}
+        className="w-full min-w-0 flex-1 border-x bg-transparent text-center text-sm tabular-nums focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+      />
+      <button
+        type="button"
+        onClick={() => onBump(1)}
+        aria-label={incLabel}
+        className="hover:bg-accent text-muted-foreground grid w-9 place-items-center"
+      >
+        <Plus className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+/** Decimal input that clears with an inline X when it has content. */
+function ExtraInput({
+  value,
+  onChange,
+  clearLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  clearLabel: string;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode="decimal"
+        placeholder="0"
+        className="h-9 w-full pr-7 pl-2 text-right tabular-nums font-mono"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          aria-label={clearLabel}
+          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1.5 grid -translate-y-1/2 place-items-center rounded p-0.5"
+        >
+          <X className="size-3" />
+        </button>
+      )}
+    </div>
   );
 }

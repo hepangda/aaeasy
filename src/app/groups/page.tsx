@@ -14,7 +14,10 @@ export default async function GroupsPage() {
   const fmt = await getFormatter();
 
   const groups = await prisma.group.findMany({
-    where: { memberships: { some: { userId: ctx.user.id } } },
+    where: {
+      deletedAt: null,
+      memberships: { some: { userId: ctx.user.id } },
+    },
     orderBy: { updatedAt: 'desc' },
     select: {
       id: true,

@@ -109,9 +109,9 @@ export async function requireGroupAccess(
 ): Promise<GroupAccess> {
   const group = await prisma.group.findUnique({
     where: { id: groupId },
-    select: { id: true },
+    select: { id: true, deletedAt: true },
   });
-  if (!group) throw new AccessError('NOT_FOUND');
+  if (!group || group.deletedAt) throw new AccessError('NOT_FOUND');
 
   const userCtx = await getCurrentSession();
   if (userCtx) {
