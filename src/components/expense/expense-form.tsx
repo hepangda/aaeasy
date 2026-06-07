@@ -369,11 +369,12 @@ export function ExpenseForm({
   function btnToggleAll() {
     const allChecked = rows.every((r) => r.checked);
     setRows((cur) =>
-      cur.map((r) => ({
-        ...r,
-        checked: !allChecked,
-        shares: !allChecked ? r.shares || '1' : '0',
-      })),
+      cur.map((r) => {
+        if (allChecked) return { ...r, checked: false, shares: '0' };
+        const n = parseInt(r.shares || '0', 10);
+        const shares = Number.isFinite(n) && n > 0 ? String(n) : '1';
+        return { ...r, checked: true, shares };
+      }),
     );
   }
 
