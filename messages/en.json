@@ -340,7 +340,8 @@
   },
   "export": {
     "title": "Export",
-    "pdf": "Export PDF"
+    "pdf": "Export PDF",
+    "failed": "Couldn't download the PDF — please try again"
   },
   "share": {
     "title": "Share links",
