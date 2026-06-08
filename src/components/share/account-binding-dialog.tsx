@@ -67,7 +67,6 @@ export function AccountBindingDialog({
   groupId,
   memberId,
   memberName,
-  memberLinked,
   canAssignManager,
   existingLinks,
   pendingInvitations,
@@ -76,7 +75,6 @@ export function AccountBindingDialog({
   groupId: string;
   memberId: string;
   memberName: string;
-  memberLinked: boolean;
   canAssignManager: boolean;
   existingLinks: ExistingShareLink[];
   pendingInvitations: MemberPendingInvitationRow[];
@@ -112,61 +110,55 @@ export function AccountBindingDialog({
         title={t('binding.dialog_title_for', { name: memberName })}
         className="max-w-lg"
       >
-        {memberLinked ? (
-          <p className="text-muted-foreground text-xs">
-            {t('share.member_already_linked')}
-          </p>
-        ) : (
-          <Tabs
-            tabs={[
-              {
-                id: `bind-invite-${memberId}`,
-                label: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <AtSign className="size-3.5" />
-                    {t('binding.tab_invite')}
-                  </span>
-                ),
-                badge:
-                  pendingInvitations.length > 0
-                    ? pendingInvitations.length
-                    : undefined,
-                content: (
-                  <InviteTab
-                    groupId={groupId}
-                    memberId={memberId}
-                    canAssignManager={canAssignManager}
-                    pendingInvitations={pendingInvitations}
-                    onChanged={() => router.refresh()}
-                    confirmDialog={confirmDialog}
-                  />
-                ),
-              },
-              {
-                id: `bind-link-${memberId}`,
-                label: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <LinkIcon className="size-3.5" />
-                    {t('binding.tab_share_link')}
-                  </span>
-                ),
-                badge: activeLinks.length > 0 ? activeLinks.length : undefined,
-                content: (
-                  <ShareLinkTab
-                    groupId={groupId}
-                    memberId={memberId}
-                    memberName={memberName}
-                    canAssignManager={canAssignManager}
-                    existingLinks={existingLinks}
-                    baseUrl={baseUrl}
-                    onChanged={() => router.refresh()}
-                    confirmDialog={confirmDialog}
-                  />
-                ),
-              },
-            ] satisfies TabDefinition[]}
-          />
-        )}
+        <Tabs
+          tabs={[
+            {
+              id: `bind-invite-${memberId}`,
+              label: (
+                <span className="inline-flex items-center gap-1.5">
+                  <AtSign className="size-3.5" />
+                  {t('binding.tab_invite')}
+                </span>
+              ),
+              badge:
+                pendingInvitations.length > 0
+                  ? pendingInvitations.length
+                  : undefined,
+              content: (
+                <InviteTab
+                  groupId={groupId}
+                  memberId={memberId}
+                  canAssignManager={canAssignManager}
+                  pendingInvitations={pendingInvitations}
+                  onChanged={() => router.refresh()}
+                  confirmDialog={confirmDialog}
+                />
+              ),
+            },
+            {
+              id: `bind-link-${memberId}`,
+              label: (
+                <span className="inline-flex items-center gap-1.5">
+                  <LinkIcon className="size-3.5" />
+                  {t('binding.tab_share_link')}
+                </span>
+              ),
+              badge: activeLinks.length > 0 ? activeLinks.length : undefined,
+              content: (
+                <ShareLinkTab
+                  groupId={groupId}
+                  memberId={memberId}
+                  memberName={memberName}
+                  canAssignManager={canAssignManager}
+                  existingLinks={existingLinks}
+                  baseUrl={baseUrl}
+                  onChanged={() => router.refresh()}
+                  confirmDialog={confirmDialog}
+                />
+              ),
+            },
+          ] satisfies TabDefinition[]}
+        />
       </Dialog>
     </>
   );

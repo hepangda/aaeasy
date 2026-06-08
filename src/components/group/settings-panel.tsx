@@ -111,12 +111,11 @@ export function SettingsPanel({
                         currentName={m.displayName}
                       />
                     )}
-                    {canManage && m.linkedUserRole !== 'OWNER' && (
+                    {canManage && !isLinked && m.linkedUserRole !== 'OWNER' && (
                       <AccountBindingDialog
                         groupId={groupId}
                         memberId={m.id}
                         memberName={displayName}
-                        memberLinked={isLinked}
                         canAssignManager={isOwner}
                         existingLinks={existingShareLinks.filter((l) => l.memberId === m.id)}
                         pendingInvitations={pendingInvitations.filter(
