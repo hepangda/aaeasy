@@ -35,12 +35,18 @@ interface ChipInputProps {
 const MENTION_MIN_LEN = 3;
 const MENTION_PATTERN = /^[a-zA-Z0-9_.-]+$/;
 const RESOLVE_DEBOUNCE_MS = 250;
+// Any of these characters inside the buffer flushes the preceding text as a
+// chip. ASCII comma + Chinese full-width comma cover desktop typing, mobile
+// IME, and paste in both locales.
+const DELIMITER_PATTERN = /[,，]/;
 
 /**
- * Chip-style member input. Type a plain word and press Enter / "," to add a
- * name chip; start with "@" to add a mention chip (the username is resolved
- * against /api/users/search for a checkmark or warning icon). Backspace on
- * an empty buffer removes the last chip; each chip has its own × button.
+ * Chip-style member input. Type a plain word and press Enter — or type a
+ * comma (ASCII `,` / full-width `，`) — to add a name chip; start with "@"
+ * to add a mention chip (the username is resolved against /api/users/search
+ * for a checkmark or warning icon). Pasted text containing any of those
+ * delimiters is split into multiple chips at once. Backspace on an empty
+ * buffer removes the last chip; each chip has its own × button.
  *
  * The container is a focusable wrapper that auto-grows: the actual <input>
  * uses `flex: 1` and a minimum width so the box wraps to a second row when
@@ -118,35 +124,53 @@ export function ChipInput({
   }, [mentionUsernames, resolutions]);
 
   function commitBuffer(raw: string): boolean {
-    const trimmed = raw.trim();
-    if (!trimmed) return false;
-    if (value.length >= max) return false;
+    const chip = makeChip(raw.trim(), value);
+    if (!chip || value.length >= max) return false;
+    onChange([...value, chip]);
+    return true;
+  }
 
+  /**
+   * Commit every delimiter-separated piece in `next` except the trailing one,
+   * which stays in the buffer so the user can keep typing. Mutates `value`
+   * via onChange and returns the leftover trailing text.
+   */
+  function commitDelimited(next: string): string {
+    if (!DELIMITER_PATTERN.test(next)) return next;
+    const parts = next.split(DELIMITER_PATTERN);
+    const trailing = parts.pop() ?? '';
+    let pool = [...value];
+    for (const piece of parts) {
+      const trimmed = piece.trim();
+      if (!trimmed) continue;
+      if (pool.length >= max) break;
+      const chip = makeChip(trimmed, pool);
+      if (chip) pool = [...pool, chip];
+    }
+    if (pool.length !== value.length) onChange(pool);
+    return trailing;
+  }
+
+  function makeChip(trimmed: string, pool: MemberChip[]): MemberChip | null {
+    if (!trimmed) return null;
     if (trimmed.startsWith('@')) {
       const username = trimmed.slice(1).toLowerCase();
-      if (username.length < MENTION_MIN_LEN) return false;
-      if (!MENTION_PATTERN.test(username)) return false;
-      if (
-        value.some((c) => c.kind === 'mention' && c.username === username)
-      ) {
-        return false;
-      }
-      onChange([...value, { kind: 'mention', username }]);
-      return true;
+      if (username.length < MENTION_MIN_LEN) return null;
+      if (!MENTION_PATTERN.test(username)) return null;
+      if (pool.some((c) => c.kind === 'mention' && c.username === username)) return null;
+      return { kind: 'mention', username };
     }
-
     const text = trimmed.slice(0, 40);
     if (
-      value.some(
+      pool.some(
         (c) =>
           c.kind === 'name' &&
           c.text.toLocaleLowerCase() === text.toLocaleLowerCase(),
       )
     ) {
-      return false;
+      return null;
     }
-    onChange([...value, { kind: 'name', text }]);
-    return true;
+    return { kind: 'name', text };
   }
 
   function removeAt(index: number) {
@@ -155,9 +179,15 @@ export function ChipInput({
     inputRef.current?.focus();
   }
 
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setBuffer(commitDelimited(e.target.value));
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (disabled) return;
-    if (e.key === 'Enter' || e.key === ',') {
+    // 229 / isComposing guards against IME composition firing Enter early.
+    const composing = e.nativeEvent.isComposing || e.keyCode === 229;
+    if (e.key === 'Enter' && !composing) {
       if (buffer.trim()) {
         e.preventDefault();
         if (commitBuffer(buffer)) setBuffer('');
@@ -219,7 +249,7 @@ export function ChipInput({
         id={id}
         type="text"
         value={buffer}
-        onChange={(e) => setBuffer(e.target.value)}
+        onChange={handleChange}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
         placeholder={value.length === 0 ? placeholder : undefined}
