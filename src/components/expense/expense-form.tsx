@@ -1155,6 +1155,7 @@ export function ExpenseForm({
                         onBump={(d) => bumpShares(r.memberId, d)}
                         decLabel={t('expenses.shares_dec')}
                         incLabel={t('expenses.shares_inc')}
+                        label={t('expenses.member_field', { name: m.displayName, field: t('expenses.col_shares') })}
                       />
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono tabular-nums">
@@ -1165,6 +1166,7 @@ export function ExpenseForm({
                         value={r.extraText}
                         onChange={(v) => updateRow(r.memberId, { extraText: v })}
                         clearLabel={t('expenses.clear')}
+                        label={t('expenses.member_field', { name: m.displayName, field: t('expenses.col_extra') })}
                       />
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono tabular-nums whitespace-nowrap">
@@ -1267,6 +1269,7 @@ export function ExpenseForm({
                       onBump={(d) => bumpShares(r.memberId, d)}
                       decLabel={t('expenses.shares_dec')}
                       incLabel={t('expenses.shares_inc')}
+                      label={t('expenses.member_field', { name: m.displayName, field: t('expenses.col_shares') })}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
@@ -1277,6 +1280,7 @@ export function ExpenseForm({
                       value={r.extraText}
                       onChange={(v) => updateRow(r.memberId, { extraText: v })}
                       clearLabel={t('expenses.clear')}
+                      label={t('expenses.member_field', { name: m.displayName, field: t('expenses.col_extra') })}
                     />
                   </div>
                 </div>
@@ -1368,6 +1372,7 @@ function SharesStepper({
   onBump,
   decLabel,
   incLabel,
+  label,
 }: {
   value: string;
   disabled: boolean;
@@ -1375,6 +1380,7 @@ function SharesStepper({
   onBump: (delta: number) => void;
   decLabel: string;
   incLabel: string;
+  label: string;
 }) {
   const n = parseInt(value || '0', 10);
   const canDec = !disabled && Number.isFinite(n) && n > 0;
@@ -1395,6 +1401,7 @@ function SharesStepper({
         mode="integer"
         disabled={disabled}
         unstyled
+        keypadTitle={label}
         className="w-full min-w-0 flex-1 border-x bg-transparent text-center text-sm tabular-nums focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
       />
       <button
@@ -1414,10 +1421,12 @@ function ExtraInput({
   value,
   onChange,
   clearLabel,
+  label,
 }: {
   value: string;
   onChange: (v: string) => void;
   clearLabel: string;
+  label: string;
 }) {
   return (
     <div className="relative">
@@ -1426,6 +1435,7 @@ function ExtraInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder="0"
         allowNegative
+        keypadTitle={label}
         className="h-9 w-full pr-7 pl-2 text-right tabular-nums font-mono"
       />
       {value && (

@@ -255,6 +255,7 @@
     "col_shares": "份数",
     "col_base": "基础分摊",
     "col_extra": "额外分摊",
+    "member_field": "{name} 的 {field}",
     "col_subtotal": "合计",
     "split_total": "应为",
     "split_diff": "距总额差 {diff} {currency}",

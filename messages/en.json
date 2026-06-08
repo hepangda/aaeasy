@@ -255,6 +255,7 @@
     "col_shares": "Shares",
     "col_base": "Base share",
     "col_extra": "Extra",
+    "member_field": "{name}'s {field}",
     "col_subtotal": "Subtotal",
     "split_total": "Should be",
     "split_diff": "Off by {diff} {currency}",
