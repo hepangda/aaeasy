@@ -9,7 +9,6 @@ import { MemberRoleControl } from '@/components/group/member-role-control';
 import { AccountBindingDialog } from '@/components/share/account-binding-dialog';
 import type { ExistingShareLink } from '@/components/share/types';
 import type { MemberPendingInvitationRow } from '@/lib/invitations/queries';
-import { GroupShareDialog } from '@/components/share/group-share-dialog';
 import { DeleteGroupButton } from '@/components/group/delete-group-button';
 import { LeaveGroupButton } from '@/components/group/leave-group-button';
 import { TransferOwnershipButton, type OwnerCandidate } from '@/components/group/transfer-ownership-button';
@@ -32,7 +31,6 @@ interface SettingsPanelProps {
   isArchived: boolean;
   settlementId?: string;
   existingShareLinks: ExistingShareLink[];
-  groupShareLinks: ExistingShareLink[];
   pendingInvitations: MemberPendingInvitationRow[];
   baseUrl: string;
   ownerCandidates: OwnerCandidate[];
@@ -47,7 +45,6 @@ export function SettingsPanel({
   isArchived,
   settlementId,
   existingShareLinks,
-  groupShareLinks,
   pendingInvitations,
   baseUrl,
   ownerCandidates,
@@ -59,19 +56,6 @@ export function SettingsPanel({
       {/* Members Section */}
       <div className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">{t('members.title')}</h2>
-        {canManage && (
-          <div className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-medium">{t('share.group_share')}</h3>
-              <p className="text-muted-foreground text-xs">{t('share.group_share_desc')}</p>
-            </div>
-            <GroupShareDialog
-              groupId={groupId}
-              existingLinks={groupShareLinks}
-              baseUrl={baseUrl}
-            />
-          </div>
-        )}
         {canManage && <AddMemberForm groupId={groupId} />}
         <ul className="divide-y rounded-md border">
           {membersPage.slice.map((m) => {

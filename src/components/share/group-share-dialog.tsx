@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Copy, Link as LinkIcon, Plus, Trash2 } from 'lucide-react';
+import { Copy, Forward, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -90,7 +90,7 @@ export function GroupShareDialog({
   return (
     <>
       <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <LinkIcon />
+        <Forward />
         {t('share.group_share')}
         {activeLinks.length > 0 && (
           <span className="text-muted-foreground text-xs">{activeLinks.length}</span>
@@ -216,6 +216,24 @@ export function GroupShareDialog({
             <Plus /> {t('share.create')}
           </Button>
         )}
+
+        <p className="text-muted-foreground border-border/60 border-t pt-3 text-xs">
+          {t('share.bind_hint')}{' '}
+          <button
+            type="button"
+            className="text-foreground underline-offset-2 hover:underline"
+            onClick={() => {
+              setOpen(false);
+              reset();
+              setRevealedToken(null);
+              if (typeof window !== 'undefined') {
+                window.location.hash = 'settings';
+              }
+            }}
+          >
+            {t('share.go_to_settings')}
+          </button>
+        </p>
       </Dialog>
     </>
   );

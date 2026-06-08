@@ -358,6 +358,8 @@
     "group_share_desc": "Create view-only links for the whole ledger. These links never bind to an account.",
     "group_dialog_title": "Share ledger",
     "group_dialog_desc": "Anyone with this link can view the ledger only. They cannot bind an account or make changes.",
+    "bind_hint": "To bind an account to a specific member, head over to Settings.",
+    "go_to_settings": "Go to Settings",
     "group_default_label": "Ledger view",
     "group_label_placeholder": "e.g. auditor",
     "dialog_title_for": "Share: {name}",

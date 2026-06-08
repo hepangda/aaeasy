@@ -16,6 +16,7 @@ import { SettleButton } from '@/components/settle/settle-button';
 import { TransfersPanel } from '@/components/settle/transfers-panel';
 import { ExportMenu } from '@/components/settle/export-menu';
 import { SettingsPanel } from '@/components/group/settings-panel';
+import { GroupShareDialog } from '@/components/share/group-share-dialog';
 import type { ExistingShareLink } from '@/components/share/types';
 import type { OwnerCandidate } from '@/components/group/transfer-ownership-button';
 import { SplitBadge } from '@/components/expense/split-badge';
@@ -277,6 +278,13 @@ export default async function GroupPage({
               groupId={id}
               openExpenseCount={openExpenseCount}
               draftExpenseCount={draftExpenseCount}
+            />
+          )}
+          {canManage && access.kind === 'user' && (
+            <GroupShareDialog
+              groupId={id}
+              existingLinks={existingShareLinks.filter((l) => l.memberId === null)}
+              baseUrl={baseUrl}
             />
           )}
           {access.kind === 'user' && <ExportMenu groupId={id} />}
@@ -643,7 +651,6 @@ export default async function GroupPage({
                 isArchived={isArchived}
                 settlementId={latestSettlement?.id}
                 existingShareLinks={existingShareLinks.filter((l) => l.memberId !== null)}
-                groupShareLinks={existingShareLinks.filter((l) => l.memberId === null)}
                 pendingInvitations={pendingInvitationsByMember}
                 baseUrl={baseUrl}
                 ownerCandidates={ownerCandidates}
