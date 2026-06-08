@@ -85,4 +85,15 @@
     color: var(--foreground);
     font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   }
+
+  /* iOS Safari zooms the viewport on focus when an editable control's font-size
+     is below 16px. Bump just those controls on coarse pointers to suppress it
+     without changing the desktop type scale. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
 }
