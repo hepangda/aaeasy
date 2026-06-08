@@ -1,11 +1,11 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { ChipInput, type MemberChip } from '@/components/ui/chip-input';
 import { createGroupAction, type ActionState } from '@/lib/groups/actions';
 import { showI18nError } from '@/lib/ui/toast';
 
@@ -14,6 +14,7 @@ const initial: ActionState = { ok: false };
 export function NewGroupForm() {
   const t = useTranslations();
   const [state, action, pending] = useActionState(createGroupAction, initial);
+  const [chips, setChips] = useState<MemberChip[]>([]);
 
   useEffect(() => {
     if (state.error) showI18nError(t, state.error);
@@ -47,11 +48,21 @@ export function NewGroupForm() {
 
       <div className="grid gap-2">
         <Label htmlFor="members">{t('groups.initial_members')}</Label>
-        <Textarea
+        <ChipInput
           id="members"
+          value={chips}
+          onChange={setChips}
+          placeholder={t('groups.initial_members_chip_hint')}
+          ariaLabel={t('groups.initial_members')}
+          disabled={pending}
+        />
+        <p className="text-muted-foreground text-xs">
+          {t('groups.chip_mention_hint')}
+        </p>
+        <input
+          type="hidden"
           name="members"
-          rows={4}
-          placeholder={t('groups.initial_members_placeholder')}
+          value={chips.length ? JSON.stringify(chips) : ''}
         />
       </div>
 

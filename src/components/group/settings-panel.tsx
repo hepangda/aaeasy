@@ -6,7 +6,9 @@ import { RemoveMemberButton } from '@/components/group/remove-member-button';
 import { UnlinkMemberButton } from '@/components/group/unlink-member-button';
 import { MemberRenameButton } from '@/components/group/member-rename-button';
 import { MemberRoleControl } from '@/components/group/member-role-control';
-import { MemberShareDialog, type ExistingShareLink } from '@/components/share/member-share-dialog';
+import { AccountBindingDialog } from '@/components/share/account-binding-dialog';
+import type { ExistingShareLink } from '@/components/share/types';
+import type { MemberPendingInvitationRow } from '@/lib/invitations/queries';
 import { GroupShareDialog } from '@/components/share/group-share-dialog';
 import { DeleteGroupButton } from '@/components/group/delete-group-button';
 import { LeaveGroupButton } from '@/components/group/leave-group-button';
@@ -31,6 +33,7 @@ interface SettingsPanelProps {
   settlementId?: string;
   existingShareLinks: ExistingShareLink[];
   groupShareLinks: ExistingShareLink[];
+  pendingInvitations: MemberPendingInvitationRow[];
   baseUrl: string;
   ownerCandidates: OwnerCandidate[];
 }
@@ -45,6 +48,7 @@ export function SettingsPanel({
   settlementId,
   existingShareLinks,
   groupShareLinks,
+  pendingInvitations,
   baseUrl,
   ownerCandidates,
 }: SettingsPanelProps) {
@@ -108,13 +112,16 @@ export function SettingsPanel({
                       />
                     )}
                     {canManage && m.linkedUserRole !== 'OWNER' && (
-                      <MemberShareDialog
+                      <AccountBindingDialog
                         groupId={groupId}
                         memberId={m.id}
                         memberName={displayName}
                         memberLinked={isLinked}
                         canAssignManager={isOwner}
                         existingLinks={existingShareLinks.filter((l) => l.memberId === m.id)}
+                        pendingInvitations={pendingInvitations.filter(
+                          (inv) => inv.memberId === m.id,
+                        )}
                         baseUrl={baseUrl}
                       />
                     )}

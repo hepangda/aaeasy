@@ -1,17 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
+const BACKDROP_DISMISS_GRACE_MS = 200;
+
 /**
- * Centered modal dialog with a backdrop. Renders into `document.body` via a
- * portal so it escapes any ancestor `overflow:hidden` / transform stack.
+ * Modal dialog with a backdrop. Renders into `document.body` via a portal so
+ * it escapes any ancestor `overflow:hidden` / transform stack.
  *
- * Closes on backdrop click and Escape. The body's `overflow` is locked
- * while open so the page underneath doesn't scroll.
+ * On mobile (< sm) it docks to the bottom as a sheet — easier for one-handed
+ * use than a top-anchored card. On `sm+` it floats centered. Closes on
+ * backdrop click and Escape; body scroll is locked while open.
  */
 export function Dialog({
   open,
@@ -26,8 +29,11 @@ export function Dialog({
   children: React.ReactNode;
   className?: string;
 }) {
+  const openedAt = useRef(0);
+
   useEffect(() => {
     if (!open) return;
+    openedAt.current = performance.now();
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     function onKey(e: KeyboardEvent) {
@@ -46,16 +52,25 @@ export function Dialog({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:overflow-y-auto sm:p-4"
+      onPointerDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        e.preventDefault();
+      }}
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (performance.now() - openedAt.current < BACKDROP_DISMISS_GRACE_MS) return;
+        onClose();
       }}
     >
       <div
         className={cn(
-          'bg-background relative flex w-full max-w-lg flex-col gap-4 rounded-lg border p-5 shadow-xl',
+          'bg-background relative flex w-full max-w-lg flex-col gap-4 border p-5 shadow-xl',
+          'max-h-[90vh] overflow-y-auto rounded-t-xl rounded-b-none border-b-0',
+          'sm:max-h-none sm:overflow-visible sm:rounded-lg sm:border-b',
           className,
         )}
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
       >
         {title && (
           <header className="flex items-center justify-between gap-2">

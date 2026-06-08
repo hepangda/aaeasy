@@ -16,7 +16,7 @@ import { SettleButton } from '@/components/settle/settle-button';
 import { TransfersPanel } from '@/components/settle/transfers-panel';
 import { ExportMenu } from '@/components/settle/export-menu';
 import { SettingsPanel } from '@/components/group/settings-panel';
-import type { ExistingShareLink } from '@/components/share/member-share-dialog';
+import type { ExistingShareLink } from '@/components/share/types';
 import type { OwnerCandidate } from '@/components/group/transfer-ownership-button';
 import { SplitBadge } from '@/components/expense/split-badge';
 import { Tabs } from '@/components/ui/tabs';
@@ -153,6 +153,26 @@ export default async function GroupPage({
         };
       })
     : [];
+
+  // Pending account-binding invitations for any member of this group. Used
+  // by the account-binding dialog so managers can see and cancel them.
+  const pendingInvitationsByMember = canManage
+    ? await prisma.groupInvitation.findMany({
+        where: { groupId: id, status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          memberId: true,
+          assignedRole: true,
+          createdAt: true,
+          invitedUser: {
+            select: { id: true, displayName: true, username: true },
+          },
+          invitedBy: { select: { id: true, displayName: true } },
+        },
+      })
+    : [];
+
 
   // Eligible OWNER-transfer candidates: every linked member of the group
   // whose linked user isn't already the OWNER (i.e. self). Only computed
@@ -622,6 +642,7 @@ export default async function GroupPage({
                 settlementId={latestSettlement?.id}
                 existingShareLinks={existingShareLinks.filter((l) => l.memberId !== null)}
                 groupShareLinks={existingShareLinks.filter((l) => l.memberId === null)}
+                pendingInvitations={pendingInvitationsByMember}
                 baseUrl={baseUrl}
                 ownerCandidates={ownerCandidates}
               />

@@ -34,6 +34,8 @@ model User {
   receiptsUploaded Receipt[]         @relation("ReceiptUploadedBy")
   settlementsCreated Settlement[]    @relation("SettlementCreatedBy")
   settlementEntriesCreated SettlementEntry[] @relation("SettlementEntryCreatedBy")
+  invitationsReceived GroupInvitation[] @relation("UserInvitationsReceived")
+  invitationsSent    GroupInvitation[] @relation("UserInvitationsSent")
   @@map("users")
 }
 
@@ -149,6 +151,7 @@ model Group {
   members     Member[]
   memberships GroupMembership[]
   shareLinks  ShareLink[]
+  invitations GroupInvitation[]
   expenses    Expense[]
   settlements Settlement[]
   settlementEntries SettlementEntry[]
@@ -175,6 +178,7 @@ model Member {
   settlementsFrom SettlementEntry[] @relation("SettlementFrom")
   settlementsTo   SettlementEntry[] @relation("SettlementTo")
   shareLinks   ShareLink[]    @relation("ShareLinkMember")
+  invitations  GroupInvitation[] @relation("MemberInvitations")
 
   @@index([groupId])
   @@index([linkedUserId])
@@ -192,6 +196,54 @@ model GroupMembership {
   @@id([userId, groupId])
   @@index([groupId])
   @@map("group_memberships")
+}
+
+// ─── Account binding invitations ──────────────────────────────────────────
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  /// Inviter revoked, or the binding happened through another path (share
+  /// link claim, sibling invitation accepted, etc.) so this row is moot.
+  CANCELED
+  EXPIRED
+}
+
+/// A MANAGER/OWNER's invitation for a registered User to bind their account
+/// to a specific unlinked Member slot. The invitation is always bound to a
+/// concrete Member — accepting fills that Member's `linkedUserId` and upserts
+/// the user's GroupMembership at `assignedRole`.
+///
+/// Duplicate live invites for the same (member, user) pair are prevented by
+/// a partial unique index defined in the migration:
+///   UNIQUE (memberId, invitedUserId) WHERE status = 'PENDING'
+/// (Prisma's schema language can't express the WHERE clause.)
+model GroupInvitation {
+  id            String           @id @default(cuid())
+  groupId       String
+  group         Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  memberId      String
+  member        Member           @relation("MemberInvitations", fields: [memberId], references: [id], onDelete: Cascade)
+  invitedUserId String
+  invitedUser   User             @relation("UserInvitationsReceived", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  /// Inviter — SetNull on account delete to preserve audit history.
+  invitedById   String?
+  invitedBy     User?            @relation("UserInvitationsSent", fields: [invitedById], references: [id], onDelete: SetNull)
+  /// Role permanently granted on accept. Only MEMBER / MANAGER permitted
+  /// (no VIEWER, no OWNER) — enforced at the action layer.
+  assignedRole  GroupRole
+  status        InvitationStatus @default(PENDING)
+  message       String?          @db.VarChar(200)
+  createdAt     DateTime         @default(now())
+  respondedAt   DateTime?
+  expiresAt     DateTime?
+
+  @@index([invitedUserId, status])
+  @@index([groupId, status])
+  @@index([memberId])
+  @@index([invitedById])
+  @@map("group_invitations")
 }
 
 // ─── Anonymous share links ────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth/session';
 import { requireGroupAccess } from '@/lib/auth/group-access';
@@ -12,6 +13,22 @@ import { publish } from '@/lib/realtime/pgNotify';
 
 const currencyRegex = /^[A-Z]{3}$/;
 
+const memberChipSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('name'), text: z.string().trim().min(1).max(40) }),
+  z.object({
+    kind: z.literal('mention'),
+    username: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .min(3)
+      .max(32)
+      .regex(/^[a-z0-9_.-]+$/),
+  }),
+]);
+
+const memberChipsSchema = z.array(memberChipSchema).max(50);
+
 const createGroupSchema = z.object({
   name: z.string().trim().min(1, 'errors.group_name_required').max(64),
   defaultCurrency: z
@@ -19,7 +36,7 @@ const createGroupSchema = z.object({
     .trim()
     .toUpperCase()
     .refine((v) => currencyRegex.test(v), { message: 'errors.invalid_currency' }),
-  // Comma- or newline-separated initial member names.
+  /// JSON-serialized array of MemberChip — produced by <ChipInput>.
   members: z.string().optional(),
 });
 
@@ -46,25 +63,103 @@ export async function createGroupAction(
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'errors.invalid_input' };
   }
 
-  const memberNames = (parsed.data.members ?? '')
-    .split(/[\n,]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => memberNameSchema.parse(s))
-    .slice(0, 50); // hard cap
-
-  const taken = new Set<string>();
-  for (const name of memberNames) {
-    const key = name.toLocaleLowerCase();
-    if (taken.has(key)) return { ok: false, error: 'errors.member_name_taken' };
-    taken.add(key);
+  // Parse the chip payload (JSON from <ChipInput>). Empty / missing → no
+  // extra members; the creator is always added below regardless.
+  let chips: z.infer<typeof memberChipsSchema> = [];
+  const rawMembers = parsed.data.members?.trim();
+  if (rawMembers) {
+    let json: unknown;
+    try {
+      json = JSON.parse(rawMembers);
+    } catch {
+      return { ok: false, error: 'errors.invalid_input' };
+    }
+    const chipsParsed = memberChipsSchema.safeParse(json);
+    if (!chipsParsed.success) {
+      return { ok: false, error: 'errors.invalid_input' };
+    }
+    chips = chipsParsed.data;
   }
 
-  // Always include the creator as a member (linked).
+  // Resolve all @mention chips up-front so we know which become invitations
+  // (target user exists) and which fall back to a literal-text Member row.
+  const mentionUsernames = Array.from(
+    new Set(chips.filter((c) => c.kind === 'mention').map((c) => c.username)),
+  );
+  const matchedUsers = mentionUsernames.length
+    ? await prisma.user.findMany({
+        where: { username: { in: mentionUsernames } },
+        select: { id: true, username: true, displayName: true },
+      })
+    : [];
+  const usernameToUser = new Map(
+    matchedUsers
+      .filter((u): u is { id: string; username: string; displayName: string } => !!u.username)
+      .map((u) => [u.username, u]),
+  );
+
+  // Build the final ordered Member list. Creator first, then chips in the
+  // order the user entered them. We enforce case-insensitive uniqueness on
+  // the final display names to keep parity with the legacy behavior.
   const ownerName = ctx.user.displayName.slice(0, 40);
-  if (!taken.has(ownerName.toLocaleLowerCase())) {
-    memberNames.unshift(ctx.user.displayName);
-    taken.add(ownerName.toLocaleLowerCase());
+  type Pending =
+    | { kind: 'creator'; displayName: string }
+    | { kind: 'name'; displayName: string }
+    | {
+        kind: 'mention';
+        displayName: string;
+        invitedUser: { id: string; username: string };
+      }
+    | { kind: 'mention-unresolved'; displayName: string };
+
+  const pendings: Pending[] = [{ kind: 'creator', displayName: ownerName }];
+  const taken = new Set<string>([ownerName.toLocaleLowerCase()]);
+  let hasUnresolvedMention = false;
+
+  for (const chip of chips) {
+    if (chip.kind === 'name') {
+      const validated = memberNameSchema.parse(chip.text);
+      const key = validated.toLocaleLowerCase();
+      if (taken.has(key)) {
+        return { ok: false, error: 'errors.member_name_taken' };
+      }
+      taken.add(key);
+      pendings.push({ kind: 'name', displayName: validated });
+    } else {
+      const user = usernameToUser.get(chip.username);
+      if (user) {
+        if (user.id === ctx.user.id) {
+          // Mentioning yourself collapses to "you" — already added as creator.
+          continue;
+        }
+        // Use the target user's displayName for the Member row.
+        const proposed = user.displayName.slice(0, 40);
+        let displayName = proposed;
+        let suffix = 2;
+        while (taken.has(displayName.toLocaleLowerCase())) {
+          // Disambiguate quietly so two users with the same display name can
+          // both be invited at create time without blowing up the form.
+          displayName = `${proposed} (${suffix++})`.slice(0, 40);
+        }
+        taken.add(displayName.toLocaleLowerCase());
+        pendings.push({
+          kind: 'mention',
+          displayName,
+          invitedUser: { id: user.id, username: user.username },
+        });
+      } else {
+        const fallback = `@${chip.username}`.slice(0, 40);
+        const key = fallback.toLocaleLowerCase();
+        if (taken.has(key)) continue;
+        taken.add(key);
+        pendings.push({ kind: 'mention-unresolved', displayName: fallback });
+        hasUnresolvedMention = true;
+      }
+    }
+  }
+
+  if (pendings.length > 50) {
+    return { ok: false, error: 'errors.invalid_input' };
   }
 
   const group = await prisma.group.create({
@@ -76,21 +171,56 @@ export async function createGroupAction(
         create: { userId: ctx.user.id, role: 'OWNER' },
       },
       members: {
-        create: memberNames.map((displayName, idx) => ({
-          displayName: displayName.slice(0, 40),
+        create: pendings.map((p, idx) => ({
+          displayName: p.displayName,
           sortOrder: idx,
-          // Link the first one matching the creator's display name.
-          linkedUserId:
-            displayName.toLocaleLowerCase() === ownerName.toLocaleLowerCase()
-              ? ctx.user.id
-              : null,
+          linkedUserId: p.kind === 'creator' ? ctx.user.id : null,
         })),
       },
     },
-    select: { id: true },
+    select: {
+      id: true,
+      members: { select: { id: true, displayName: true, sortOrder: true } },
+    },
   });
 
+  // Send invitations for any resolved @mention chips. Use the in-flight
+  // pending list to find the matching Member.id we just created.
+  const memberByName = new Map(
+    group.members.map((m) => [m.displayName.toLocaleLowerCase(), m.id]),
+  );
+  for (const p of pendings) {
+    if (p.kind !== 'mention') continue;
+    const memberId = memberByName.get(p.displayName.toLocaleLowerCase());
+    if (!memberId) continue;
+    try {
+      await prisma.groupInvitation.create({
+        data: {
+          groupId: group.id,
+          memberId,
+          invitedUserId: p.invitedUser.id,
+          invitedById: ctx.user.id,
+          assignedRole: 'MEMBER',
+        },
+      });
+    } catch (err) {
+      // Partial-unique-index collision shouldn't happen on a freshly-created
+      // Member, but swallow it defensively so the redirect still happens.
+      if (
+        !(err instanceof Prisma.PrismaClientKnownRequestError) ||
+        err.code !== 'P2002'
+      ) {
+        throw err;
+      }
+    }
+  }
+
   revalidatePath('/groups');
+  // Stash a one-shot toast hint via redirect query when something was
+  // ambiguous, so the new-group page can surface it after navigation.
+  if (hasUnresolvedMention) {
+    redirect(`/groups/${group.id}?notice=unresolved_mention`);
+  }
   redirect(`/groups/${group.id}`);
 }
 

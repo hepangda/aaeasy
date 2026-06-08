@@ -14,7 +14,7 @@ import {
 } from '@/lib/groups/share-actions';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { showI18nError } from '@/lib/ui/toast';
-import type { ExistingShareLink } from './member-share-dialog';
+import type { ExistingShareLink } from './types';
 
 export function GroupShareDialog({
   groupId,

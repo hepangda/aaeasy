@@ -5,6 +5,11 @@ import { Plus, Users } from 'lucide-react';
 import { prisma } from '@/lib/db';
 import { getCurrentSession } from '@/lib/auth/session';
 import { Button } from '@/components/ui/button';
+import { getPendingInvitationsForUser } from '@/lib/invitations/queries';
+import {
+  PendingInvitationsPanel,
+  type PendingInvitationItem,
+} from '@/components/invitations/pending-invitations-panel';
 
 export default async function GroupsPage() {
   const ctx = await getCurrentSession();
@@ -13,21 +18,35 @@ export default async function GroupsPage() {
   const t = await getTranslations('groups');
   const fmt = await getFormatter();
 
-  const groups = await prisma.group.findMany({
-    where: {
-      deletedAt: null,
-      memberships: { some: { userId: ctx.user.id } },
-    },
-    orderBy: { updatedAt: 'desc' },
-    select: {
-      id: true,
-      name: true,
-      defaultCurrency: true,
-      status: true,
-      createdAt: true,
-      _count: { select: { members: true } },
-    },
-  });
+  const [groups, pendingInvitations] = await Promise.all([
+    prisma.group.findMany({
+      where: {
+        deletedAt: null,
+        memberships: { some: { userId: ctx.user.id } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        defaultCurrency: true,
+        status: true,
+        createdAt: true,
+        _count: { select: { members: true } },
+      },
+    }),
+    getPendingInvitationsForUser(ctx.user.id),
+  ]);
+
+  const invitationItems: PendingInvitationItem[] = pendingInvitations.map((inv) => ({
+    id: inv.id,
+    groupId: inv.groupId,
+    groupName: inv.group.name,
+    memberDisplayName: inv.member.displayName,
+    inviterDisplayName: inv.invitedBy?.displayName ?? null,
+    inviterUsername: inv.invitedBy?.username ?? null,
+    assignedRole: inv.assignedRole,
+    createdAt: fmt.dateTime(inv.createdAt, 'short'),
+  }));
 
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-10 lg:px-8">
@@ -39,6 +58,8 @@ export default async function GroupsPage() {
           </Link>
         </Button>
       </header>
+
+      <PendingInvitationsPanel invitations={invitationItems} />
 
       {groups.length === 0 ? (
         <p className="text-muted-foreground rounded-lg border border-dashed px-6 py-12 text-center text-sm">
