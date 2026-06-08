@@ -20,9 +20,10 @@ import {
 import {
   errorToast,
   showI18nError,
+  successToast,
 } from '@/lib/ui/toast';
 import type { SplitRule } from '@/lib/split/types';
-import type { SplitInputState } from '@/lib/split/input-state';
+import type { SplitInputState, SplitInputRow } from '@/lib/split/input-state';
 import { computeSplit } from '@/lib/split';
 import {
   decimalToMinor,
@@ -31,6 +32,8 @@ import {
   minorUnits,
   parseAmountToMinor,
 } from '@/lib/money';
+import { mergeAiRows, type CurrentSnapshot } from '@/lib/expenses/ai-schema';
+import { useAiParseStream } from '@/lib/expenses/use-ai-parse-stream';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_AI_IMAGE_BYTES = 3 * 1024 * 1024;
@@ -624,13 +627,12 @@ export function ExpenseForm({
     (!isDraftMode && !sumMatchesTotal);
 
   // ─── AI-assisted parsing ───────────────────────────────
-  // The user types a free-form sentence; we POST it to the parse endpoint
-  // and apply the suggestion to the (mostly uncontrolled) form fields by
-  // grabbing the form ref. The user always sees the result before saving.
+  // The user types a free-form sentence; we POST it to the streaming parse
+  // endpoint and apply each field as it arrives. The user always sees the
+  // result before saving — AI never auto-submits.
   const formRef = useRef<HTMLFormElement>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiText, setAiText] = useState('');
-  const [aiPending, setAiPending] = useState(false);
   const [aiReasoning, setAiReasoning] = useState<string | null>(null);
   const [aiAmbiguousHint, setAiAmbiguousHint] = useState<string | null>(null);
   const [aiImage, setAiImage] = useState<AiImageContext | null>(null);
@@ -643,7 +645,150 @@ export function ExpenseForm({
       | null;
     if (!el) return;
     el.value = value;
+    flashElement(el);
   }
+
+  function flashElement(el: HTMLElement) {
+    el.classList.remove('ai-flash');
+    void el.offsetWidth;
+    el.classList.add('ai-flash');
+    setTimeout(() => el.classList.remove('ai-flash'), 700);
+  }
+
+  // Snapshot the current form state for edit-mode AI calls so the model
+  // sees the values it's being asked to adjust.
+  function buildCurrentSnapshot(): CurrentSnapshot | undefined {
+    if (!defaults) return undefined;
+    const titleEl = formRef.current?.elements.namedItem('title') as
+      | HTMLInputElement
+      | null;
+    const dateEl = formRef.current?.elements.namedItem('occurredAt') as
+      | HTMLInputElement
+      | null;
+    const payerEl = formRef.current?.elements.namedItem('payerMemberId') as
+      | HTMLSelectElement
+      | HTMLInputElement
+      | null;
+    const noteEl = formRef.current?.elements.namedItem('note') as
+      | HTMLTextAreaElement
+      | null;
+    const fxEl = formRef.current?.elements.namedItem('fxRateOverride') as
+      | HTMLInputElement
+      | null;
+    return {
+      title: titleEl?.value || null,
+      occurredAt: dateEl?.value || null,
+      currency,
+      amount: isDraftMode ? null : amountText || null,
+      payerMemberId: lockedPayerMemberId ?? payerEl?.value ?? null,
+      note: noteEl?.value || null,
+      isDraft: isDraftMode,
+      fxRateOverride: fxEl?.value || null,
+      splitRows: isDraftMode
+        ? undefined
+        : rows.map((r) => ({
+            memberId: r.memberId,
+            checked: r.checked,
+            shares: r.shares,
+            extraText: r.extraText,
+          })),
+    };
+  }
+
+  const aiStream = useAiParseStream({
+    groupId,
+    onField: (name, value) => {
+      switch (name) {
+        case 'title':
+          if (typeof value === 'string') setFieldValue('title', value);
+          return;
+        case 'occurredAt':
+          if (typeof value === 'string') setFieldValue('occurredAt', value);
+          return;
+        case 'currency':
+          // Currency is locked to the group default; only honor matching
+          // suggestions so we don't desync the hidden input.
+          if (typeof value === 'string' && value === groupCurrency) {
+            setCurrency(value);
+          }
+          return;
+        case 'amount':
+          if (typeof value === 'string' && !isDraftMode) {
+            setAmountText(value);
+          }
+          return;
+        case 'payerMemberId':
+          if (
+            typeof value === 'string' &&
+            !lockedPayerMemberId &&
+            members.some((m) => m.id === value)
+          ) {
+            setFieldValue('payerMemberId', value);
+          }
+          return;
+        case 'note':
+          if (typeof value === 'string') setFieldValue('note', value);
+          return;
+        case 'isDraft':
+          if (typeof value === 'boolean' && !lockedNonDraft) {
+            setIsDraftMode(value);
+          }
+          return;
+        case 'fxRateOverride':
+          if (typeof value === 'string') {
+            setFieldValue('fxRateOverride', value);
+          }
+          return;
+        case 'reasoning':
+          if (typeof value === 'string') setAiReasoning(value);
+          return;
+        case 'ambiguousHint':
+          if (typeof value === 'string') setAiAmbiguousHint(value);
+          return;
+        case 'tags':
+          // Tags are not surfaced in the UI yet; ignore.
+          return;
+      }
+    },
+    onSplit: (_mode, aiRows: SplitInputRow[]) => {
+      if (isDraftMode) return;
+      setRows((cur) => mergeAiRows(cur, aiRows));
+      successToast(t('expenses.ai_split_updated'));
+    },
+    onMeta: ({ payerName, participants }) => {
+      if (payerName) {
+        successToast(
+          t('expenses.ai_unresolved_payer', { name: payerName }),
+        );
+      }
+      if (participants && participants.length > 0) {
+        successToast(
+          t('expenses.ai_unresolved_participants', {
+            names: participants.join(', '),
+          }),
+        );
+      }
+    },
+    onError: (code, detail) => {
+      if (detail && code !== 'IMAGE_UNSUPPORTED') errorToast(detail);
+      showI18nError(
+        t,
+        code === 'NOT_CONFIGURED'
+          ? 'errors.ai_not_configured'
+          : code === 'IMAGE_UNSUPPORTED'
+            ? 'errors.ai_image_unsupported'
+            : code === 'RATE_LIMITED'
+              ? 'errors.rate_limited'
+              : code === 'TIMEOUT'
+                ? 'errors.ai_timeout'
+                : code === 'STREAM_INTERRUPTED'
+                  ? 'expenses.ai_stream_interrupted'
+                  : 'errors.ai_failed',
+      );
+    },
+  });
+
+  const aiPending = aiStream.pending;
 
   async function runAiParse(opts?: {
     image?: AiImageContext;
@@ -653,82 +798,18 @@ export function ExpenseForm({
     const image = opts?.image ?? aiImage;
     const text = (opts?.textOverride ?? aiText).trim();
     if (!text && !image) return;
-    opts?.setLoading?.(true);
-    setAiPending(true);
     setAiReasoning(null);
     setAiAmbiguousHint(null);
+    opts?.setLoading?.(true);
     try {
-      const res = await fetch(`/api/groups/${groupId}/expenses/parse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          images: image
-            ? [
-                {
-                  name: image.name,
-                  mime: image.mime,
-                  dataUrl: image.dataUrl,
-                },
-              ]
-            : [],
-        }),
+      await aiStream.start({
+        text,
+        images: image
+          ? [{ name: image.name, mime: image.mime, dataUrl: image.dataUrl }]
+          : undefined,
+        current: buildCurrentSnapshot(),
       });
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          detail?: string;
-        };
-        const code = payload.error;
-        if (payload.detail && payload.error !== 'IMAGE_UNSUPPORTED') {
-          // Dev-friendly detail passthrough; fallback still shown below.
-          errorToast(payload.detail);
-        }
-        showI18nError(
-          t,
-          code === 'NOT_CONFIGURED'
-            ? 'errors.ai_not_configured'
-            : code === 'IMAGE_UNSUPPORTED'
-              ? 'errors.ai_image_unsupported'
-            : code === 'RATE_LIMITED'
-              ? 'errors.rate_limited'
-              : code === 'TIMEOUT'
-                ? 'errors.ai_timeout'
-                : 'errors.ai_failed',
-        );
-        return;
-      }
-      const { suggestion } = (await res.json()) as {
-        suggestion: {
-          title: string | null;
-          occurredAt: string | null;
-          currency: string | null;
-          amount: string | null;
-          payerMemberId: string | null;
-          note: string | null;
-          reasoning: string | null;
-          ambiguousHint: string | null;
-        };
-      };
-      if (suggestion.title) setFieldValue('title', suggestion.title);
-      if (suggestion.occurredAt) setFieldValue('occurredAt', suggestion.occurredAt);
-      if (suggestion.currency) setCurrency(suggestion.currency);
-      // Only auto-fill amount when not in draft mode (the input is hidden).
-      if (!isDraftMode && suggestion.amount) setAmountText(suggestion.amount);
-      if (
-        suggestion.payerMemberId &&
-        !lockedPayerMemberId &&
-        members.some((m) => m.id === suggestion.payerMemberId)
-      ) {
-        setFieldValue('payerMemberId', suggestion.payerMemberId);
-      }
-      if (suggestion.note) setFieldValue('note', suggestion.note);
-      setAiReasoning(suggestion.reasoning);
-      setAiAmbiguousHint(suggestion.ambiguousHint);
-    } catch {
-      showI18nError(t, 'errors.ai_failed');
     } finally {
-      setAiPending(false);
       opts?.setLoading?.(false);
     }
   }
@@ -816,17 +897,15 @@ export function ExpenseForm({
           draft button is hidden when editing an already-materialized
           expense to avoid an accidental "demote-to-draft". */}
       <div className="-mb-1 flex flex-wrap items-center gap-2">
-        {!defaults && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setAiOpen((open) => !open)}
-            className={aiOpen ? 'bg-secondary' : undefined}
-          >
-            <Sparkles className="size-4" /> {t('expenses.ai_open')}
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setAiOpen((open) => !open)}
+          className={aiOpen ? 'bg-secondary' : undefined}
+        >
+          <Sparkles className="size-4" /> {t('expenses.ai_open')}
+        </Button>
         {!lockedNonDraft && (
           <Button
             type="button"
@@ -845,12 +924,15 @@ export function ExpenseForm({
           A collapsible textarea that POSTs the user's description to
           the parse endpoint and applies the returned suggestion to the
           form fields. The user always reviews before saving. */}
-      {!defaults && aiOpen && (
+      {aiOpen && (
         <div className="flex flex-col gap-2">
             <div className="bg-secondary/30 flex flex-col gap-2 rounded-md border p-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium">
-                  <Sparkles className="size-4" /> {t('expenses.ai_title')}
+                  <Sparkles className="size-4" />{' '}
+                  {defaults
+                    ? t('expenses.ai_describe_edit_title')
+                    : t('expenses.ai_title')}
                 </span>
                 <Button
                   type="button"
@@ -891,7 +973,11 @@ export function ExpenseForm({
                 maxLength={1000}
                 value={aiText}
                 onChange={(e) => setAiText(e.target.value)}
-                placeholder={t('expenses.ai_placeholder')}
+                placeholder={
+                  defaults
+                    ? t('expenses.ai_placeholder_edit')
+                    : t('expenses.ai_placeholder')
+                }
               />
               {aiAmbiguousHint && (
                 <p className="bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200 rounded-md px-2 py-1 text-xs">
@@ -902,14 +988,31 @@ export function ExpenseForm({
                 <p className="text-muted-foreground text-xs">
                   {aiReasoning ?? t('expenses.ai_hint')}
                 </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => runAiParse()}
-                  disabled={aiPending || (aiText.trim().length === 0 && !aiImage)}
-                >
-                  {aiPending ? t('expenses.ai_running') : t('expenses.ai_run')}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {aiPending && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => aiStream.stop()}
+                    >
+                      {t('expenses.ai_stop')}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => runAiParse()}
+                    disabled={
+                      aiPending ||
+                      (aiText.trim().length === 0 && !aiImage)
+                    }
+                  >
+                    {aiPending
+                      ? t('expenses.ai_streaming')
+                      : t('expenses.ai_run')}
+                  </Button>
+                </div>
               </div>
             </div>
         </div>

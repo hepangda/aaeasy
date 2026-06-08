@@ -1,5 +1,5 @@
 /**
- * AI-assisted expense parsing.
+ * AI-assisted expense parsing (non-streaming).
  *
  * Sends a free-form natural-language description of a single expense to a
  * chat completion endpoint (DeepSeek's OpenAI-compatible API by default)
@@ -8,6 +8,10 @@
  *
  * The result is treated as advisory — the user always reviews and confirms
  * the values before submission. We never auto-submit anything.
+ *
+ * Kept for non-streaming callers (scripts, fallback). The live form goes
+ * through `aiParseExpenseStream` instead. Both share schemas/normalizers
+ * via `ai-schema.ts`.
  *
  * Configuration (env):
  *   AI_GATEWAY_TOKEN  Required Cloudflare AI Gateway bearer token. Sent as
@@ -24,64 +28,58 @@
  */
 
 import 'server-only';
-import { z } from 'zod';
-import { isCurrencyCode } from '@/lib/money';
 import {
   EXPENSE_PARSE_IMAGE_ONLY_USER_PROMPT,
   buildExpenseParseSystemPrompt,
 } from '@/lib/expenses/ai-prompts';
+import {
+  AiParseError,
+  aiResponseSchemaV2,
+  buildSplitRows,
+  normalizeAmount,
+  normalizeCurrency,
+  normalizeFxRate,
+  normalizeNote,
+  normalizeOccurredAt,
+  normalizeShortText,
+  normalizeTitle,
+  resolveMemberId,
+  type CurrentSnapshot,
+} from '@/lib/expenses/ai-schema';
+import type { SplitInputRow } from '@/lib/split/input-state';
+
+export { AiParseError } from '@/lib/expenses/ai-schema';
 
 export type AiParseInput = {
-  /** Free-form text from the user (e.g. "昨天午餐 87.5 块，张三付的，三个人平摊"). */
   text: string;
-  /** Optional images to provide visual context for extraction. Data URLs only. */
   images?: { mime: string; dataUrl: string; name?: string }[];
-  /** Members of the target group, used to resolve the payer. */
   members: { id: string; displayName: string }[];
-  /** The group's name, used as context to help infer currency, category, etc. */
   groupName: string;
-  /** The group's default currency, used as the fallback when the model
-   *  doesn't pick one explicitly. */
   defaultCurrency: string;
-  /** Locale of the caller, surfaced to the model so it picks a date format
-   *  the user expects. */
   locale: string;
+  current?: CurrentSnapshot;
 };
 
 export type AiParsedExpense = {
-  /** Free-text title of the expense (≤ 120 chars). */
   title: string | null;
-  /** ISO date string, YYYY-MM-DD. May be null if the model couldn't tell. */
   occurredAt: string | null;
-  /** Currency code, uppercase 3-letter. May be null. */
   currency: string | null;
-  /** Decimal amount as a string, e.g. "87.50". May be null in draft scenarios. */
   amount: string | null;
-  /** id of the matched payer member, or null. */
   payerMemberId: string | null;
-  /** Free-form note (≤ 500 chars), or null. */
   note: string | null;
-  /** A short rationale the model returned, to surface to the user. */
+  isDraft: boolean | null;
+  fxRateOverride: string | null;
+  split: {
+    mode: 'equal' | 'shares' | 'custom';
+    rows: SplitInputRow[];
+  } | null;
+  unresolved: {
+    payerName?: string;
+    participants?: string[];
+  };
   reasoning: string | null;
-  /** A hint when the AI is uncertain, to warn the user. */
   ambiguousHint: string | null;
 };
-
-export class AiParseError extends Error {
-  constructor(
-    public code:
-      | 'NOT_CONFIGURED'
-      | 'EMPTY_INPUT'
-      | 'TOO_LONG'
-      | 'IMAGE_UNSUPPORTED'
-      | 'UPSTREAM_FAILED'
-      | 'UPSTREAM_INVALID'
-      | 'TIMEOUT',
-    message?: string,
-  ) {
-    super(message ?? code);
-  }
-}
 
 const MAX_INPUT_CHARS = 1_000;
 const TIMEOUT_MS = 60_000;
@@ -92,7 +90,7 @@ function shouldLogTiming() {
   return process.env.AI_DEBUG_TIMING === 'true';
 }
 
-function resolveAiConfig() {
+export function resolveAiConfig() {
   const model = process.env.AI_MODEL ?? 'deepseek-chat';
   const provider = process.env.AI_PROVIDER?.toLowerCase();
   const explicitUrl = process.env.AI_API_URL;
@@ -111,19 +109,6 @@ function resolveAiConfig() {
     supportsImageContext: process.env.AI_ENABLE_IMAGE_CONTEXT === 'true' || isDashScope,
   };
 }
-
-/** Schema we ask the model to conform to. We accept null for every field
- *  so partial extractions don't bork the whole request. */
-const aiResponseSchema = z.object({
-  title: z.string().max(120).nullable().optional(),
-  occurredAt: z.string().nullable().optional(),
-  currency: z.string().nullable().optional(),
-  amount: z.union([z.string(), z.number()]).nullable().optional(),
-  payerName: z.string().nullable().optional(),
-  note: z.string().max(500).nullable().optional(),
-  reasoning: z.string().max(500).nullable().optional(),
-  ambiguousHint: z.string().max(300).nullable().optional(),
-});
 
 /** Call the upstream LLM and return a normalized suggestion. */
 export async function aiParseExpense(input: AiParseInput): Promise<AiParsedExpense> {
@@ -214,7 +199,6 @@ export async function aiParseExpense(input: AiParseInput): Promise<AiParsedExpen
     });
   }
 
-  // OpenAI-compatible shape: { choices: [{ message: { content: string } }] }
   const content = (
     raw as {
       choices?: { message?: { content?: string } }[];
@@ -226,7 +210,6 @@ export async function aiParseExpense(input: AiParseInput): Promise<AiParsedExpen
   try {
     json = JSON.parse(content);
   } catch {
-    // Some models occasionally wrap the JSON in markdown fences.
     const stripped = content
       .replace(/^```(?:json)?/i, '')
       .replace(/```\s*$/i, '')
@@ -238,53 +221,39 @@ export async function aiParseExpense(input: AiParseInput): Promise<AiParsedExpen
     }
   }
 
-  const parsed = aiResponseSchema.safeParse(json);
+  const parsed = aiResponseSchemaV2.safeParse(json);
   if (!parsed.success) throw new AiParseError('UPSTREAM_INVALID');
   const data = parsed.data;
 
-  // Normalize / sanity-check fields.
-  const title = data.title?.trim() || null;
-  const note = data.note?.trim() || null;
-  const reasoning = data.reasoning?.trim() || null;
-  const ambiguousHint = data.ambiguousHint?.trim() || null;
-
-  let occurredAt: string | null = null;
-  if (data.occurredAt) {
-    const m = /^(\d{4}-\d{2}-\d{2})/.exec(data.occurredAt);
-    if (m) occurredAt = m[1] ?? null;
-  }
-
-  let currency: string | null = null;
-  if (data.currency) {
-    const c = data.currency.trim().toUpperCase();
-    if (isCurrencyCode(c)) currency = c;
-  }
-
-  let amount: string | null = null;
-  if (data.amount != null) {
-    const a = String(data.amount)
-      .trim()
-      .replace(/[^\d.]/g, '');
-    if (a && /^\d+(\.\d+)?$/.test(a)) amount = a;
-  }
+  const unresolved: { payerName?: string; participants?: string[] } = {};
 
   let payerMemberId: string | null = null;
   if (data.payerName) {
-    const want = data.payerName.trim().toLowerCase();
-    const hit =
-      input.members.find((m) => m.displayName.toLowerCase() === want) ??
-      input.members.find((m) => m.displayName.toLowerCase().includes(want));
-    payerMemberId = hit?.id ?? null;
+    payerMemberId = resolveMemberId(data.payerName, input.members);
+    if (!payerMemberId) unresolved.payerName = data.payerName;
+  }
+
+  let split: AiParsedExpense['split'] = null;
+  if (data.split) {
+    const built = buildSplitRows({ members: input.members, split: data.split });
+    split = { mode: built.mode, rows: built.rows };
+    if (built.unresolvedParticipants.length > 0) {
+      unresolved.participants = built.unresolvedParticipants;
+    }
   }
 
   return {
-    title,
-    occurredAt,
-    currency,
-    amount,
+    title: normalizeTitle(data.title),
+    occurredAt: normalizeOccurredAt(data.occurredAt),
+    currency: normalizeCurrency(data.currency),
+    amount: normalizeAmount(data.amount),
     payerMemberId,
-    note,
-    reasoning,
-    ambiguousHint,
+    note: normalizeNote(data.note),
+    isDraft: typeof data.isDraft === 'boolean' ? data.isDraft : null,
+    fxRateOverride: normalizeFxRate(data.fxRateOverride),
+    split,
+    unresolved,
+    reasoning: normalizeShortText(data.reasoning, 300),
+    ambiguousHint: normalizeShortText(data.ambiguousHint, 300),
   };
 }

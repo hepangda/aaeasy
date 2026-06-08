@@ -6,6 +6,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // `server-only` is a Next.js marker module with no implementation;
+      // it can't be loaded in Node-only test environments.
+      'server-only': path.resolve(__dirname, './src/test/stubs/server-only.ts'),
     },
   },
   test: {
