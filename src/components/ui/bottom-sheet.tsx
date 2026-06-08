@@ -47,6 +47,16 @@ export function BottomSheet({
       onPointerDown={(e) => {
         if (e.target !== e.currentTarget) return;
         if (performance.now() - openedAt.current < BACKDROP_DISMISS_GRACE_MS) return;
+        const swallow = (ev: Event) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+        };
+        window.addEventListener('click', swallow, { capture: true, once: true });
+        window.addEventListener('pointerup', swallow, { capture: true, once: true });
+        setTimeout(() => {
+          window.removeEventListener('click', swallow, { capture: true });
+          window.removeEventListener('pointerup', swallow, { capture: true });
+        }, 350);
         onClose();
       }}
     >
