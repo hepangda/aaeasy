@@ -5,20 +5,20 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   AtSign,
+  ChevronDown,
   Copy,
   Link as LinkIcon,
   Loader2,
-  Plus,
   Trash2,
   UserPlus,
   X,
 } from 'lucide-react';
+import type { GroupRole } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { Tabs, type TabDefinition } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import {
   createMemberShareLinkAction,
@@ -41,27 +41,40 @@ const EXPIRES_OPTIONS = [
   { value: 'READ_ONLY', i18n: 'share.expires_read_only' as const },
 ] as const;
 
-// VIEWER is intentionally absent from both account-binding flows. Use the
-// ledger-level <GroupShareDialog> for read-only access. With only two
-// possible roles we render a 2-button segmented control instead of a
-// <Select> — fewer clicks, both choices visible.
-const ROLE_OPTIONS: InvitationRole[] = ['MANAGER', 'MEMBER'];
+// Account-binding excludes OWNER (separate transfer flow). VIEWER is
+// included: a read-only auditor account can be bound either via @-invite or
+// via share link, with the same UI control deciding which role the link
+// grants on claim.
+const ROLE_OPTIONS: InvitationRole[] = ['MANAGER', 'MEMBER', 'VIEWER'];
 
 interface UserSearchHit {
   username: string;
   displayName: string;
 }
 
+type SentItem =
+  | {
+      kind: 'invite';
+      id: string;
+      createdAt?: never;
+      assignedRole: GroupRole;
+      pending: MemberPendingInvitationRow;
+    }
+  | {
+      kind: 'link';
+      id: string;
+      link: ExistingShareLink;
+    };
+
 /**
- * Per-member "account binding" dialog. Two tabs:
- *   1. Invite by @username (primary) — sends a GroupInvitation; the target
- *      user accepts it from /groups.
- *   2. Share link (fallback) — generates a single-use claim URL for people
- *      who don't have an account yet.
+ * Per-member "account binding" dialog. Single page with:
+ *   1. A shared "role after binding" picker at the top (used by both
+ *      flows below — invite and share-link grant the same role).
+ *   2. Two side-by-side sections: invite by @username, generate share link.
+ *   3. One merged "sent" list combining pending invitations and existing
+ *      share links so a manager can cancel/revoke either from one place.
  *
- * Hidden entirely when the member is already linked. Existing pending
- * invitations / share links for this member are surfaced in both tabs so
- * a manager can revoke whichever they don't want anymore.
+ * Hidden entirely by the caller when the member is already linked.
  */
 export function AccountBindingDialog({
   groupId,
@@ -84,8 +97,14 @@ export function AccountBindingDialog({
   const router = useRouter();
   const confirmDialog = useConfirm();
   const [open, setOpen] = useState(false);
+  const [role, setRole] = useState<InvitationRole>('MEMBER');
+  const [tab, setTab] = useState<'bind' | 'sent'>('bind');
+  const [method, setMethod] = useState<'invite' | 'link'>('invite');
 
   const activeLinks = existingLinks.filter((l) => !l.expired && !l.revoked);
+  const sentCount = activeLinks.length + pendingInvitations.length;
+
+  const onChanged = () => router.refresh();
 
   return (
     <>
@@ -98,11 +117,7 @@ export function AccountBindingDialog({
         title={t('binding.button_label')}
       >
         <LinkIcon />
-        {(activeLinks.length > 0 || pendingInvitations.length > 0) && (
-          <span className="ml-1 text-xs">
-            {activeLinks.length + pendingInvitations.length}
-          </span>
-        )}
+        {sentCount > 0 && <span className="ml-1 text-xs">{sentCount}</span>}
       </Button>
       <Dialog
         open={open}
@@ -110,81 +125,211 @@ export function AccountBindingDialog({
         title={t('binding.dialog_title_for', { name: memberName })}
         className="max-w-lg"
       >
-        <Tabs
-          tabs={[
-            {
-              id: `bind-invite-${memberId}`,
-              label: (
-                <span className="inline-flex items-center gap-1.5">
-                  <AtSign className="size-3.5" />
-                  {t('binding.tab_invite')}
-                </span>
-              ),
-              badge:
-                pendingInvitations.length > 0
-                  ? pendingInvitations.length
-                  : undefined,
-              content: (
-                <InviteTab
-                  groupId={groupId}
-                  memberId={memberId}
+        <div className="flex flex-col gap-4">
+          <div
+            role="tablist"
+            className="border-border/60 -mx-1 flex gap-1 border-b"
+          >
+            <SectionTab
+              active={tab === 'bind'}
+              onClick={() => setTab('bind')}
+              label={t('binding.tab_bind')}
+            />
+            <SectionTab
+              active={tab === 'sent'}
+              onClick={() => setTab('sent')}
+              label={t('binding.tab_sent')}
+              badge={sentCount > 0 ? sentCount : undefined}
+            />
+          </div>
+
+          {/* Both panels share one grid cell so the container's height is the
+              max of either panel's natural height — switching tabs never
+              causes a jump on mobile. The inactive panel is invisible but
+              still takes layout space. */}
+          <div className="grid">
+            <div
+              role="tabpanel"
+              aria-labelledby="bind-tab"
+              className={cn(
+                'col-start-1 row-start-1 flex flex-col gap-4',
+                tab === 'bind' ? 'visible' : 'pointer-events-none invisible',
+              )}
+            >
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs">{t('binding.assigned_role')}</Label>
+                <RoleSegmented
+                  value={role}
+                  onChange={setRole}
                   canAssignManager={canAssignManager}
-                  pendingInvitations={pendingInvitations}
-                  onChanged={() => router.refresh()}
-                  confirmDialog={confirmDialog}
                 />
-              ),
-            },
-            {
-              id: `bind-link-${memberId}`,
-              label: (
-                <span className="inline-flex items-center gap-1.5">
-                  <LinkIcon className="size-3.5" />
-                  {t('binding.tab_share_link')}
-                </span>
-              ),
-              badge: activeLinks.length > 0 ? activeLinks.length : undefined,
-              content: (
-                <ShareLinkTab
-                  groupId={groupId}
-                  memberId={memberId}
-                  memberName={memberName}
-                  canAssignManager={canAssignManager}
-                  existingLinks={existingLinks}
-                  baseUrl={baseUrl}
-                  onChanged={() => router.refresh()}
-                  confirmDialog={confirmDialog}
-                />
-              ),
-            },
-          ] satisfies TabDefinition[]}
-        />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <MethodCard
+                  open={method === 'invite'}
+                  onOpen={() => setMethod('invite')}
+                  icon={<AtSign className="size-3.5" />}
+                  title={t('binding.method_invite')}
+                  desc={t('binding.method_invite_desc')}
+                >
+                  <InviteSection
+                    groupId={groupId}
+                    memberId={memberId}
+                    role={role}
+                    onChanged={onChanged}
+                  />
+                </MethodCard>
+                <MethodCard
+                  open={method === 'link'}
+                  onOpen={() => setMethod('link')}
+                  icon={<LinkIcon className="size-3.5" />}
+                  title={t('binding.method_link')}
+                  desc={t('binding.method_link_desc')}
+                >
+                  <ShareLinkSection
+                    groupId={groupId}
+                    memberId={memberId}
+                    role={role}
+                    onChanged={onChanged}
+                    baseUrl={baseUrl}
+                  />
+                </MethodCard>
+              </div>
+            </div>
+
+            <div
+              role="tabpanel"
+              aria-labelledby="sent-tab"
+              className={cn(
+                'col-start-1 row-start-1',
+                tab === 'sent' ? 'visible' : 'pointer-events-none invisible',
+              )}
+            >
+              <SentList
+                memberName={memberName}
+                existingLinks={existingLinks}
+                pendingInvitations={pendingInvitations}
+                groupId={groupId}
+                onChanged={onChanged}
+                confirmDialog={confirmDialog}
+              />
+            </div>
+          </div>
+        </div>
       </Dialog>
     </>
   );
 }
 
-// ─── Invite tab ──────────────────────────────────────────────────────────
+function SectionTab({
+  active,
+  onClick,
+  label,
+  badge,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  badge?: number;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        'relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
+        active
+          ? 'text-foreground'
+          : 'text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {label}
+      {typeof badge === 'number' && (
+        <span className="bg-muted text-muted-foreground inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] tabular-nums">
+          {badge}
+        </span>
+      )}
+      {active && (
+        <span
+          aria-hidden
+          className="bg-foreground absolute -bottom-px left-0 h-0.5 w-full"
+        />
+      )}
+    </button>
+  );
+}
 
-function InviteTab({
+function MethodCard({
+  open,
+  onOpen,
+  icon,
+  title,
+  desc,
+  children,
+}: {
+  open: boolean;
+  onOpen: () => void;
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-md border">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-expanded={open}
+        className={cn(
+          'flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors',
+          open ? 'bg-secondary/40' : 'hover:bg-secondary/20',
+        )}
+      >
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+            {icon}
+            {title}
+          </span>
+          {!open && (
+            <span className="text-muted-foreground truncate text-xs">{desc}</span>
+          )}
+        </span>
+        <ChevronDown
+          className={cn(
+            'text-muted-foreground size-4 shrink-0 transition-transform',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-3 px-3 pb-3 pt-1">
+          <p className="text-muted-foreground text-xs">{desc}</p>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Invite section ──────────────────────────────────────────────────────
+
+function InviteSection({
   groupId,
   memberId,
-  canAssignManager,
-  pendingInvitations,
+  role,
   onChanged,
-  confirmDialog,
 }: {
   groupId: string;
   memberId: string;
-  canAssignManager: boolean;
-  pendingInvitations: MemberPendingInvitationRow[];
+  role: InvitationRole;
   onChanged: () => void;
-  confirmDialog: ReturnType<typeof useConfirm>;
 }) {
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const [username, setUsername] = useState('');
-  const [role, setRole] = useState<InvitationRole>('MEMBER');
   const [suggestions, setSuggestions] = useState<UserSearchHit[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -221,8 +366,6 @@ function InviteTab({
     };
   }, [username]);
 
-  // Derive whether the dropdown should show: cleared as soon as the buffer
-  // drops below 3 chars without needing a setState in an effect.
   const showSuggestionsList =
     showSuggestions &&
     username.trim().replace(/^@/, '').length >= 3 &&
@@ -251,167 +394,84 @@ function InviteTab({
     });
   }
 
-  function cancel(id: string) {
-    if (pending) return;
-    confirmDialog({ message: t('binding.confirm_cancel') }).then((ok) => {
-      if (!ok) return;
-      startTransition(async () => {
-        const res = await cancelInvitationAction({ groupId, invitationId: id });
-        if (!res.ok) showI18nError(t, res.error ?? 'errors.unknown');
-        onChanged();
-      });
-    });
-  }
-
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-muted-foreground text-xs">{t('binding.invite_desc')}</p>
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <div className="grid gap-1">
-          <Label htmlFor={`bind-username-${memberId}`} className="text-xs">
-            {t('binding.username_label')}
-          </Label>
-          <div className="relative">
-            <Input
-              id={`bind-username-${memberId}`}
-              autoComplete="off"
-              spellCheck={false}
-              value={username}
-              onChange={(e) => {
-                setUsername(e.target.value);
-                setShowSuggestions(true);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 120)}
-              className="pr-8"
-            />
-            {searching && (
-              <Loader2 className="text-muted-foreground absolute right-2.5 top-1/2 size-4 -translate-y-1/2 animate-spin" />
-            )}
-            {showSuggestionsList && (
-              <ul className="border-input bg-popover absolute top-full z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-md">
-                {suggestions.map((s) => (
-                  <li key={s.username}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setUsername(s.username);
-                        setSuggestions([]);
-                        setShowSuggestions(false);
-                      }}
-                      className="hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
-                    >
-                      <AtSign className="text-muted-foreground size-3.5" />
-                      <span className="font-medium">{s.username}</span>
-                      <span className="text-muted-foreground truncate text-xs">
-                        {s.displayName}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        <div className="grid gap-1">
-          <Label className="text-xs">{t('binding.assigned_role')}</Label>
-          <RoleSegmented
-            value={role}
-            onChange={setRole}
-            canAssignManager={canAssignManager}
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <div className="grid gap-1">
+        <Label htmlFor={`bind-username-${memberId}`} className="text-xs">
+          {t('binding.username_label')}
+        </Label>
+        <div className="relative">
+          <Input
+            id={`bind-username-${memberId}`}
+            autoComplete="off"
+            spellCheck={false}
+            value={username}
+            onChange={(e) => {
+              setUsername(e.target.value);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 120)}
+            className="pr-8"
           />
-        </div>
-
-        <Button type="submit" size="sm" disabled={pending} className="self-start">
-          <UserPlus />
-          {pending ? t('binding.inviting') : t('binding.invite_button')}
-        </Button>
-      </form>
-
-      <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-medium">{t('binding.pending_section')}</h3>
-        {pendingInvitations.length === 0 ? (
-          <p className="text-muted-foreground text-xs">
-            {t('binding.no_pending_invites')}
-          </p>
-        ) : (
-          <ul className="divide-y rounded-md border">
-            {pendingInvitations.map((inv) => (
-              <li
-                key={inv.id}
-                className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
-              >
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-foreground text-sm font-medium leading-tight">
-                    {inv.invitedUser.displayName}
-                    <span className="text-muted-foreground ml-1 font-normal">
-                      @{inv.invitedUser.username}
+          {searching && (
+            <Loader2 className="text-muted-foreground absolute right-2.5 top-1/2 size-4 -translate-y-1/2 animate-spin" />
+          )}
+          {showSuggestionsList && (
+            <ul className="border-input bg-popover absolute top-full z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-md">
+              {suggestions.map((s) => (
+                <li key={s.username}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setUsername(s.username);
+                      setSuggestions([]);
+                      setShowSuggestions(false);
+                    }}
+                    className="hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
+                  >
+                    <AtSign className="text-muted-foreground size-3.5" />
+                    <span className="font-medium">{s.username}</span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {s.displayName}
                     </span>
-                  </span>
-                  <span className="text-muted-foreground">
-                    {t('binding.pending_status')}
-                    {' · '}
-                    {t(`members.role.${inv.assignedRole}` as never)}
-                  </span>
-                </span>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="size-7"
-                  onClick={() => cancel(inv.id)}
-                  disabled={pending}
-                  aria-label={t('binding.cancel_invitation')}
-                >
-                  <X className="text-destructive size-3.5" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-    </div>
+      <Button type="submit" size="sm" disabled={pending} className="self-start">
+        <UserPlus />
+        {pending ? t('binding.inviting') : t('binding.invite_button')}
+      </Button>
+    </form>
   );
 }
 
-// ─── Share-link tab (legacy fallback) ────────────────────────────────────
+// ─── Share-link section ──────────────────────────────────────────────────
 
-function ShareLinkTab({
+function ShareLinkSection({
   groupId,
   memberId,
-  memberName,
-  canAssignManager,
-  existingLinks,
+  role,
   baseUrl,
   onChanged,
-  confirmDialog,
 }: {
   groupId: string;
   memberId: string;
-  memberName: string;
-  canAssignManager: boolean;
-  existingLinks: ExistingShareLink[];
+  role: InvitationRole;
   baseUrl: string;
   onChanged: () => void;
-  confirmDialog: ReturnType<typeof useConfirm>;
 }) {
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
-  const [showForm, setShowForm] = useState(false);
   const [expires, setExpires] = useState<string>('24');
-  const [assignedRole, setAssignedRole] = useState<InvitationRole>('MEMBER');
   const [label, setLabel] = useState('');
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  function reset() {
-    setShowForm(false);
-    setExpires('24');
-    setAssignedRole('MEMBER');
-    setLabel('');
-  }
 
   function generate(ev: FormEvent) {
     ev.preventDefault();
@@ -420,29 +480,18 @@ function ShareLinkTab({
     fd.set('groupId', groupId);
     fd.set('memberId', memberId);
     fd.set('expires', expires);
-    fd.set('assignedRole', assignedRole);
+    fd.set('assignedRole', role);
     if (label.trim()) fd.set('label', label.trim());
     startTransition(async () => {
       const res = await createMemberShareLinkAction({ ok: false }, fd);
       if (res.ok && res.token) {
         setRevealedToken(res.token);
-        reset();
+        setLabel('');
+        setExpires('24');
         onChanged();
       } else {
         showI18nError(t, res.error ?? 'errors.unknown');
       }
-    });
-  }
-
-  function revoke(linkId: string) {
-    if (pending) return;
-    confirmDialog({ message: t('share.confirm_revoke') }).then((ok) => {
-      if (!ok) return;
-      startTransition(async () => {
-        const res = await revokeShareLinkAction({ groupId, shareLinkId: linkId });
-        if (!res.ok) showI18nError(t, res.error ?? 'errors.unknown');
-        onChanged();
-      });
     });
   }
 
@@ -452,22 +501,8 @@ function ShareLinkTab({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const activeLinks = existingLinks.filter((l) => !l.expired && !l.revoked);
-  const expiredLinks = existingLinks.filter((l) => l.expired && !l.revoked);
-  const revokedLinks = existingLinks.filter((l) => l.revoked);
-  const sortedLinks = [...activeLinks, ...expiredLinks, ...revokedLinks];
-
-  function statusLabel(l: ExistingShareLink): string {
-    if (l.revoked) return t('share.status_revoked');
-    if (l.expired) return t('share.status_expired_read_only');
-    if (l.scope === 'READ') return t('share.status_read_only');
-    return t('share.status_active');
-  }
-
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-muted-foreground text-xs">{t('binding.link_desc')}</p>
-
+    <div className="flex flex-col gap-3">
       {revealedToken && (
         <div className="border-foreground/30 bg-secondary/40 flex flex-col gap-2 rounded-md border-2 border-dashed p-3">
           <p className="text-xs">{t('share.link_one_time_warning')}</p>
@@ -490,39 +525,196 @@ function ShareLinkTab({
         </div>
       )}
 
-      {sortedLinks.length > 0 ? (
+      <form onSubmit={generate} className="flex flex-col gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1">
+            <Label htmlFor={`label-${memberId}`} className="text-xs">
+              {t('share.label_optional')}
+            </Label>
+            <Input
+              id={`label-${memberId}`}
+              type="text"
+              autoComplete="off"
+              maxLength={60}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={t('share.label_placeholder')}
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor={`exp-${memberId}`} className="text-xs">
+              {t('share.expires')}
+            </Label>
+            <Select
+              id={`exp-${memberId}`}
+              value={expires}
+              onChange={(e) => setExpires(e.target.value)}
+            >
+              {EXPIRES_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {t(o.i18n)}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+        <Button type="submit" size="sm" disabled={pending} className="self-start">
+          <LinkIcon />
+          {pending ? t('share.creating') : t('share.create')}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+// ─── Combined sent list (invitations + share links) ──────────────────────
+
+function SentList({
+  memberName,
+  existingLinks,
+  pendingInvitations,
+  groupId,
+  onChanged,
+  confirmDialog,
+}: {
+  memberName: string;
+  existingLinks: ExistingShareLink[];
+  pendingInvitations: MemberPendingInvitationRow[];
+  groupId: string;
+  onChanged: () => void;
+  confirmDialog: ReturnType<typeof useConfirm>;
+}) {
+  const t = useTranslations();
+  const [pending, startTransition] = useTransition();
+
+  // Build a unified list. Pending invites and active links float to the
+  // top; expired/revoked links fall to the bottom (they're informational
+  // only). Inside each band, newest-first via the upstream queries.
+  const items: SentItem[] = [
+    ...pendingInvitations.map(
+      (inv): SentItem => ({
+        kind: 'invite',
+        id: inv.id,
+        assignedRole: inv.assignedRole,
+        pending: inv,
+      }),
+    ),
+    ...existingLinks.map(
+      (link): SentItem => ({ kind: 'link', id: link.id, link }),
+    ),
+  ];
+
+  function cancelInvite(id: string) {
+    if (pending) return;
+    confirmDialog({ message: t('binding.confirm_cancel') }).then((ok) => {
+      if (!ok) return;
+      startTransition(async () => {
+        const res = await cancelInvitationAction({ groupId, invitationId: id });
+        if (!res.ok) showI18nError(t, res.error ?? 'errors.unknown');
+        onChanged();
+      });
+    });
+  }
+
+  function revokeLink(linkId: string) {
+    if (pending) return;
+    confirmDialog({ message: t('share.confirm_revoke') }).then((ok) => {
+      if (!ok) return;
+      startTransition(async () => {
+        const res = await revokeShareLinkAction({ groupId, shareLinkId: linkId });
+        if (!res.ok) showI18nError(t, res.error ?? 'errors.unknown');
+        onChanged();
+      });
+    });
+  }
+
+  function statusLabel(l: ExistingShareLink): string {
+    if (l.revoked) return t('share.status_revoked');
+    if (l.expired) return t('share.status_expired_read_only');
+    if (l.scope === 'READ') return t('share.status_read_only');
+    return t('share.status_active');
+  }
+
+  return (
+    <section className="flex flex-col gap-2">
+      {items.length === 0 ? (
+        <p className="text-muted-foreground text-xs">
+          {t('binding.sent_empty')}
+        </p>
+      ) : (
         <ul className="divide-y rounded-md border">
-          {sortedLinks.map((l) => {
-            const tone = l.revoked
-              ? 'text-muted-foreground/70 line-through'
-              : l.expired
-                ? 'text-muted-foreground'
-                : '';
-            return (
+          {items.map((item) =>
+            item.kind === 'invite' ? (
               <li
-                key={l.id}
+                key={`inv-${item.id}`}
                 className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
               >
-                <span className={`flex flex-col gap-0.5 ${tone}`}>
-                  <span className="text-foreground text-sm font-medium leading-tight">
-                    {l.label ?? memberName}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-foreground inline-flex items-center gap-2 text-sm font-medium leading-tight">
+                    <TypeChip label={t('binding.type_invite')} />
+                    <span className="truncate">
+                      {item.pending.invitedUser.displayName}
+                      <span className="text-muted-foreground ml-1 font-normal">
+                        @{item.pending.invitedUser.username}
+                      </span>
+                    </span>
                   </span>
                   <span className="text-muted-foreground">
-                    {statusLabel(l)}
+                    {t('binding.pending_status')}
                     {' · '}
-                    {t('share.created_at', { date: l.createdAt })}
-                    {l.expiresAt && (
-                      <> · {t('share.expires_at', { date: l.expiresAt })}</>
+                    {t(`members.role.${item.assignedRole}` as never)}
+                  </span>
+                </span>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-7"
+                  onClick={() => cancelInvite(item.id)}
+                  disabled={pending}
+                  aria-label={t('binding.cancel_invitation')}
+                >
+                  <X className="text-destructive size-3.5" />
+                </Button>
+              </li>
+            ) : (
+              <li
+                key={`link-${item.id}`}
+                className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
+              >
+                <span
+                  className={cn(
+                    'flex min-w-0 flex-col gap-0.5',
+                    item.link.revoked && 'text-muted-foreground/70 line-through',
+                    !item.link.revoked && item.link.expired && 'text-muted-foreground',
+                  )}
+                >
+                  <span className="text-foreground inline-flex items-center gap-2 text-sm font-medium leading-tight">
+                    <TypeChip label={t('binding.type_link')} />
+                    <span className="truncate">{item.link.label ?? memberName}</span>
+                  </span>
+                  <span className="text-muted-foreground">
+                    {statusLabel(item.link)}
+                    {item.link.assignedRole && (
+                      <>
+                        {' · '}
+                        {t(`members.role.${item.link.assignedRole}` as never)}
+                      </>
+                    )}
+                    {' · '}
+                    {t('share.created_at', { date: item.link.createdAt })}
+                    {item.link.expiresAt && (
+                      <> · {t('share.expires_at', { date: item.link.expiresAt })}</>
                     )}
                   </span>
                 </span>
-                {!l.revoked && (
+                {!item.link.revoked && (
                   <Button
                     type="button"
                     size="icon"
                     variant="ghost"
                     className="size-7"
-                    onClick={() => revoke(l.id)}
+                    onClick={() => revokeLink(item.id)}
                     disabled={pending}
                     aria-label={t('share.revoke')}
                   >
@@ -530,98 +722,27 @@ function ShareLinkTab({
                   </Button>
                 )}
               </li>
-            );
-          })}
+            ),
+          )}
         </ul>
-      ) : (
-        <p className="text-muted-foreground text-xs">{t('share.no_active_links')}</p>
       )}
+    </section>
+  );
+}
 
-      {showForm ? (
-        <form
-          onSubmit={generate}
-          className="bg-muted/40 flex flex-col gap-3 rounded-md border p-3"
-        >
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="grid gap-1">
-              <Label htmlFor={`label-${memberId}`} className="text-xs">
-                {t('share.label_optional')}
-              </Label>
-              <Input
-                id={`label-${memberId}`}
-                type="text"
-                autoComplete="off"
-                maxLength={60}
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder={t('share.label_placeholder')}
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label htmlFor={`exp-${memberId}`} className="text-xs">
-                {t('share.expires')}
-              </Label>
-              <Select
-                id={`exp-${memberId}`}
-                value={expires}
-                onChange={(e) => setExpires(e.target.value)}
-              >
-                {EXPIRES_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {t(o.i18n)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <Label className="text-xs">{t('share.assigned_role')}</Label>
-              <RoleSegmented
-                value={assignedRole}
-                onChange={setAssignedRole}
-                canAssignManager={canAssignManager}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={reset}
-              disabled={pending}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button type="submit" size="sm" disabled={pending}>
-              {pending ? t('share.creating') : t('share.create')}
-            </Button>
-          </div>
-        </form>
-      ) : (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setRevealedToken(null);
-            setShowForm(true);
-          }}
-          className="self-start"
-        >
-          <Plus /> {t('share.create')}
-        </Button>
-      )}
-    </div>
+function TypeChip({ label }: { label: string }) {
+  return (
+    <span className="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide">
+      {label}
+    </span>
   );
 }
 
 // ─── Role segmented control ──────────────────────────────────────────────
 
 /**
- * Two-button segmented control for picking MANAGER vs MEMBER. Faster than a
- * <Select> when there are only two choices — both options are visible and
- * one click commits the pick. MANAGER is hidden unless the caller is OWNER
- * (mirrors the server-side guard).
+ * Segmented control over MANAGER / MEMBER / VIEWER. MANAGER is hidden
+ * unless the caller is OWNER (mirrors the server-side guard).
  */
 function RoleSegmented({
   value,

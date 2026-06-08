@@ -7,11 +7,13 @@ import { prisma } from '@/lib/db';
 import { requireGroupAccess } from '@/lib/auth/group-access';
 import { requireUser } from '@/lib/auth/session';
 import { linkUserToMember } from '@/lib/auth/claim-share';
+import type { AssignableRole } from '@/lib/auth/roles';
 import { publish } from '@/lib/realtime/pgNotify';
 
-// Account-binding flow excludes VIEWER (anonymous ledger-share links cover
-// that case) and excludes OWNER (ownership transfer has its own flow).
-const invitationRoleSchema = z.enum(['MANAGER', 'MEMBER']);
+// Account-binding flow excludes OWNER (ownership transfer has its own flow).
+// VIEWER is allowed: a manager may want to bind a read-only auditor account
+// without having to fall back to an anonymous share link.
+const invitationRoleSchema = z.enum(['MANAGER', 'MEMBER', 'VIEWER']);
 export type InvitationRole = z.infer<typeof invitationRoleSchema>;
 
 const inviteSchema = z.object({
@@ -155,12 +157,10 @@ export async function acceptInvitationsAction(
   for (const inv of rows) {
     try {
       await prisma.$transaction(async (tx) => {
-        const grantedRole =
-          inv.assignedRole === 'MANAGER' ? 'MANAGER' : 'MEMBER';
         const result = await linkUserToMember({
           userId,
           memberId: inv.memberId,
-          grantedRole,
+          grantedRole: inv.assignedRole as AssignableRole,
           tx,
         });
         if (!result.ok) {

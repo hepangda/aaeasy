@@ -1,4 +1,4 @@
-import type { ShareScope } from '@prisma/client';
+import type { GroupRole, ShareScope } from '@prisma/client';
 
 /**
  * Shared shape for share-link rows fed to both the group-level
@@ -13,6 +13,9 @@ export interface ExistingShareLink {
    *  the link was created without one. Never shown to the visitor. */
   label: string | null;
   scope: ShareScope;
+  /** Role granted when the link is claimed. Null on group-level links
+   *  (those are anonymous view-only and never bind an account). */
+  assignedRole: GroupRole | null;
   createdAt: string;
   expiresAt: string | null;
   /** Past `expiresAt` — link still works but read-only. */
