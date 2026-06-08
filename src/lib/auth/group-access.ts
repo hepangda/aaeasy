@@ -18,6 +18,13 @@
  * The "must be payer / involved" constraints are enforced at the action
  * layer using `linkedMemberId` (for users) or `boundMemberId` (for share
  * visitors); this gate only answers "may they attempt this action at all?".
+ *
+ * Superadmin override: a signed-in user with `User.isSuperAdmin` who is NOT
+ * a real member of the group is granted synthesized OWNER access with
+ * `bypass: 'superadmin'`. Their real `userId` is preserved so audit and
+ * `createdById` columns attribute writes to them, not to any member they
+ * may be acting on behalf of. When the superadmin IS a real member, their
+ * actual role applies (no override).
  */
 
 import { prisma } from '@/lib/db';
@@ -42,6 +49,12 @@ export type GroupAccess =
       /** When the signed-in user is linked to a Member of this group, that
        *  member's id. Used by MEMBER role to gate writes to "self only". */
       linkedMemberId: string | null;
+      /** `'superadmin'` when the caller is not a real member of the group
+       *  and is being granted access purely via `User.isSuperAdmin`. The
+       *  synthesized role is always OWNER, `linkedMemberId` is null, and
+       *  `userId` is the admin's real id (so audit/createdById attribute
+       *  to them, not to any member they might be acting on behalf of). */
+      bypass: 'superadmin' | null;
     }
   | {
       kind: 'share';
@@ -111,7 +124,7 @@ export async function requireGroupAccess(
     where: { id: groupId },
     select: { id: true, deletedAt: true },
   });
-  if (!group || group.deletedAt) throw new AccessError('NOT_FOUND');
+  if (!group) throw new AccessError('NOT_FOUND');
 
   const userCtx = await getCurrentSession();
   if (userCtx) {
@@ -120,6 +133,9 @@ export async function requireGroupAccess(
       select: { role: true },
     });
     if (m) {
+      // Real members of a soft-deleted group see NOT_FOUND — preserves the
+      // "tombstoned groups are hidden everywhere" contract.
+      if (group.deletedAt) throw new AccessError('NOT_FOUND');
       // Look up the linked Member, if any. This is what gates MEMBER
       // role writes to "self only".
       const linked = await prisma.member.findFirst({
@@ -132,11 +148,33 @@ export async function requireGroupAccess(
         role: m.role,
         groupId,
         linkedMemberId: linked?.id ?? null,
+        bypass: null,
+      };
+      if (!isAllowed(access, action)) throw new AccessError('FORBIDDEN');
+      return access;
+    }
+
+    // Superadmin override: when the signed-in user isn't a real member but
+    // holds `isSuperAdmin`, grant synthesized OWNER access. This also lets
+    // them open soft-deleted groups (the schema comment in
+    // prisma/schema.prisma:149-152 notes that recovery is admin-only).
+    if (userCtx.user.isSuperAdmin) {
+      const access: GroupAccess = {
+        kind: 'user',
+        userId: userCtx.user.id,
+        role: 'OWNER',
+        groupId,
+        linkedMemberId: null,
+        bypass: 'superadmin',
       };
       if (!isAllowed(access, action)) throw new AccessError('FORBIDDEN');
       return access;
     }
   }
+
+  // Non-superadmin paths: soft-deleted groups behave as not found before we
+  // even check share links.
+  if (group.deletedAt) throw new AccessError('NOT_FOUND');
 
   const share = await getCurrentShareSession();
   if (share && share.groupId === groupId) {

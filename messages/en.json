@@ -114,7 +114,12 @@
     "delete_username": "Delete username",
     "username_empty": "No usernames are currently allowed to register, so new registrations are disabled.",
     "username_source_env": "env",
-    "username_source_db": "admin"
+    "username_source_db": "admin",
+    "bypass_banner": "You are viewing this ledger as a Super Admin override. You are not a member — changes will be attributed to your account.",
+    "all_ledgers_title": "All ledgers",
+    "all_ledgers_desc": "Every ledger in the system. Open any to view or edit as Super Admin; deleted ledgers are shown for reference only.",
+    "all_ledgers_empty": "No ledgers exist yet.",
+    "ledger_deleted_badge": "Deleted"
   },
   "passkey": {
     "section_title": "Passkeys",

@@ -21,7 +21,9 @@ export default async function AccountPage() {
   const t = await getTranslations();
   const fmt = await getFormatter();
 
-  const [passkeys, passwordCredentials, ownedGroups] = await Promise.all([
+  const isSuperAdmin = ctx.user.isSuperAdmin;
+
+  const [passkeys, passwordCredentials, ownedGroups, allLedgers] = await Promise.all([
     prisma.passkeyCredential.findMany({
       where: { userId: ctx.user.id },
       orderBy: { createdAt: 'desc' },
@@ -44,9 +46,29 @@ export default async function AccountPage() {
       },
     }),
     listOwnedGroups(),
+    isSuperAdmin
+      ? prisma.group.findMany({
+          orderBy: [{ deletedAt: 'asc' }, { createdAt: 'desc' }],
+          select: {
+            id: true,
+            name: true,
+            defaultCurrency: true,
+            createdAt: true,
+            deletedAt: true,
+            _count: { select: { members: true } },
+          },
+        })
+      : Promise.resolve(
+          [] as Array<{
+            id: string;
+            name: string;
+            defaultCurrency: string;
+            createdAt: Date;
+            deletedAt: Date | null;
+            _count: { members: number };
+          }>,
+        ),
   ]);
-  const isSuperAdmin =
-    (ctx.user as typeof ctx.user & { isSuperAdmin?: boolean }).isSuperAdmin ?? false;
 
   const credentials = [
     ...passkeys.map((pk) => ({
@@ -150,11 +172,63 @@ export default async function AccountPage() {
                   id: 'admin',
                   label: t('admin.tab'),
                   content: (
-                    <section className="flex flex-col gap-4">
-                      <p className="text-muted-foreground text-sm">{t('admin.account_desc')}</p>
-                      <Button asChild className="w-fit">
-                        <Link href="/account/admin/usernames">{t('admin.open_usernames')}</Link>
-                      </Button>
+                    <section className="flex flex-col gap-8">
+                      <div className="flex flex-col gap-4">
+                        <p className="text-muted-foreground text-sm">{t('admin.account_desc')}</p>
+                        <Button asChild className="w-fit">
+                          <Link href="/account/admin/usernames">{t('admin.open_usernames')}</Link>
+                        </Button>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1">
+                          <h2 className="text-sm font-medium">{t('admin.all_ledgers_title')}</h2>
+                          <p className="text-muted-foreground text-xs">
+                            {t('admin.all_ledgers_desc')}
+                          </p>
+                        </div>
+                        {allLedgers.length === 0 ? (
+                          <p className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-center text-sm">
+                            {t('admin.all_ledgers_empty')}
+                          </p>
+                        ) : (
+                          <ul className="divide-y rounded-md border">
+                            {allLedgers.map((g) => {
+                              const isDeleted = g.deletedAt !== null;
+                              const meta = `${t('groups.created_at')}: ${fmt.dateTime(g.createdAt, 'short')} · ${g.defaultCurrency} · ${t('groups.members_count', { count: g._count.members })}`;
+                              return (
+                                <li
+                                  key={g.id}
+                                  className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
+                                >
+                                  <div className="flex min-w-0 flex-col gap-0.5">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                      {isDeleted ? (
+                                        <span className="text-muted-foreground line-through">
+                                          {g.name}
+                                        </span>
+                                      ) : (
+                                        <Link
+                                          href={`/groups/${g.id}`}
+                                          className="hover:underline font-medium"
+                                        >
+                                          {g.name}
+                                        </Link>
+                                      )}
+                                      {isDeleted && (
+                                        <span className="bg-destructive/15 text-destructive inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+                                          {t('admin.ledger_deleted_badge')}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-muted-foreground text-xs">{meta}</span>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
                     </section>
                   ),
                 },

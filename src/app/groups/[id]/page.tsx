@@ -63,6 +63,7 @@ export default async function GroupPage({
   // hide UI entry points for actions the caller couldn't perform anyway.
   const role = access.kind === 'user' ? access.role : null;
   const linkedMemberId = access.kind === 'user' ? access.linkedMemberId : null;
+  const isSuperAdminBypass = access.kind === 'user' && access.bypass === 'superadmin';
   const isOwner = role === 'OWNER';
   const canManage = role === 'OWNER' || role === 'MANAGER';
   // The member.id this caller's writes are constrained to (null = no
@@ -179,19 +180,23 @@ export default async function GroupPage({
 
   // Eligible OWNER-transfer candidates: every linked member of the group
   // whose linked user isn't already the OWNER (i.e. self). Only computed
-  // for OWNER, since they're the only role that sees the button.
+  // for OWNER, since they're the only role that sees the button. Suppressed
+  // for superadmin bypass — `transferOwnershipAction` checks the caller's
+  // own membership row directly and would refuse, so hide the button rather
+  // than show one that errors on click.
   const selfUserId = access.kind === 'user' ? access.userId : null;
-  const ownerCandidates: OwnerCandidate[] = isOwner
-    ? members
-        .filter(
-          (m) =>
-            m.linkedUserId !== null && m.linkedUserId !== selfUserId && m.linkedUsername !== null,
-        )
-        .map((m) => ({
-          userId: m.linkedUserId as string,
-          label: `${m.displayName} (@${m.linkedUsername})`,
-        }))
-    : [];
+  const ownerCandidates: OwnerCandidate[] =
+    isOwner && !isSuperAdminBypass
+      ? members
+          .filter(
+            (m) =>
+              m.linkedUserId !== null && m.linkedUserId !== selfUserId && m.linkedUsername !== null,
+          )
+          .map((m) => ({
+            userId: m.linkedUserId as string,
+            label: `${m.displayName} (@${m.linkedUsername})`,
+          }))
+      : [];
 
   type ExpenseRow = (typeof expenses)[number];
 
@@ -290,6 +295,12 @@ export default async function GroupPage({
           {access.kind === 'user' && <ExportMenu groupId={id} />}
         </div>
       </header>
+
+      {isSuperAdminBypass && (
+        <p className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border px-4 py-3 text-sm font-medium">
+          {t('admin.bypass_banner')}
+        </p>
+      )}
 
       {isArchived && (
         <p className="bg-secondary text-secondary-foreground rounded-md border px-4 py-3 text-sm">

@@ -114,7 +114,12 @@
     "delete_username": "删除用户名",
     "username_empty": "当前没有允许注册的用户名，任何新用户都不能注册。",
     "username_source_env": "env",
-    "username_source_db": "后台"
+    "username_source_db": "后台",
+    "bypass_banner": "你正在以超级管理员身份越权访问该账本。你并不是其成员——任何改动会以你的账号留痕。",
+    "all_ledgers_title": "全部账本",
+    "all_ledgers_desc": "系统中的所有账本。可作为超级管理员打开任意账本查看或编辑；已删除的账本仅作记录展示。",
+    "all_ledgers_empty": "系统中暂无账本。",
+    "ledger_deleted_badge": "已删除"
   },
   "passkey": {
     "section_title": "Passkey",
