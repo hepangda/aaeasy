@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight, Check, Copy, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -251,13 +252,13 @@ export function TransfersPanel({
               <Label htmlFor="se-amount" className="text-xs">
                 {t('expenses.amount')} ({defaultCurrency})
               </Label>
-              <Input
+              <NumericInput
                 id="se-amount"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                inputMode="decimal"
                 placeholder="0.00"
                 required
+                keypadTitle={t('expenses.amount')}
               />
             </div>
             <div className="flex items-end gap-1">

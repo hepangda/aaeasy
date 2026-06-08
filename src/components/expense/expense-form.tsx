@@ -8,6 +8,7 @@ import { Minus, Paperclip, Plus, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -952,14 +953,14 @@ export function ExpenseForm({
             <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
               <div className="grid gap-2">
                 <Label htmlFor="amount">{t('expenses.amount')}</Label>
-                <Input
+                <NumericInput
                   id="amount"
                   name="amount"
                   required
-                  inputMode="decimal"
                   placeholder="0.00"
                   value={amountText}
                   onChange={(e) => setAmountText(e.target.value)}
+                  keypadTitle={t('expenses.amount')}
                 />
               </div>
               <div className="grid gap-2">
@@ -1046,12 +1047,13 @@ export function ExpenseForm({
       {!isDraftMode && currency !== groupCurrency && (
         <div className="grid gap-2">
           <Label htmlFor="fxRateOverride">{t('expenses.fx_rate_override')}</Label>
-          <Input
+          <NumericInput
             id="fxRateOverride"
             name="fxRateOverride"
-            inputMode="decimal"
             placeholder={t('expenses.fx_rate_hint', { from: currency, to: groupCurrency })}
             defaultValue={defaults?.fxRateOverride ?? ''}
+            precision={6}
+            keypadTitle={t('expenses.fx_rate_override')}
           />
         </div>
       )}
@@ -1387,12 +1389,12 @@ function SharesStepper({
       >
         <Minus className="size-4" />
       </button>
-      <input
+      <NumericInput
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        inputMode="numeric"
-        pattern="[0-9]*"
+        mode="integer"
         disabled={disabled}
+        unstyled
         className="w-full min-w-0 flex-1 border-x bg-transparent text-center text-sm tabular-nums focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
       />
       <button
@@ -1419,11 +1421,11 @@ function ExtraInput({
 }) {
   return (
     <div className="relative">
-      <Input
+      <NumericInput
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        inputMode="decimal"
         placeholder="0"
+        allowNegative
         className="h-9 w-full pr-7 pl-2 text-right tabular-nums font-mono"
       />
       {value && (

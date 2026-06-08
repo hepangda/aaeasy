@@ -96,4 +96,37 @@
       font-size: 16px;
     }
   }
+
+  /* iOS Safari adds extra internal padding and a baseline-aligned inner value
+     to <input type="date" | "time" | "datetime-local">, which makes them look
+     visibly taller than sibling text inputs inside the same h-10 container.
+     Neutralize the webkit chrome so date inputs match the standard control. */
+  input[type='date'],
+  input[type='time'],
+  input[type='datetime-local'],
+  input[type='month'],
+  input[type='week'] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 0;
+    line-height: normal;
+  }
+  input[type='date']::-webkit-date-and-time-value,
+  input[type='time']::-webkit-date-and-time-value,
+  input[type='datetime-local']::-webkit-date-and-time-value,
+  input[type='month']::-webkit-date-and-time-value,
+  input[type='week']::-webkit-date-and-time-value {
+    text-align: left;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+  }
+  input[type='date']::-webkit-datetime-edit,
+  input[type='time']::-webkit-datetime-edit,
+  input[type='datetime-local']::-webkit-datetime-edit,
+  input[type='month']::-webkit-datetime-edit,
+  input[type='week']::-webkit-datetime-edit {
+    padding: 0;
+    line-height: normal;
+  }
 }

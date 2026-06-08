@@ -14,7 +14,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useFormatter } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { NumericInput } from '@/components/ui/numeric-input';
 import { fillDraftsAction } from '@/lib/expenses/actions';
 import { showI18nError, successToast } from '@/lib/ui/toast';
 
@@ -130,8 +130,7 @@ export function DraftFillPanel({
                     <span className="text-muted-foreground text-xs">
                       {d.currency}
                     </span>
-                    <Input
-                      inputMode="decimal"
+                    <NumericInput
                       placeholder="0.00"
                       className="h-8 w-24 text-right tabular-nums"
                       value={amounts[d.expenseId] ?? ''}
@@ -141,6 +140,7 @@ export function DraftFillPanel({
                           [d.expenseId]: e.target.value,
                         }))
                       }
+                      keypadTitle={d.title}
                     />
                   </div>
                 </td>
