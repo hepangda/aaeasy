@@ -43,6 +43,7 @@ export function NewGroupForm() {
           minLength={3}
           className="uppercase"
           required
+          disabled
         />
       </div>
 

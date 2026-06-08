@@ -43,7 +43,7 @@
     "display_name_taken": "Display name is already taken",
     "rate_limited": "Too many attempts — please try again later",
     "group_name_required": "Group name is required",
-    "invalid_currency": "Use a 3-letter currency code (e.g. USD, CNY)",
+    "invalid_currency": "Only CNY is currently supported",
     "invalid_link": "This link is invalid or has been revoked",
     "not_found": "Expense not found",
     "forbidden": "Not allowed",

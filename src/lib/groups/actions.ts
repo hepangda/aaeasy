@@ -11,8 +11,6 @@ import { publish } from '@/lib/realtime/pgNotify';
 
 // ─── Schemas ─────────────────────────────────────────────────────────────
 
-const currencyRegex = /^[A-Z]{3}$/;
-
 const memberChipSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('name'), text: z.string().trim().min(1).max(40) }),
   z.object({
@@ -31,11 +29,7 @@ const memberChipsSchema = z.array(memberChipSchema).max(50);
 
 const createGroupSchema = z.object({
   name: z.string().trim().min(1, 'errors.group_name_required').max(64),
-  defaultCurrency: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .refine((v) => currencyRegex.test(v), { message: 'errors.invalid_currency' }),
+  defaultCurrency: z.literal('CNY').default('CNY'),
   /// JSON-serialized array of MemberChip — produced by <ChipInput>.
   members: z.string().optional(),
 });

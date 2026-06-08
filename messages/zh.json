@@ -43,7 +43,7 @@
     "display_name_taken": "该显示名称已被使用",
     "rate_limited": "操作过于频繁，请稍后重试",
     "group_name_required": "请填写账本名称",
-    "invalid_currency": "请使用 3 位货币代码（如 CNY、USD）",
+    "invalid_currency": "目前仅支持人民币 (CNY)",
     "invalid_link": "链接无效或已撤销",
     "not_found": "未找到该费用",
     "forbidden": "没有权限",

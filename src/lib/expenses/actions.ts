@@ -6,7 +6,7 @@ import Decimal from 'decimal.js';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { requireGroupAccess, AccessError } from '@/lib/auth/group-access';
-import { parseAmountToMinor, isCurrencyCode } from '@/lib/money';
+import { parseAmountToMinor } from '@/lib/money';
 import { computeSplit, SplitError } from '@/lib/split';
 import { splitRuleSchema } from '@/lib/split/types';
 import { splitInputStateSchema } from '@/lib/split/input-state';
@@ -33,11 +33,7 @@ const baseExpenseSchema = z.object({
   occurredAt: z.coerce.date(),
   title: z.string().trim().min(1).max(120),
   note: z.string().max(2_000).optional().or(z.literal('')),
-  currency: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .refine(isCurrencyCode, { message: 'errors.invalid_currency' }),
+  currency: z.literal('CNY'),
   amount: z.string().optional().or(z.literal('')), // free-form, parsed in lib/money
   payerMemberId: z.string().min(1),
   /** Manual rate override: amount in `currency` × rate = amount in groupCurrency. */

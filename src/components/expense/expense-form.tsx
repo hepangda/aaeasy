@@ -948,6 +948,7 @@ export function ExpenseForm({
           Mobile: amount + currency share one row, then payer + attach
           stack below. Desktop keeps the original four-column row. */}
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
+        <input type="hidden" name="currency" value={currency} />
         {!isDraftMode && (
           <div className="grid gap-2 sm:contents">
             <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
@@ -967,13 +968,12 @@ export function ExpenseForm({
                 <Label htmlFor="currency">{t('expenses.currency')}</Label>
                 <Input
                   id="currency"
-                  name="currency"
-                  required
                   minLength={3}
                   maxLength={3}
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                   className="w-20 uppercase"
+                  disabled
                 />
               </div>
             </div>
@@ -984,13 +984,12 @@ export function ExpenseForm({
             <Label htmlFor="currency">{t('expenses.currency')}</Label>
             <Input
               id="currency"
-              name="currency"
-              required
               minLength={3}
               maxLength={3}
               value={currency}
               onChange={(e) => setCurrency(e.target.value.toUpperCase())}
               className="w-20 uppercase"
+              disabled
             />
           </div>
         )}
@@ -1054,6 +1053,7 @@ export function ExpenseForm({
             defaultValue={defaults?.fxRateOverride ?? ''}
             precision={6}
             keypadTitle={t('expenses.fx_rate_override')}
+            disabled
           />
         </div>
       )}
