@@ -46,17 +46,11 @@ export function BottomSheet({
       className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40"
       onPointerDown={(e) => {
         if (e.target !== e.currentTarget) return;
+        e.preventDefault();
+      }}
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return;
         if (performance.now() - openedAt.current < BACKDROP_DISMISS_GRACE_MS) return;
-        const swallow = (ev: Event) => {
-          ev.stopPropagation();
-          ev.preventDefault();
-        };
-        window.addEventListener('click', swallow, { capture: true, once: true });
-        window.addEventListener('pointerup', swallow, { capture: true, once: true });
-        setTimeout(() => {
-          window.removeEventListener('click', swallow, { capture: true });
-          window.removeEventListener('pointerup', swallow, { capture: true });
-        }, 350);
         onClose();
       }}
     >
