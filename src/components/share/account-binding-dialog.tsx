@@ -146,13 +146,15 @@ export function AccountBindingDialog({
           {/* Both panels share one grid cell so the container's height is the
               max of either panel's natural height — switching tabs never
               causes a jump on mobile. The inactive panel is invisible but
-              still takes layout space. */}
-          <div className="grid">
+              still takes layout space. min-w-0 on the grid item prevents
+              long descendants (e.g. role labels) from forcing the grid
+              wider than the dialog. */}
+          <div className="grid min-w-0">
             <div
               role="tabpanel"
               aria-labelledby="bind-tab"
               className={cn(
-                'col-start-1 row-start-1 flex flex-col gap-4',
+                'col-start-1 row-start-1 flex min-w-0 flex-col gap-4',
                 tab === 'bind' ? 'visible' : 'pointer-events-none invisible',
               )}
             >
@@ -202,7 +204,7 @@ export function AccountBindingDialog({
               role="tabpanel"
               aria-labelledby="sent-tab"
               className={cn(
-                'col-start-1 row-start-1',
+                'col-start-1 row-start-1 min-w-0',
                 tab === 'sent' ? 'visible' : 'pointer-events-none invisible',
               )}
             >
@@ -431,9 +433,9 @@ function InviteSection({
                     }}
                     className="hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
                   >
-                    <AtSign className="text-muted-foreground size-3.5" />
-                    <span className="font-medium">{s.username}</span>
-                    <span className="text-muted-foreground truncate text-xs">
+                    <AtSign className="text-muted-foreground size-3.5 shrink-0" />
+                    <span className="truncate font-medium">{s.username}</span>
+                    <span className="text-muted-foreground min-w-0 truncate text-xs">
                       {s.displayName}
                     </span>
                   </button>
@@ -649,17 +651,17 @@ function SentList({
                 key={`inv-${item.id}`}
                 className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
               >
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-foreground inline-flex items-center gap-2 text-sm font-medium leading-tight">
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm font-medium leading-tight">
                     <TypeChip label={t('binding.type_invite')} />
-                    <span className="truncate">
+                    <span className="min-w-0 truncate">
                       {item.pending.invitedUser.displayName}
                       <span className="text-muted-foreground ml-1 font-normal">
                         @{item.pending.invitedUser.username}
                       </span>
                     </span>
                   </span>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground break-words">
                     {t('binding.pending_status')}
                     {' · '}
                     {t(`members.role.${item.assignedRole}` as never)}
@@ -669,7 +671,7 @@ function SentList({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="size-7"
+                  className="size-7 shrink-0"
                   onClick={() => cancelInvite(item.id)}
                   disabled={pending}
                   aria-label={t('binding.cancel_invitation')}
@@ -684,16 +686,16 @@ function SentList({
               >
                 <span
                   className={cn(
-                    'flex min-w-0 flex-col gap-0.5',
+                    'flex min-w-0 flex-1 flex-col gap-0.5',
                     item.link.revoked && 'text-muted-foreground/70 line-through',
                     !item.link.revoked && item.link.expired && 'text-muted-foreground',
                   )}
                 >
-                  <span className="text-foreground inline-flex items-center gap-2 text-sm font-medium leading-tight">
+                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm font-medium leading-tight">
                     <TypeChip label={t('binding.type_link')} />
-                    <span className="truncate">{item.link.label ?? memberName}</span>
+                    <span className="min-w-0 truncate">{item.link.label ?? memberName}</span>
                   </span>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground break-words">
                     {statusLabel(item.link)}
                     {item.link.assignedRole && (
                       <>
@@ -713,7 +715,7 @@ function SentList({
                     type="button"
                     size="icon"
                     variant="ghost"
-                    className="size-7"
+                    className="size-7 shrink-0"
                     onClick={() => revokeLink(item.id)}
                     disabled={pending}
                     aria-label={t('share.revoke')}
@@ -758,7 +760,7 @@ function RoleSegmented({
   return (
     <div
       role="radiogroup"
-      className="border-input bg-background inline-flex h-10 rounded-md border p-0.5"
+      className="border-input bg-background flex h-10 w-full rounded-md border p-0.5"
     >
       {options.map((r) => {
         const active = r === value;
@@ -770,7 +772,7 @@ function RoleSegmented({
             aria-checked={active}
             onClick={() => onChange(r)}
             className={cn(
-              'rounded px-3 text-sm font-medium transition-colors',
+              'min-w-0 flex-1 truncate rounded px-3 text-sm font-medium transition-colors',
               active
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground',
