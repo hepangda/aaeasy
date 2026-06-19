@@ -80,7 +80,12 @@
     "unauthenticated": "Not authenticated",
     "target_not_linked": "Target user must be a linked member in this group",
     "member_in_use": "This member has expenses or settlements and cannot be removed. Use “Unlink account” instead.",
-    "delete_failed": "Delete failed — please try again"
+    "delete_failed": "Delete failed — please try again",
+    "merge_same_user": "Source and target must be different users",
+    "merge_user_not_found": "Source or target user no longer exists",
+    "merge_source_is_self": "You can't merge your own account as the source",
+    "merge_source_is_admin": "A super admin can't be the source of a merge",
+    "merge_failed": "Merge failed — please try again"
   },
   "common": {
     "login": "Sign in",
@@ -119,7 +124,24 @@
     "all_ledgers_title": "All ledgers",
     "all_ledgers_desc": "Every ledger in the system. Open any to view or edit as Super Admin; deleted ledgers are shown for reference only.",
     "all_ledgers_empty": "No ledgers exist yet.",
-    "ledger_deleted_badge": "Deleted"
+    "ledger_deleted_badge": "Deleted",
+    "open_user_merge": "Merge users",
+    "user_merge_title": "Merge users",
+    "user_merge_desc": "Merge a source user into a target user: all of the source's data and login methods move to the target, then the source account is deleted. Ledger balances are never changed.",
+    "merge_source_label": "Source user (will be deleted)",
+    "merge_source_hint": "This account's data and login methods are merged into the target, then it is removed.",
+    "merge_target_label": "Target user (kept)",
+    "merge_target_hint": "This account is kept, along with its display name and username.",
+    "merge_select_placeholder": "Select a user…",
+    "merge_user_meta": "{groups} ledgers · {logins} login methods",
+    "merge_preview": "Merge <strong>{source}</strong> into <strong>{target}</strong>, then delete {source}. This cannot be undone.",
+    "merge_button": "Merge and delete source",
+    "merge_pending": "Merging…",
+    "merge_confirm": "This permanently merges and deletes the source user. Continue?",
+    "merge_success": "Users merged.",
+    "merge_same_user_error": "Source and target must be different users.",
+    "merge_source_is_self_error": "You can't merge your own account as the source.",
+    "merge_source_is_admin_error": "A super admin can't be the source of a merge."
   },
   "passkey": {
     "section_title": "Passkeys",

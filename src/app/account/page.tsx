@@ -175,9 +175,14 @@ export default async function AccountPage() {
                     <section className="flex flex-col gap-8">
                       <div className="flex flex-col gap-4">
                         <p className="text-muted-foreground text-sm">{t('admin.account_desc')}</p>
-                        <Button asChild className="w-fit">
-                          <Link href="/account/admin/usernames">{t('admin.open_usernames')}</Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild className="w-fit">
+                            <Link href="/account/admin/usernames">{t('admin.open_usernames')}</Link>
+                          </Button>
+                          <Button asChild variant="outline" className="w-fit">
+                            <Link href="/account/admin/users">{t('admin.open_user_merge')}</Link>
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="flex flex-col gap-3">

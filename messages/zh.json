@@ -80,7 +80,12 @@
     "unauthenticated": "未认证",
     "target_not_linked": "目标用户必须是该账本中的已绑定成员",
     "member_in_use": "该成员已有费用或清算记录，无法移除。如需收回权限，请使用「解除账号绑定」。",
-    "delete_failed": "删除失败，请稍后重试"
+    "delete_failed": "删除失败，请稍后重试",
+    "merge_same_user": "源用户与目标用户必须不同",
+    "merge_user_not_found": "源用户或目标用户已不存在",
+    "merge_source_is_self": "不能把你自己的账号作为源用户来合并",
+    "merge_source_is_admin": "超级管理员不能作为合并的源用户",
+    "merge_failed": "合并失败，请稍后重试"
   },
   "common": {
     "login": "登录",
@@ -119,7 +124,24 @@
     "all_ledgers_title": "全部账本",
     "all_ledgers_desc": "系统中的所有账本。可作为超级管理员打开任意账本查看或编辑；已删除的账本仅作记录展示。",
     "all_ledgers_empty": "系统中暂无账本。",
-    "ledger_deleted_badge": "已删除"
+    "ledger_deleted_badge": "已删除",
+    "open_user_merge": "合并用户",
+    "user_merge_title": "合并用户",
+    "user_merge_desc": "把源用户并入目标用户：源用户的全部数据和登录方式都会转移到目标用户，随后删除源账号。账本余额始终不变。",
+    "merge_source_label": "源用户（将被删除）",
+    "merge_source_hint": "该账号的数据和登录方式会并入目标用户，随后该账号被删除。",
+    "merge_target_label": "目标用户（保留）",
+    "merge_target_hint": "保留该账号，其显示名和用户名也保持不变。",
+    "merge_select_placeholder": "选择一个用户…",
+    "merge_user_meta": "{groups} 个账本 · {logins} 种登录方式",
+    "merge_preview": "将 <strong>{source}</strong> 并入 <strong>{target}</strong>，随后删除 {source}。此操作不可撤销。",
+    "merge_button": "合并并删除源用户",
+    "merge_pending": "合并中…",
+    "merge_confirm": "此操作会永久合并并删除源用户，确定继续吗？",
+    "merge_success": "用户已合并。",
+    "merge_same_user_error": "源用户与目标用户必须不同。",
+    "merge_source_is_self_error": "不能把你自己的账号作为源用户来合并。",
+    "merge_source_is_admin_error": "超级管理员不能作为合并的源用户。"
   },
   "passkey": {
     "section_title": "Passkey",
