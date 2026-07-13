@@ -1,8 +1,6 @@
-'use client';
-
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import Decimal from 'decimal.js';
 import { Minus, Paperclip, Plus, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,12 +14,8 @@ import {
   createExpenseAction,
   updateExpenseAction,
   type ExpenseActionState,
-} from '@/lib/expenses/actions';
-import {
-  errorToast,
-  showI18nError,
-  successToast,
-} from '@/lib/ui/toast';
+} from '@/spa/actions/expenses';
+import { errorToast, showI18nError, successToast } from '@/lib/ui/toast';
 import type { SplitRule } from '@/lib/split/types';
 import type { SplitInputState, SplitInputRow } from '@/lib/split/input-state';
 import { computeSplit } from '@/lib/split';
@@ -58,6 +52,7 @@ interface Props {
   lockedPayerMemberId?: string;
   defaults?: {
     expenseId: string;
+    version?: number;
     occurredAt: Date;
     title: string;
     note: string | null;
@@ -145,9 +140,7 @@ function distribute(total: bigint, weights: number[]): bigint[] {
   });
   let remainder = total - rows.reduce((a, r) => a + r.base, 0n);
   // Largest fractional part wins; ties broken by index for determinism.
-  const ranked = rows
-    .slice()
-    .sort((a, b) => b.frac.cmp(a.frac) || a.i - b.i);
+  const ranked = rows.slice().sort((a, b) => b.frac.cmp(a.frac) || a.i - b.i);
   let k = 0;
   while (remainder > 0n) {
     rows[ranked[k % ranked.length]!.i]!.base += 1n;
@@ -281,7 +274,7 @@ export function ExpenseForm({
 
   // ─── Top-level fields (controlled so split logic can react) ─────────
   const [currency, setCurrency] = useState(defaults?.currency ?? groupCurrency);
-  const [amountText, setAmountText] = useState(defaults?.amountText ?? '');  // DRAFT mode: hides the amount / fx / split UI entirely. The action layer
+  const [amountText, setAmountText] = useState(defaults?.amountText ?? ''); // DRAFT mode: hides the amount / fx / split UI entirely. The action layer
   // sees `isDraft=true` and persists the row without an amount, leaving the
   // payer to fill it in later via the group page's quick-fill panel.
   //
@@ -390,9 +383,7 @@ export function ExpenseForm({
       if (!anyChecked) {
         return cur.map((r) => ({ ...r, checked: true, shares: '1', extraText: '' }));
       }
-      return cur.map((r) =>
-        r.checked ? { ...r, shares: '1', extraText: '' } : r,
-      );
+      return cur.map((r) => (r.checked ? { ...r, shares: '1', extraText: '' } : r));
     });
   }
 
@@ -583,27 +574,12 @@ export function ExpenseForm({
         for (const file of filesToUpload) {
           if (cancelled) return;
           try {
-            const signRes = await fetch(
-              `/api/groups/${groupId}/expenses/${expenseId}/receipts/sign`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mime: file.type, size: file.size }),
-              },
-            );
-            if (!signRes.ok) continue;
-            const { url, key } = (await signRes.json()) as { url: string; key: string };
-            const putRes = await fetch(url, {
-              method: 'PUT',
+            const uploadRes = await fetch(`/api/groups/${groupId}/expenses/${expenseId}/receipts`, {
+              method: 'POST',
               headers: { 'Content-Type': file.type },
               body: file,
             });
-            if (!putRes.ok) continue;
-            await fetch(`/api/groups/${groupId}/expenses/${expenseId}/receipts`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ key, mime: file.type, size: file.size }),
-            });
+            if (!uploadRes.ok) continue;
           } catch {
             // best effort
           }
@@ -621,10 +597,7 @@ export function ExpenseForm({
   void decimalToMinor;
   void minorUnits;
 
-  const submitDisabled =
-    pending ||
-    uploadingReceipts ||
-    (!isDraftMode && !sumMatchesTotal);
+  const submitDisabled = pending || uploadingReceipts || (!isDraftMode && !sumMatchesTotal);
 
   // ─── AI-assisted parsing ───────────────────────────────
   // The user types a free-form sentence; we POST it to the streaming parse
@@ -659,22 +632,14 @@ export function ExpenseForm({
   // sees the values it's being asked to adjust.
   function buildCurrentSnapshot(): CurrentSnapshot | undefined {
     if (!defaults) return undefined;
-    const titleEl = formRef.current?.elements.namedItem('title') as
-      | HTMLInputElement
-      | null;
-    const dateEl = formRef.current?.elements.namedItem('occurredAt') as
-      | HTMLInputElement
-      | null;
+    const titleEl = formRef.current?.elements.namedItem('title') as HTMLInputElement | null;
+    const dateEl = formRef.current?.elements.namedItem('occurredAt') as HTMLInputElement | null;
     const payerEl = formRef.current?.elements.namedItem('payerMemberId') as
       | HTMLSelectElement
       | HTMLInputElement
       | null;
-    const noteEl = formRef.current?.elements.namedItem('note') as
-      | HTMLTextAreaElement
-      | null;
-    const fxEl = formRef.current?.elements.namedItem('fxRateOverride') as
-      | HTMLInputElement
-      | null;
+    const noteEl = formRef.current?.elements.namedItem('note') as HTMLTextAreaElement | null;
+    const fxEl = formRef.current?.elements.namedItem('fxRateOverride') as HTMLInputElement | null;
     return {
       title: titleEl?.value || null,
       occurredAt: dateEl?.value || null,
@@ -757,9 +722,7 @@ export function ExpenseForm({
     },
     onMeta: ({ payerName, participants }) => {
       if (payerName) {
-        successToast(
-          t('expenses.ai_unresolved_payer', { name: payerName }),
-        );
+        successToast(t('expenses.ai_unresolved_payer', { name: payerName }));
       }
       if (participants && participants.length > 0) {
         successToast(
@@ -828,11 +791,7 @@ export function ExpenseForm({
   }
 
   return (
-    <form
-      action={formAction}
-      ref={formRef}
-      className="flex w-full flex-col gap-5"
-    >
+    <form action={formAction} ref={formRef} className="flex w-full flex-col gap-5">
       <input type="hidden" name="groupId" value={groupId} />
       {/* Only submit a splitRule when we actually have a materialized split.
           In DRAFT mode the row amounts are all zero, which would fail the
@@ -840,19 +799,12 @@ export function ExpenseForm({
       {!isDraftMode && (
         <>
           <input type="hidden" name="splitRule" value={ruleJson} />
-          <input
-            type="hidden"
-            name="splitInputState"
-            value={splitInputStateJson}
-          />
+          <input type="hidden" name="splitInputState" value={splitInputStateJson} />
         </>
       )}
-      <input
-        type="hidden"
-        name="isDraft"
-        value={isDraftMode ? 'true' : 'false'}
-      />
+      <input type="hidden" name="isDraft" value={isDraftMode ? 'true' : 'false'} />
       {defaults && <input type="hidden" name="expenseId" value={defaults.expenseId} />}
+      {defaults && <input type="hidden" name="expectedVersion" value={defaults.version ?? 0} />}
 
       <Dialog
         open={receiptAiPrompt !== null}
@@ -881,11 +833,7 @@ export function ExpenseForm({
             >
               {t('common.cancel')}
             </Button>
-            <Button
-              type="button"
-              onClick={confirmReceiptAi}
-              disabled={receiptAiPending}
-            >
+            <Button type="button" onClick={confirmReceiptAi} disabled={receiptAiPending}>
               {receiptAiPending ? t('expenses.ai_running') : t('expenses.ai_run')}
             </Button>
           </div>
@@ -926,95 +874,81 @@ export function ExpenseForm({
           form fields. The user always reviews before saving. */}
       {aiOpen && (
         <div className="flex flex-col gap-2">
-            <div className="bg-secondary/30 flex flex-col gap-2 rounded-md border p-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-sm font-medium">
-                  <Sparkles className="size-4" />{' '}
-                  {defaults
-                    ? t('expenses.ai_describe_edit_title')
-                    : t('expenses.ai_title')}
+          <div className="bg-secondary/30 flex flex-col gap-2 rounded-md border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                <Sparkles className="size-4" />{' '}
+                {defaults ? t('expenses.ai_describe_edit_title') : t('expenses.ai_title')}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                onClick={() => {
+                  setAiOpen(false);
+                  setAiText('');
+                  setAiReasoning(null);
+                  setAiAmbiguousHint(null);
+                  setAiImage(null);
+                }}
+                aria-label={t('expenses.clear')}
+              >
+                <X className="size-3.5" />
+              </Button>
+            </div>
+            {aiImage && (
+              <div className="bg-background/60 flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs">
+                <span className="text-muted-foreground truncate">
+                  {t('expenses.ai_image_in_context', { name: aiImage.name })}
                 </span>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-6"
-                  onClick={() => {
-                    setAiOpen(false);
-                    setAiText('');
-                    setAiReasoning(null);
-                    setAiAmbiguousHint(null);
-                    setAiImage(null);
-                  }}
+                  className="size-5"
+                  onClick={() => setAiImage(null)}
                   aria-label={t('expenses.clear')}
                 >
-                  <X className="size-3.5" />
+                  <X className="size-3" />
                 </Button>
               </div>
-              {aiImage && (
-                <div className="bg-background/60 flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs">
-                  <span className="text-muted-foreground truncate">
-                    {t('expenses.ai_image_in_context', { name: aiImage.name })}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-5"
-                    onClick={() => setAiImage(null)}
-                    aria-label={t('expenses.clear')}
-                  >
-                    <X className="size-3" />
+            )}
+            <Textarea
+              rows={2}
+              maxLength={1000}
+              value={aiText}
+              onChange={(e) => setAiText(e.target.value)}
+              placeholder={
+                defaults ? t('expenses.ai_placeholder_edit') : t('expenses.ai_placeholder')
+              }
+            />
+            {aiAmbiguousHint && (
+              <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                {aiAmbiguousHint}
+              </p>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-muted-foreground text-xs">
+                {aiReasoning ?? t('expenses.ai_hint')}
+              </p>
+              <div className="flex items-center gap-2">
+                {aiPending && (
+                  <Button type="button" size="sm" variant="outline" onClick={() => aiStream.stop()}>
+                    {t('expenses.ai_stop')}
                   </Button>
-                </div>
-              )}
-              <Textarea
-                rows={2}
-                maxLength={1000}
-                value={aiText}
-                onChange={(e) => setAiText(e.target.value)}
-                placeholder={
-                  defaults
-                    ? t('expenses.ai_placeholder_edit')
-                    : t('expenses.ai_placeholder')
-                }
-              />
-              {aiAmbiguousHint && (
-                <p className="bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200 rounded-md px-2 py-1 text-xs">
-                  {aiAmbiguousHint}
-                </p>
-              )}
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-muted-foreground text-xs">
-                  {aiReasoning ?? t('expenses.ai_hint')}
-                </p>
-                <div className="flex items-center gap-2">
-                  {aiPending && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => aiStream.stop()}
-                    >
-                      {t('expenses.ai_stop')}
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => runAiParse()}
-                    disabled={
-                      aiPending ||
-                      (aiText.trim().length === 0 && !aiImage)
-                    }
-                  >
-                    {aiPending
-                      ? t('expenses.ai_streaming')
-                      : t('expenses.ai_run')}
-                  </Button>
-                </div>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => runAiParse()}
+                  disabled={aiPending || (aiText.trim().length === 0 && !aiImage)}
+                >
+                  {aiPending ? t('expenses.ai_streaming') : t('expenses.ai_run')}
+                </Button>
               </div>
             </div>
+          </div>
         </div>
       )}
 
@@ -1028,9 +962,7 @@ export function ExpenseForm({
             type="date"
             required
             defaultValue={
-              defaults
-                ? defaults.occurredAt.toISOString().slice(0, 10)
-                : todayLocalISO()
+              defaults ? defaults.occurredAt.toISOString().slice(0, 10) : todayLocalISO()
             }
           />
         </div>
@@ -1101,11 +1033,7 @@ export function ExpenseForm({
             <Label htmlFor="payerMemberId">{t('expenses.payer')}</Label>
             {lockedPayerMemberId ? (
               <>
-                <input
-                  type="hidden"
-                  name="payerMemberId"
-                  value={lockedPayerMemberId}
-                />
+                <input type="hidden" name="payerMemberId" value={lockedPayerMemberId} />
                 <p className="border-input bg-muted/50 text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
                   {members.find((m) => m.id === lockedPayerMemberId)?.displayName ?? '?'}
                 </p>
@@ -1134,11 +1062,7 @@ export function ExpenseForm({
               className="hidden"
               onChange={(e) => addFiles(e.target.files)}
             />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-            >
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
               <Paperclip />
               <span className="hidden sm:inline">{t('expenses.attach_receipts')}</span>
             </Button>
@@ -1161,7 +1085,7 @@ export function ExpenseForm({
         </div>
       )}
 
-      {(pendingFiles.length > 0) && (
+      {pendingFiles.length > 0 && (
         <div className="flex flex-col gap-1">
           {pendingFiles.length > 0 && (
             <ul className="flex flex-col gap-1">
@@ -1196,61 +1120,175 @@ export function ExpenseForm({
 
       {/* ─── Split rule (hidden in DRAFT mode) ──────────────── */}
       {!isDraftMode && (
-      <fieldset className="grid gap-3 rounded-md border p-3 sm:p-4">
-        <legend className="px-2 text-sm font-medium">{t('expenses.split_rule')}</legend>
+        <fieldset className="grid gap-3 rounded-md border p-3 sm:p-4">
+          <legend className="px-2 text-sm font-medium">{t('expenses.split_rule')}</legend>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={btnToggleAll}>
-            {rows.every((r) => r.checked)
-              ? t('expenses.btn_deselect_all')
-              : t('expenses.btn_select_all')}
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={btnEqualSplitAll}>
-            {t('expenses.btn_equal_split_all')}
-          </Button>
-        </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={btnToggleAll}>
+              {rows.every((r) => r.checked)
+                ? t('expenses.btn_deselect_all')
+                : t('expenses.btn_select_all')}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={btnEqualSplitAll}>
+              {t('expenses.btn_equal_split_all')}
+            </Button>
+          </div>
 
-        {/* ─── Desktop: tabular layout ───────────────────────── */}
-        <div className="hidden overflow-x-auto md:block">
-          <table className="w-full text-sm">
-            <thead className="text-muted-foreground text-xs">
-              <tr>
-                <th className="w-7 px-1 py-1 text-left"></th>
-                <th className="px-2 py-1 text-left font-medium">
-                  {t('expenses.col_member')}
-                </th>
-                <th className="w-32 px-1 py-1 text-center font-medium">
-                  {t('expenses.col_shares')}
-                </th>
-                <th className="w-24 px-1 py-1 text-right font-medium">
-                  {t('expenses.col_base')}
-                </th>
-                <th className="w-28 px-1 py-1 text-right font-medium">
-                  {t('expenses.col_extra')}
-                </th>
-                <th className="px-2 py-1 text-right font-medium whitespace-nowrap">
-                  {t('expenses.col_subtotal')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => {
-                const m = members.find((x) => x.id === r.memberId);
-                if (!m) return null;
-                const hasContribution = r.checked || perMemberFinal[i]! > 0n;
-                const baseShown = r.checked ? r.baseText || formatMinor(0n, currency) : null;
-                return (
-                  <tr key={r.memberId} className="border-t">
-                    <td className="px-1 py-1.5">
-                      <input
-                        type="checkbox"
-                        className="size-4"
-                        checked={r.checked}
-                        onChange={(e) => setChecked(r.memberId, e.target.checked)}
-                      />
-                    </td>
-                    <td className="px-2 py-1.5 font-medium">{m.displayName}</td>
-                    <td className="px-1 py-1.5">
+          {/* ─── Desktop: tabular layout ───────────────────────── */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead className="text-muted-foreground text-xs">
+                <tr>
+                  <th className="w-7 px-1 py-1 text-left"></th>
+                  <th className="px-2 py-1 text-left font-medium">{t('expenses.col_member')}</th>
+                  <th className="w-32 px-1 py-1 text-center font-medium">
+                    {t('expenses.col_shares')}
+                  </th>
+                  <th className="w-24 px-1 py-1 text-right font-medium">
+                    {t('expenses.col_base')}
+                  </th>
+                  <th className="w-28 px-1 py-1 text-right font-medium">
+                    {t('expenses.col_extra')}
+                  </th>
+                  <th className="px-2 py-1 text-right font-medium whitespace-nowrap">
+                    {t('expenses.col_subtotal')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const m = members.find((x) => x.id === r.memberId);
+                  if (!m) return null;
+                  const hasContribution = r.checked || perMemberFinal[i]! > 0n;
+                  const baseShown = r.checked ? r.baseText || formatMinor(0n, currency) : null;
+                  return (
+                    <tr key={r.memberId} className="border-t">
+                      <td className="px-1 py-1.5">
+                        <input
+                          type="checkbox"
+                          className="size-4"
+                          checked={r.checked}
+                          onChange={(e) => setChecked(r.memberId, e.target.checked)}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 font-medium">{m.displayName}</td>
+                      <td className="px-1 py-1.5">
+                        <SharesStepper
+                          value={r.shares}
+                          disabled={!r.checked}
+                          onChange={(v) => setShares(r.memberId, v)}
+                          onBump={(d) => bumpShares(r.memberId, d)}
+                          decLabel={t('expenses.shares_dec')}
+                          incLabel={t('expenses.shares_inc')}
+                          label={t('expenses.member_field', {
+                            name: m.displayName,
+                            field: t('expenses.col_shares'),
+                          })}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-mono tabular-nums">
+                        {baseShown ?? <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-1 py-1.5">
+                        <ExtraInput
+                          value={r.extraText}
+                          onChange={(v) => updateRow(r.memberId, { extraText: v })}
+                          clearLabel={t('expenses.clear')}
+                          label={t('expenses.member_field', {
+                            name: m.displayName,
+                            field: t('expenses.col_extra'),
+                          })}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-mono whitespace-nowrap tabular-nums">
+                        {hasContribution ? (
+                          <>
+                            <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
+                            {formatMinor(perMemberFinal[i]!, currency)}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t font-medium">
+                  <td colSpan={4} className="px-2 py-2 text-right text-xs">
+                    {t('expenses.split_total')}
+                  </td>
+                  <td className="px-1 py-2 text-right font-mono text-xs whitespace-nowrap tabular-nums">
+                    {totalMinor !== null ? (
+                      <>
+                        <span className="text-muted-foreground mr-1">{currency}</span>
+                        {formatMinor(totalMinor, currency)}
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td
+                    className={`px-2 py-2 text-right font-mono whitespace-nowrap tabular-nums ${
+                      sumMatchesTotal
+                        ? 'text-emerald-600'
+                        : totalMinor === null
+                          ? 'text-muted-foreground'
+                          : 'text-destructive'
+                    }`}
+                  >
+                    <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
+                    {formatMinor(sumMinor, currency)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* ─── Mobile: stacked card layout ────────────────────
+            Tapping the row toggles the checkbox; stepper sits in the same
+            row so adjustments need only one thumb. */}
+          <ul className="flex flex-col gap-2 md:hidden">
+            {rows.map((r, i) => {
+              const m = members.find((x) => x.id === r.memberId);
+              if (!m) return null;
+              const finalMinor = perMemberFinal[i]!;
+              const hasContribution = r.checked || finalMinor > 0n;
+              return (
+                <li
+                  key={r.memberId}
+                  className={`flex flex-col gap-2 rounded-md border p-2.5 ${
+                    r.checked ? 'bg-card' : 'bg-muted/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      className="size-4 shrink-0"
+                      checked={r.checked}
+                      onChange={(e) => setChecked(r.memberId, e.target.checked)}
+                      aria-label={m.displayName}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {m.displayName}
+                    </span>
+                    <span className="text-right font-mono text-sm whitespace-nowrap tabular-nums">
+                      {hasContribution ? (
+                        <>
+                          <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
+                          {formatMinor(finalMinor, currency)}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+                        {t('expenses.col_shares')}
+                      </span>
                       <SharesStepper
                         value={r.shares}
                         disabled={!r.checked}
@@ -1258,179 +1296,67 @@ export function ExpenseForm({
                         onBump={(d) => bumpShares(r.memberId, d)}
                         decLabel={t('expenses.shares_dec')}
                         incLabel={t('expenses.shares_inc')}
-                        label={t('expenses.member_field', { name: m.displayName, field: t('expenses.col_shares') })}
+                        label={t('expenses.member_field', {
+                          name: m.displayName,
+                          field: t('expenses.col_shares'),
+                        })}
                       />
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-mono tabular-nums">
-                      {baseShown ?? <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-1 py-1.5">
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+                        {t('expenses.col_extra')}
+                      </span>
                       <ExtraInput
                         value={r.extraText}
                         onChange={(v) => updateRow(r.memberId, { extraText: v })}
                         clearLabel={t('expenses.clear')}
-                        label={t('expenses.member_field', { name: m.displayName, field: t('expenses.col_extra') })}
+                        label={t('expenses.member_field', {
+                          name: m.displayName,
+                          field: t('expenses.col_extra'),
+                        })}
                       />
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-mono tabular-nums whitespace-nowrap">
-                      {hasContribution ? (
-                        <>
-                          <span className="text-muted-foreground mr-1 text-xs">
-                            {currency}
-                          </span>
-                          {formatMinor(perMemberFinal[i]!, currency)}
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr className="border-t font-medium">
-                <td colSpan={4} className="px-2 py-2 text-right text-xs">
-                  {t('expenses.split_total')}
-                </td>
-                <td className="px-1 py-2 text-right font-mono text-xs tabular-nums whitespace-nowrap">
-                  {totalMinor !== null ? (
-                    <>
-                      <span className="text-muted-foreground mr-1">{currency}</span>
-                      {formatMinor(totalMinor, currency)}
-                    </>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td
-                  className={`px-2 py-2 text-right font-mono tabular-nums whitespace-nowrap ${
-                    sumMatchesTotal
-                      ? 'text-emerald-600'
-                      : totalMinor === null
-                        ? 'text-muted-foreground'
-                        : 'text-destructive'
-                  }`}
-                >
-                  <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
-                  {formatMinor(sumMinor, currency)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
 
-        {/* ─── Mobile: stacked card layout ────────────────────
-            Tapping the row toggles the checkbox; stepper sits in the same
-            row so adjustments need only one thumb. */}
-        <ul className="flex flex-col gap-2 md:hidden">
-          {rows.map((r, i) => {
-            const m = members.find((x) => x.id === r.memberId);
-            if (!m) return null;
-            const finalMinor = perMemberFinal[i]!;
-            const hasContribution = r.checked || finalMinor > 0n;
-            return (
-              <li
-                key={r.memberId}
-                className={`flex flex-col gap-2 rounded-md border p-2.5 ${
-                  r.checked ? 'bg-card' : 'bg-muted/30'
-                }`}
+          {/* ─── Totals readout (mobile only — desktop has it in tfoot) ─ */}
+          <div className="flex items-center justify-between gap-3 text-sm md:hidden">
+            <span className="text-muted-foreground text-xs">{t('expenses.split_total')}</span>
+            <span className="flex items-baseline gap-3 font-mono tabular-nums">
+              <span className="text-muted-foreground text-xs">
+                {totalMinor !== null ? formatMinor(totalMinor, currency) : '—'}
+              </span>
+              <span
+                className={
+                  sumMatchesTotal
+                    ? 'text-emerald-600'
+                    : totalMinor === null
+                      ? 'text-muted-foreground'
+                      : 'text-destructive'
+                }
               >
-                <div className="flex items-center gap-2.5">
-                  <input
-                    type="checkbox"
-                    className="size-4 shrink-0"
-                    checked={r.checked}
-                    onChange={(e) => setChecked(r.memberId, e.target.checked)}
-                    aria-label={m.displayName}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {m.displayName}
-                  </span>
-                  <span className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
-                    {hasContribution ? (
-                      <>
-                        <span className="text-muted-foreground mr-1 text-xs">
-                          {currency}
-                        </span>
-                        {formatMinor(finalMinor, currency)}
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
-                      {t('expenses.col_shares')}
-                    </span>
-                    <SharesStepper
-                      value={r.shares}
-                      disabled={!r.checked}
-                      onChange={(v) => setShares(r.memberId, v)}
-                      onBump={(d) => bumpShares(r.memberId, d)}
-                      decLabel={t('expenses.shares_dec')}
-                      incLabel={t('expenses.shares_inc')}
-                      label={t('expenses.member_field', { name: m.displayName, field: t('expenses.col_shares') })}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
-                      {t('expenses.col_extra')}
-                    </span>
-                    <ExtraInput
-                      value={r.extraText}
-                      onChange={(v) => updateRow(r.memberId, { extraText: v })}
-                      clearLabel={t('expenses.clear')}
-                      label={t('expenses.member_field', { name: m.displayName, field: t('expenses.col_extra') })}
-                    />
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-
-        {/* ─── Totals readout (mobile only — desktop has it in tfoot) ─ */}
-        <div className="flex items-center justify-between gap-3 text-sm md:hidden">
-          <span className="text-muted-foreground text-xs">
-            {t('expenses.split_total')}
-          </span>
-          <span className="flex items-baseline gap-3 font-mono tabular-nums">
-            <span className="text-muted-foreground text-xs">
-              {totalMinor !== null
-                ? formatMinor(totalMinor, currency)
-                : '—'}
+                {formatMinor(sumMinor, currency)} {currency}
+              </span>
             </span>
-            <span
-              className={
-                sumMatchesTotal
-                  ? 'text-emerald-600'
-                  : totalMinor === null
-                    ? 'text-muted-foreground'
-                    : 'text-destructive'
-              }
-            >
-              {formatMinor(sumMinor, currency)} {currency}
-            </span>
-          </span>
-        </div>
+          </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {totalMinor !== null && !sumMatchesTotal && !anyParseError && (
-            <p className="text-destructive text-xs">
-              {t('expenses.split_diff', {
-                diff: `${diffMinor < 0n ? '+' : ''}${formatMinor(-diffMinor, currency)}`,
-                currency,
-              })}
-            </p>
-          )}
-          {anyParseError && (
-            <p className="text-destructive text-xs">{t('errors.invalid_amount')}</p>
-          )}
-        </div>
-      </fieldset>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {totalMinor !== null && !sumMatchesTotal && !anyParseError && (
+              <p className="text-destructive text-xs">
+                {t('expenses.split_diff', {
+                  diff: `${diffMinor < 0n ? '+' : ''}${formatMinor(-diffMinor, currency)}`,
+                  currency,
+                })}
+              </p>
+            )}
+            {anyParseError && (
+              <p className="text-destructive text-xs">{t('errors.invalid_amount')}</p>
+            )}
+          </div>
+        </fieldset>
       )}
 
       {/* ─── Note ─────────────────────────────────────────────────── */}
@@ -1539,7 +1465,7 @@ function ExtraInput({
         placeholder="0"
         allowNegative
         keypadTitle={label}
-        className="h-9 w-full pr-7 pl-2 text-right tabular-nums font-mono"
+        className="h-9 w-full pr-7 pl-2 text-right font-mono tabular-nums"
       />
       {value && (
         <button

@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -20,16 +18,9 @@ export interface TabDefinition {
  * Every panel renders eagerly; we toggle visibility with `hidden` rather
  * than mounting/unmounting. This:
  *   - keeps per-panel state (form values, scroll, popover open) alive
- *   - avoids passing a render-prop child across the RSC/client boundary
- *     (which Next.js can't serialize)
+ *   - keeps tab content declarative and easy to type
  */
-export function Tabs({
-  tabs,
-  defaultTab,
-}: {
-  tabs: TabDefinition[];
-  defaultTab?: string;
-}) {
+export function Tabs({ tabs, defaultTab }: { tabs: TabDefinition[]; defaultTab?: string }) {
   const fallback = defaultTab ?? tabs[0]?.id ?? '';
   const [active, setActive] = useState(fallback);
 
@@ -76,9 +67,7 @@ export function Tabs({
               onClick={() => activate(tab.id)}
               className={cn(
                 'relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-                isActive
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
+                isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {tab.label}

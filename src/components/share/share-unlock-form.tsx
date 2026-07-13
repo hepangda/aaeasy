@@ -1,9 +1,7 @@
-'use client';
-
 import { useActionState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Button } from '@/components/ui/button';
-import { unlockShareAction, type UnlockState } from '@/lib/groups/share-unlock-action';
+import { unlockShareAction, type UnlockState } from '@/spa/actions/shares';
 import { showI18nError } from '@/lib/ui/toast';
 
 const initial: UnlockState = { ok: false };

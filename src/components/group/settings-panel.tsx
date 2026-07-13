@@ -1,6 +1,4 @@
-'use client';
-
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { AddMemberForm } from '@/components/group/add-member-form';
 import { RemoveMemberButton } from '@/components/group/remove-member-button';
 import { UnlinkMemberButton } from '@/components/group/unlink-member-button';
@@ -8,13 +6,26 @@ import { MemberRenameButton } from '@/components/group/member-rename-button';
 import { MemberRoleControl } from '@/components/group/member-role-control';
 import { AccountBindingDialog } from '@/components/share/account-binding-dialog';
 import type { ExistingShareLink } from '@/components/share/types';
-import type { MemberPendingInvitationRow } from '@/lib/invitations/queries';
+import type { MemberPendingInvitationRow } from '@/components/share/account-binding-dialog';
 import { DeleteGroupButton } from '@/components/group/delete-group-button';
 import { LeaveGroupButton } from '@/components/group/leave-group-button';
-import { TransferOwnershipButton, type OwnerCandidate } from '@/components/group/transfer-ownership-button';
+import {
+  TransferOwnershipButton,
+  type OwnerCandidate,
+} from '@/components/group/transfer-ownership-button';
 import { ReopenSettlementButton } from '@/components/settle/reopen-settlement-button';
 import { Pagination } from '@/components/ui/pagination';
-import type { MemberLite } from '@/lib/expenses/queries';
+
+export interface MemberLite {
+  id: string;
+  displayName: string;
+  sortOrder: number;
+  linkedUserId: string | null;
+  linkedUsername: string | null;
+  linkedUserDisplayName: string | null;
+  linkedUserRole: 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER' | null;
+  color: string | null;
+}
 
 const PAGE_SIZE_MEMBERS = 12;
 
@@ -69,9 +80,7 @@ export function SettingsPanel({
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="font-medium">{displayName}</span>
                     {m.linkedUsername && (
-                      <span className="text-muted-foreground text-xs">
-                        @{m.linkedUsername}
-                      </span>
+                      <span className="text-muted-foreground text-xs">@{m.linkedUsername}</span>
                     )}
                     {!isLinked && (
                       <span className="text-muted-foreground rounded border border-dashed px-2 py-0.5 text-xs">
@@ -120,22 +129,16 @@ export function SettingsPanel({
             );
           })}
         </ul>
-        <Pagination
-          paramKey="mp"
-          totalItems={members.length}
-          pageSize={PAGE_SIZE_MEMBERS}
-        />
+        <Pagination paramKey="mp" totalItems={members.length} pageSize={PAGE_SIZE_MEMBERS} />
       </div>
 
       {/* Ownership & Reopening Section */}
       {(isOwner || isArchived) && (
-        <div className="border-t pt-6 flex flex-col gap-4">
+        <div className="flex flex-col gap-4 border-t pt-6">
           {isOwner && (
             <div className="flex flex-col gap-2">
               <h2 className="text-lg font-semibold">{t('groups.transfer_owner')}</h2>
-              <p className="text-muted-foreground text-sm">
-                {t('groups.transfer_owner_desc')}
-              </p>
+              <p className="text-muted-foreground text-sm">{t('groups.transfer_owner_desc')}</p>
               <TransferOwnershipButton groupId={groupId} candidates={ownerCandidates} />
             </div>
           )}
@@ -143,9 +146,7 @@ export function SettingsPanel({
           {isArchived && settlementId && (
             <div className="flex flex-col gap-2">
               <h2 className="text-lg font-semibold">{t('expenses.reopen_title')}</h2>
-              <p className="text-muted-foreground text-sm">
-                {t('expenses.reopen_desc')}
-              </p>
+              <p className="text-muted-foreground text-sm">{t('expenses.reopen_desc')}</p>
               <ReopenSettlementButton settlementId={settlementId} />
             </div>
           )}
@@ -154,23 +155,15 @@ export function SettingsPanel({
 
       {/* Danger Zone */}
       {isOwner ? (
-        <div className="border-t pt-6 flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-destructive">
-            {t('account.danger_zone')}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            {t('groups.delete_desc')}
-          </p>
+        <div className="flex flex-col gap-2 border-t pt-6">
+          <h2 className="text-destructive text-lg font-semibold">{t('account.danger_zone')}</h2>
+          <p className="text-muted-foreground text-sm">{t('groups.delete_desc')}</p>
           <DeleteGroupButton groupId={groupId} />
         </div>
       ) : (
-        <div className="border-t pt-6 flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-destructive">
-            {t('account.danger_zone')}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            {t('groups.leave_desc')}
-          </p>
+        <div className="flex flex-col gap-2 border-t pt-6">
+          <h2 className="text-destructive text-lg font-semibold">{t('account.danger_zone')}</h2>
+          <p className="text-muted-foreground text-sm">{t('groups.leave_desc')}</p>
           <LeaveGroupButton groupId={groupId} />
         </div>
       )}

@@ -1,13 +1,11 @@
-'use client';
-
 import { useState, useTransition } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { deleteAccountAction } from '@/lib/auth/account-actions';
+import { deleteAccountAction } from '@/spa/actions/account';
 
 export function DeleteAccountButton({
   ownedGroups,
@@ -68,9 +66,7 @@ export function DeleteAccountButton({
                 </li>
               ))}
             </ul>
-            <p className="text-muted-foreground text-xs">
-              {t('account.delete_transfer_hint')}
-            </p>
+            <p className="text-muted-foreground text-xs">{t('account.delete_transfer_hint')}</p>
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">{t('account.delete_no_owned')}</p>

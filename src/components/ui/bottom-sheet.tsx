@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
@@ -56,7 +54,7 @@ export function BottomSheet({
     >
       <div
         className={cn(
-          'bg-background border-t shadow-2xl rounded-t-xl flex flex-col w-full max-h-[90vh] overflow-y-auto',
+          'bg-background flex max-h-[90vh] w-full flex-col overflow-y-auto rounded-t-xl border-t shadow-2xl',
           className,
         )}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}

@@ -1,13 +1,5 @@
-'use client';
-
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from 'react';
-import { useTranslations } from 'next-intl';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { useTranslations } from 'use-intl';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 
@@ -52,15 +44,12 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
-  const finish = useCallback(
-    (ok: boolean) => {
-      setState((prev) => {
-        if (prev) prev.resolve(ok);
-        return null;
-      });
-    },
-    [],
-  );
+  const finish = useCallback((ok: boolean) => {
+    setState((prev) => {
+      if (prev) prev.resolve(ok);
+      return null;
+    });
+  }, []);
 
   const value = useMemo(() => ({ confirm }), [confirm]);
 
@@ -75,11 +64,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
       >
         <p className="text-sm leading-relaxed">{state?.opts.message}</p>
         <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => finish(false)}
-          >
+          <Button type="button" variant="ghost" onClick={() => finish(false)}>
             {state?.opts.cancelText ?? t('cancel')}
           </Button>
           <Button

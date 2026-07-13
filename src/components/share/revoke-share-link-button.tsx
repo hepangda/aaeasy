@@ -1,9 +1,7 @@
-'use client';
-
 import { useTransition } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Button } from '@/components/ui/button';
-import { revokeShareLinkAction } from '@/lib/groups/share-actions';
+import { revokeShareLinkAction } from '@/spa/actions/shares';
 
 export function RevokeShareLinkButton({
   groupId,

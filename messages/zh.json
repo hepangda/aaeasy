@@ -384,7 +384,8 @@
   "export": {
     "title": "导出",
     "pdf": "导出 PDF",
-    "failed": "下载 PDF 失败，请重试"
+    "csv": "导出 CSV",
+    "failed": "导出失败，请重试"
   },
   "share": {
     "title": "分享链接",

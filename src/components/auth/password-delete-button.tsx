@@ -1,12 +1,10 @@
-'use client';
-
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import { deletePasswordAction } from '@/lib/auth/actions';
+import { deletePasswordAction } from '@/spa/actions/auth';
 
 export function PasswordDeleteButton({ credentialId }: { credentialId: string }) {
   const t = useTranslations('account');

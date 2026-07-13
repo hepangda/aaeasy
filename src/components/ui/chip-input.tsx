@@ -1,7 +1,5 @@
-'use client';
-
 import * as React from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { AtSign, Check, Loader2, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,9 +8,7 @@ import { cn } from '@/lib/utils';
  * invitation will be sent to that registered user when the parent form is
  * submitted (if the username resolves).
  */
-export type MemberChip =
-  | { kind: 'name'; text: string }
-  | { kind: 'mention'; username: string };
+export type MemberChip = { kind: 'name'; text: string } | { kind: 'mention'; username: string };
 
 type ResolveState =
   | { status: 'idle' }
@@ -66,9 +62,7 @@ export function ChipInput({
   const [buffer, setBuffer] = React.useState('');
   // Resolution cache keyed by lowercased username — survives across renders
   // so we don't refetch every time a mention chip is re-evaluated.
-  const [resolutions, setResolutions] = React.useState<
-    Record<string, ResolveState>
-  >({});
+  const [resolutions, setResolutions] = React.useState<Record<string, ResolveState>>({});
 
   const mentionUsernames = React.useMemo(
     () =>
@@ -93,9 +87,7 @@ export function ChipInput({
       // Resolve sequentially; queue is tiny (max 50 chips).
       for (const u of pending) {
         try {
-          const res = await fetch(
-            `/api/users/search?q=${encodeURIComponent(u)}`,
-          );
+          const res = await fetch(`/api/users/search?q=${encodeURIComponent(u)}`);
           if (cancelled) return;
           if (!res.ok) {
             setResolutions((prev) => ({ ...prev, [u]: { status: 'unresolved' } }));
@@ -162,11 +154,7 @@ export function ChipInput({
     }
     const text = trimmed.slice(0, 40);
     if (
-      pool.some(
-        (c) =>
-          c.kind === 'name' &&
-          c.text.toLocaleLowerCase() === text.toLocaleLowerCase(),
-      )
+      pool.some((c) => c.kind === 'name' && c.text.toLocaleLowerCase() === text.toLocaleLowerCase())
     ) {
       return null;
     }

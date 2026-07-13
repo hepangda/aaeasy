@@ -1,14 +1,12 @@
-'use client';
-
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { transferOwnershipAction } from '@/lib/auth/account-actions';
+import { transferOwnershipAction } from '@/spa/actions/account';
 import { showI18nError } from '@/lib/ui/toast';
 
 export interface OwnerCandidate {
@@ -60,9 +58,7 @@ export function TransferOwnershipButton({
         size="sm"
         onClick={() => setOpen(true)}
         disabled={candidates.length === 0}
-        title={
-          candidates.length === 0 ? t('groups.transfer_no_candidates') : undefined
-        }
+        title={candidates.length === 0 ? t('groups.transfer_no_candidates') : undefined}
       >
         <Crown /> {t('groups.transfer_owner')}
       </Button>
@@ -72,19 +68,13 @@ export function TransferOwnershipButton({
         title={t('groups.transfer_owner')}
         className="max-w-md"
       >
-        <p className="text-muted-foreground text-sm">
-          {t('groups.transfer_owner_desc')}
-        </p>
+        <p className="text-muted-foreground text-sm">{t('groups.transfer_owner_desc')}</p>
 
         <div className="grid gap-1.5">
           <Label htmlFor="new-owner" className="text-xs">
             {t('groups.transfer_to')}
           </Label>
-          <Select
-            id="new-owner"
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-          >
+          <Select id="new-owner" value={selected} onChange={(e) => setSelected(e.target.value)}>
             {candidates.map((c) => (
               <option key={c.userId} value={c.userId}>
                 {c.label}
@@ -94,19 +84,10 @@ export function TransferOwnershipButton({
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setOpen(false)}
-            disabled={pending}
-          >
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
             {t('common.cancel')}
           </Button>
-          <Button
-            type="button"
-            onClick={submit}
-            disabled={!selected || pending}
-          >
+          <Button type="button" onClick={submit} disabled={!selected || pending}>
             {pending ? t('common.save') + '…' : t('groups.transfer_confirm')}
           </Button>
         </div>

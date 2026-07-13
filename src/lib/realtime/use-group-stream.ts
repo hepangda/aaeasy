@@ -1,60 +1,69 @@
-'use client';
-
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { queryClient } from '@/spa/query-client';
 
-/**
- * Subscribe to a group's SSE event stream and call `router.refresh()` on each
- * relevant event so RSC re-renders the latest state. Auto-reconnects with
- * jittered exponential backoff on disconnect.
- *
- * Usage in a server-rendered group page:
- *
- *   <ClientLiveRefresher groupId={group.id} />
- *
- * The hook itself is reusable from any client component.
- */
+/** Subscribe to a group's Durable Object WebSocket and invalidate cached data. */
 export function useGroupStream(groupId: string) {
-  const router = useRouter();
-
   useEffect(() => {
-    let es: EventSource | null = null;
+    let socket: WebSocket | null = null;
     let attempt = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
     let cancelled = false;
+    let revision = '0';
+
+    const cached = queryClient.getQueryData<{ group?: { revision?: string } }>(['group', groupId]);
+    if (cached?.group?.revision) revision = cached.group.revision;
+
+    function refresh() {
+      void queryClient.invalidateQueries({ queryKey: ['group', groupId] });
+      void queryClient.invalidateQueries({ queryKey: ['ledger', groupId] });
+    }
 
     function connect() {
       if (cancelled) return;
-      es = new EventSource(`/api/groups/${groupId}/stream`);
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const url = new URL(`/api/groups/${groupId}/realtime`, window.location.href);
+      url.protocol = protocol;
+      url.searchParams.set('since', revision);
+      socket = new WebSocket(url);
 
-      es.onopen = () => {
+      socket.onopen = () => {
         attempt = 0;
+        heartbeatTimer = setInterval(() => socket?.send('ping'), 25_000);
       };
 
-      const refresh = () => {
-        // RSC + router.refresh re-renders the server tree without losing
-        // client state. Cheap on a self-hosted single-process backend.
-        router.refresh();
+      socket.onmessage = (message) => {
+        try {
+          const payload = JSON.parse(String(message.data)) as {
+            type?: string;
+            revision?: string;
+            event?: { revision?: string };
+          };
+          if (payload.type === 'event' && payload.event?.revision) {
+            revision = payload.event.revision;
+            refresh();
+          } else if (payload.type === 'ready' && payload.revision) {
+            revision = payload.revision;
+          } else if (payload.type === 'resync' && payload.revision) {
+            revision = payload.revision;
+            refresh();
+          }
+        } catch {
+          refresh();
+        }
       };
 
-      es.addEventListener('EXPENSE_CREATED', refresh);
-      es.addEventListener('EXPENSE_UPDATED', refresh);
-      es.addEventListener('EXPENSE_DELETED', refresh);
-      es.addEventListener('GROUP_UPDATED', refresh);
-      es.addEventListener('MEMBER_CHANGED', refresh);
-      es.addEventListener('RECEIPT_CHANGED', refresh);
-
-      es.onerror = () => {
-        // EventSource auto-retries on its own, but only if the response was
-        // 200 with a stream that ended. For 401/403/404 / network error we
-        // close + back off ourselves.
+      socket.onclose = () => {
         if (cancelled) return;
-        es?.close();
-        es = null;
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+        socket = null;
         const delay = Math.min(30_000, 500 * 2 ** Math.min(attempt, 6)) + Math.random() * 250;
         attempt++;
         reconnectTimer = setTimeout(connect, delay);
       };
+
+      socket.onerror = () => socket?.close();
     }
 
     connect();
@@ -62,7 +71,8 @@ export function useGroupStream(groupId: string) {
     return () => {
       cancelled = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      es?.close();
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      socket?.close();
     };
-  }, [groupId, router]);
+  }, [groupId]);
 }

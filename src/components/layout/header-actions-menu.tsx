@@ -1,13 +1,11 @@
-'use client';
-
-import Link from 'next/link';
+import Link from '@/compat/link';
 import { useTransition } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
-import { useTheme } from 'next-themes';
+import { useLocale, useTranslations } from 'use-intl';
 import { Check, Languages, Laptop, LogIn, LogOut, Menu, Moon, Sun, User } from 'lucide-react';
-import { logoutAction } from '@/lib/auth/actions';
-import { setLocaleAction } from '@/i18n/actions';
+import { logoutAction } from '@/spa/actions/auth';
+import { setLocaleAction } from '@/spa/actions/locale';
 import { Button } from '@/components/ui/button';
+import { useTheme } from '@/components/layout/theme-provider';
 import {
   DropdownMenu,
   DropdownMenuContent,

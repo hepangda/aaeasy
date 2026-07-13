@@ -3,7 +3,7 @@
  * user can tell multiple passwords / passkeys apart in the credential
  * list (e.g. "Brave Falcon", "Quiet River").
  *
- * Pure function, safe to call from server actions and client components.
+ * Pure function, safe to call from action wrappers and React components.
  */
 
 const ADJECTIVES = [

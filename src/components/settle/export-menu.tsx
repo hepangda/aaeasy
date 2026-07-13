@@ -1,7 +1,5 @@
-'use client';
-
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { errorToast } from '@/lib/ui/toast';
@@ -22,13 +20,13 @@ function parseFileName(disposition: string | null, fallback: string): string {
 
 export function ExportMenu({ groupId }: { groupId: string }) {
   const t = useTranslations('export');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'csv' | 'pdf' | null>(null);
 
-  async function handleClick() {
+  async function handleClick(format: 'csv' | 'pdf') {
     if (busy) return;
-    setBusy(true);
+    setBusy(format);
     try {
-      const res = await fetch(`/api/groups/${groupId}/export`, {
+      const res = await fetch(`/api/groups/${groupId}/export?format=${format}`, {
         credentials: 'same-origin',
       });
       if (!res.ok) {
@@ -37,7 +35,7 @@ export function ExportMenu({ groupId }: { groupId: string }) {
       const blob = await res.blob();
       const fileName = parseFileName(
         res.headers.get('Content-Disposition'),
-        `${groupId}.pdf`,
+        `${groupId}.${format}`,
       );
       // Safari (especially iOS) ignores the <a download> attribute on
       // dynamically-created links and on cross-origin / opaque blob URLs,
@@ -66,21 +64,39 @@ export function ExportMenu({ groupId }: { groupId: string }) {
     } catch {
       errorToast(t('failed'));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
   return (
-    <Button type="button" variant="outline" size="sm" onClick={handleClick} disabled={busy}>
-      <Download /> {t('pdf')}
-    </Button>
+    <div className="flex flex-wrap gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => handleClick('pdf')}
+        disabled={busy !== null}
+      >
+        <Download /> {t('pdf')}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => handleClick('csv')}
+        disabled={busy !== null}
+      >
+        <Download /> {t('csv')}
+      </Button>
+    </div>
   );
 }
 
 function isIosSafari(): boolean {
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent;
-  const isIos = /iPad|iPhone|iPod/.test(ua) ||
+  const isIos =
+    /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   return isIos;
 }

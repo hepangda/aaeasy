@@ -1,13 +1,11 @@
-'use client';
-
 import { useActionState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Trash2 } from 'lucide-react';
 import {
   addAllowedUsernameAction,
   deleteAllowedUsernameAction,
   type AdminActionState,
-} from '@/lib/admin/actions';
+} from '@/spa/actions/admin';
 import { showI18nError } from '@/lib/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

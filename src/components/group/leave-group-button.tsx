@@ -1,12 +1,10 @@
-'use client';
-
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import { leaveGroupAction } from '@/lib/groups/actions';
+import { leaveGroupAction } from '@/spa/actions/groups';
 
 export function LeaveGroupButton({ groupId }: { groupId: string }) {
   const t = useTranslations();

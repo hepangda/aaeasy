@@ -1,11 +1,9 @@
-'use client';
-
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { settleAction } from '@/lib/settle/actions';
+import { settleAction } from '@/spa/actions/settlements';
 import { showI18nError } from '@/lib/ui/toast';
 
 export function SettleButton({

@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  appendDigit,
-  appendDot,
-  appendMultiZero,
-  backspace,
-  toggleSign,
-} from './numeric-keypad';
+import { appendDigit, appendDot, appendMultiZero, backspace, toggleSign } from './numeric-keypad';
 
 describe('numeric-keypad helpers', () => {
   describe('appendDigit', () => {

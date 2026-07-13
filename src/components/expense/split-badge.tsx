@@ -1,7 +1,5 @@
-'use client';
-
 import { useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Info } from 'lucide-react';
 import type { SplitClass } from '@/lib/split/classify';
 import { FloatingPanel } from '@/components/ui/floating-panel';
@@ -18,13 +16,7 @@ export interface SharePill {
  * on hover or click, reveals the per-member share breakdown in a portal so
  * the popover doesn't trip the table's `overflow-x-auto`.
  */
-export function SplitBadge({
-  kind,
-  shares,
-}: {
-  kind: SplitClass;
-  shares: SharePill[];
-}) {
+export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePill[] }) {
   const t = useTranslations('expenses');
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);

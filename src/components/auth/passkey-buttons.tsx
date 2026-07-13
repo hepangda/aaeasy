@@ -1,8 +1,6 @@
-'use client';
-
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import {
   startRegistration as startWebAuthnRegistration,
   startAuthentication as startWebAuthnAuthentication,
@@ -14,7 +12,8 @@ import type {
 } from '@simplewebauthn/browser';
 import { KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { showI18nError, errorToast } from '@/lib/ui/toast';
+import { errorToast } from '@/lib/ui/toast';
+import { authRedirect } from '@/spa/navigation';
 
 type Status = 'idle' | 'working' | 'error' | 'success';
 
@@ -54,9 +53,9 @@ export function PasskeyEnrollButton({ deviceLabel }: { deviceLabel?: string }) {
   async function enroll() {
     setStatus('working');
     try {
-      const init = await postJson<EnrollResult>('/api/webauthn/register/options');
+      const init = await postJson<EnrollResult>('/api/auth/webauthn/register/options');
       const response = await startWebAuthnRegistration({ optionsJSON: init.options });
-      await postJson('/api/webauthn/register/verify', {
+      await postJson('/api/auth/webauthn/register/verify', {
         challengeId: init.challengeId,
         response,
         deviceLabel,
@@ -86,14 +85,12 @@ export function PasskeyEnrollButton({ deviceLabel }: { deviceLabel?: string }) {
       >
         <KeyRound /> {status === 'working' ? t('enrolling') : t('add_passkey')}
       </Button>
-      {status === 'success' && (
-        <p className="text-sm text-emerald-600">{t('enrolled')}</p>
-      )}
+      {status === 'success' && <p className="text-sm text-emerald-600">{t('enrolled')}</p>}
     </div>
   );
 }
 
-export function PasskeyLoginButton() {
+export function PasskeyLoginButton({ requestedPath }: { requestedPath?: string | null }) {
   const t = useTranslations('passkey');
   const router = useRouter();
   const [status, setStatus] = useState<Status>('idle');
@@ -106,17 +103,17 @@ export function PasskeyLoginButton() {
   async function signIn() {
     setStatus('working');
     try {
-      const init = await postJson<AuthResult>('/api/webauthn/login/options');
+      const init = await postJson<AuthResult>('/api/auth/webauthn/login/options');
       const response = await startWebAuthnAuthentication({ optionsJSON: init.options });
-      const verify = await postJson<{ ok: true; claimedGroupId: string | null }>(
-        '/api/webauthn/login/verify',
+      const verify = await postJson<{ ok: true; redirectTo: string }>(
+        '/api/auth/webauthn/login/verify',
         {
           challengeId: init.challengeId,
           response,
         },
       );
       setStatus('success');
-      router.replace(verify.claimedGroupId ? `/groups/${verify.claimedGroupId}` : '/');
+      router.replace(authRedirect(verify.redirectTo, requestedPath));
       router.refresh();
     } catch (e) {
       setStatus('error');

@@ -384,7 +384,8 @@
   "export": {
     "title": "Export",
     "pdf": "Export PDF",
-    "failed": "Couldn't download the PDF — please try again"
+    "csv": "Export CSV",
+    "failed": "Couldn't export the ledger — please try again"
   },
   "share": {
     "title": "Share links",

@@ -1,14 +1,12 @@
-'use client';
-
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { renameMemberAction } from '@/lib/groups/actions';
+import { renameMemberAction } from '@/spa/actions/groups';
 import { showI18nError } from '@/lib/ui/toast';
 
 /**

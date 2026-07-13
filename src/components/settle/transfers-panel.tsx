@@ -1,8 +1,6 @@
-'use client';
-
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { ArrowRight, Check, Copy, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +8,7 @@ import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import {
-  addSettlementEntryAction,
-  deleteSettlementEntryAction,
-} from '@/lib/settle/entry-actions';
+import { addSettlementEntryAction, deleteSettlementEntryAction } from '@/spa/actions/settlements';
 import { showI18nError } from '@/lib/ui/toast';
 
 export interface MemberLite {
@@ -167,19 +162,14 @@ export function TransfersPanel({
                 s.fromMemberId === boundMemberId ||
                 s.toMemberId === boundMemberId;
               return (
-                <li
-                  key={i}
-                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
-                >
+                <li key={i} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
                   <span className="flex items-center gap-2">
                     <span className="font-medium">{s.fromName}</span>
                     <ArrowRight className="text-muted-foreground size-4" />
                     <span className="font-medium">{s.toName}</span>
                   </span>
                   <span className="flex items-center gap-3">
-                    <span className="font-mono tabular-nums whitespace-nowrap">
-                      {s.amountText}
-                    </span>
+                    <span className="font-mono whitespace-nowrap tabular-nums">{s.amountText}</span>
                     {canEdit && involves && (
                       <Button
                         type="button"
@@ -205,12 +195,7 @@ export function TransfersPanel({
         <header className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium">{t('settlements.executed')}</h3>
           {canEdit && !manualOpen && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setManualOpen(true)}
-            >
+            <Button type="button" size="sm" variant="outline" onClick={() => setManualOpen(true)}>
               <Plus /> {t('settlements.add_entry')}
             </Button>
           )}
@@ -319,9 +304,7 @@ export function TransfersPanel({
                     </span>
                   </div>
                   <span className="flex items-center gap-2">
-                    <span className="font-mono tabular-nums whitespace-nowrap">
-                      {e.amountText}
-                    </span>
+                    <span className="font-mono whitespace-nowrap tabular-nums">{e.amountText}</span>
                     {canEdit && involves && (
                       <Button
                         type="button"
@@ -329,14 +312,14 @@ export function TransfersPanel({
                         variant="ghost"
                         className="size-8"
                         onClick={() => remove(e.id)}
-                      disabled={pending}
-                      aria-label={t('common.delete')}
-                    >
-                      <Trash2 className="text-destructive" />
-                    </Button>
-                  )}
-                </span>
-              </li>
+                        disabled={pending}
+                        aria-label={t('common.delete')}
+                      >
+                        <Trash2 className="text-destructive" />
+                      </Button>
+                    )}
+                  </span>
+                </li>
               );
             })}
           </ul>

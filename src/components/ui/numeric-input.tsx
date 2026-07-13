@@ -1,12 +1,12 @@
-'use client';
-
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { NumericKeypad, type NumericMode } from '@/components/ui/numeric-keypad';
 
-export interface NumericInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {
+export interface NumericInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'onChange'
+> {
   value?: string;
   defaultValue?: string;
   mode?: NumericMode;

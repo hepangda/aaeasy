@@ -1,10 +1,8 @@
-'use client';
-
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { Select } from '@/components/ui/select';
-import { setMemberRoleAction } from '@/lib/groups/actions';
+import { setMemberRoleAction } from '@/spa/actions/groups';
 import { showI18nError } from '@/lib/ui/toast';
 
 type Role = 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER';

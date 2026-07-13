@@ -1,19 +1,18 @@
 // Minimal AAEasy service worker — vanilla, no build step.
 //
 // Strategy:
-//   - Static assets (/_next/static/, /icon-*.png, manifest, sw.js itself):
+//   - Static assets (/assets/, /icon-*.png, manifest, sw.js itself):
 //     stale-while-revalidate from cache.
 //   - Navigations (HTML): network-first with offline fallback to a cached
 //     copy of `/` (so the app shell renders even when offline).
-//   - API requests + the SSE stream: passthrough — never cache.
+//   - API requests, WebSockets, and SSE streams: passthrough — never cache.
 //
-// We deliberately avoid caching authenticated route HTML: we'd risk leaking
-// one user's group page to another after sign-out. Network-first ensures the
-// server always re-checks auth; offline simply shows the cached shell which
-// then re-routes to /login when network returns.
+// The SPA shell contains no account data; authenticated data only comes from
+// uncached API requests. Navigations stay network-first so a deployment picks
+// up its newest hashed assets before using the offline shell.
 
-const STATIC_CACHE = 'aaeasy-static-v1';
-const SHELL_CACHE = 'aaeasy-shell-v1';
+const STATIC_CACHE = 'aaeasy-static-v2';
+const SHELL_CACHE = 'aaeasy-shell-v2';
 const SHELL_URL = '/';
 
 self.addEventListener('install', (event) => {
@@ -46,8 +45,10 @@ self.addEventListener('activate', (event) => {
 
 function isStatic(url) {
   return (
-    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/icon-') ||
+    url.pathname === '/theme-init.js' ||
+    url.pathname === '/sw.js' ||
     url.pathname === '/favicon.ico' ||
     url.pathname === '/favicon-32x32.png' ||
     url.pathname === '/apple-icon.png' ||
@@ -64,10 +65,10 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  if (isApi(url)) return; // never intercept API or SSE
+  if (isApi(url)) return; // never intercept API traffic
 
   if (isStatic(url)) {
-    event.respondWith(staleWhileRevalidate(req));
+    event.respondWith(staleWhileRevalidate(req, event));
     return;
   }
 
@@ -76,7 +77,7 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-async function staleWhileRevalidate(req) {
+async function staleWhileRevalidate(req, event) {
   const cache = await caches.open(STATIC_CACHE);
   const cached = await cache.match(req);
   const refresh = fetch(req)
@@ -85,7 +86,18 @@ async function staleWhileRevalidate(req) {
       return res;
     })
     .catch(() => null);
-  return cached || refresh || fetch(req);
+  if (cached) {
+    event.waitUntil(refresh);
+    return cached;
+  }
+  const response = await refresh;
+  return (
+    response ??
+    new Response('Offline', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    })
+  );
 }
 
 async function networkFirstWithShell(req) {

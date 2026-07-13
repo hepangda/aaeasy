@@ -81,11 +81,7 @@ export const aiResponseSchemaV2 = z.object({
   split: z
     .object({
       mode: z.enum(['equal', 'shares', 'custom']).nullable().optional(),
-      participants: z
-        .array(z.string())
-        .max(200)
-        .nullable()
-        .optional(),
+      participants: z.array(z.string()).max(200).nullable().optional(),
       shares: z
         .record(z.string(), z.union([z.number(), z.string()]))
         .nullable()
@@ -177,14 +173,18 @@ export function normalizeCurrency(v: unknown): string | null {
 
 export function normalizeAmount(v: unknown): string | null {
   if (v == null) return null;
-  const raw = String(v).trim().replace(/[^\d.]/g, '');
+  const raw = String(v)
+    .trim()
+    .replace(/[^\d.]/g, '');
   if (!raw) return null;
   return /^\d+(\.\d+)?$/.test(raw) ? raw : null;
 }
 
 export function normalizeFxRate(v: unknown): string | null {
   if (v == null) return null;
-  const raw = String(v).trim().replace(/[^\d.]/g, '');
+  const raw = String(v)
+    .trim()
+    .replace(/[^\d.]/g, '');
   if (!raw) return null;
   return /^\d+(\.\d+)?$/.test(raw) ? raw : null;
 }
@@ -222,9 +222,7 @@ export function resolveMemberId(
   if (!want) return null;
   const exact = members.find((m) => m.displayName.toLowerCase() === want);
   if (exact) return exact.id;
-  const partial = members.find((m) =>
-    m.displayName.toLowerCase().includes(want),
-  );
+  const partial = members.find((m) => m.displayName.toLowerCase().includes(want));
   return partial ? partial.id : null;
 }
 
@@ -253,10 +251,7 @@ export interface BuildSplitRowsResult {
  *             extras hold the explicit amount. Mirrors the form's
  *             "non-integer WEIGHTED falls into extras" fallback.
  */
-export function buildSplitRows({
-  members,
-  split,
-}: BuildSplitRowsInput): BuildSplitRowsResult {
+export function buildSplitRows({ members, split }: BuildSplitRowsInput): BuildSplitRowsResult {
   const mode = (split.mode ?? 'equal') as 'equal' | 'shares' | 'custom';
 
   const sharesByMember = new Map<string, number>();
@@ -270,8 +265,7 @@ export function buildSplitRows({
         unresolved.push(name);
         continue;
       }
-      const n =
-        typeof raw === 'number' ? raw : parseInt(String(raw).trim(), 10);
+      const n = typeof raw === 'number' ? raw : parseInt(String(raw).trim(), 10);
       if (Number.isFinite(n) && n > 0) sharesByMember.set(id, Math.floor(n));
     }
   }

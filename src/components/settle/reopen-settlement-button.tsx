@@ -1,11 +1,9 @@
-'use client';
-
 import { useTransition } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import { reopenSettlementAction } from '@/lib/settle/reopen-action';
+import { reopenSettlementAction } from '@/spa/actions/settlements';
 import { showI18nError } from '@/lib/ui/toast';
 
 export function ReopenSettlementButton({ settlementId }: { settlementId: string }) {

@@ -1,9 +1,6 @@
-'use client';
-
 import { useState, useTransition, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import { upload } from '@vercel/blob/client';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { FileText, Plus, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { errorToast } from '@/lib/ui/toast';
@@ -17,30 +14,6 @@ const ALLOWED = new Set([
   'image/heic',
   'application/pdf',
 ]);
-
-function extFromMime(mime: string): string {
-  switch (mime) {
-    case 'image/jpeg':
-      return 'jpg';
-    case 'image/png':
-      return 'png';
-    case 'image/webp':
-      return 'webp';
-    case 'image/gif':
-      return 'gif';
-    case 'image/heic':
-      return 'heic';
-    case 'application/pdf':
-      return 'pdf';
-    default:
-      return 'bin';
-  }
-}
-
-function buildReceiptPathname(groupId: string, expenseId: string, mime: string): string {
-  const id = crypto.randomUUID().replaceAll('-', '');
-  return `group/${groupId}/expense/${expenseId}/${id}.${extFromMime(mime)}`;
-}
 
 interface Receipt {
   id: string;
@@ -80,19 +53,12 @@ export function ReceiptList({
       }
       try {
         setUploading(true);
-        const blob = await upload(buildReceiptPathname(groupId, expenseId, file.type), file, {
-          access: 'private',
-          contentType: file.type,
-          handleUploadUrl: `/api/groups/${groupId}/expenses/${expenseId}/receipts/sign`,
-          clientPayload: JSON.stringify({ mime: file.type, size: file.size }),
-        });
-
-        const confirmRes = await fetch(`/api/groups/${groupId}/expenses/${expenseId}/receipts`, {
+        const uploadRes = await fetch(`/api/groups/${groupId}/expenses/${expenseId}/receipts`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: blob.pathname, mime: file.type, size: file.size }),
+          headers: { 'Content-Type': file.type },
+          body: file,
         });
-        if (!confirmRes.ok) throw new Error('CONFIRM_FAILED');
+        if (!uploadRes.ok) throw new Error('UPLOAD_FAILED');
       } catch {
         errorToast(t('upload_failed'));
       }

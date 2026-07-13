@@ -1,189 +1,147 @@
 # AAEasy
 
-A self-hosted, PWA-ready Next.js app for tracking shared expenses with
-friends. Built for everyday "drop-in" bookkeeping: anyone can be invited
-(or handed a share link as a guest), and balances + minimum-transfer
-instructions are computed automatically with high-precision decimal math.
+AAEasy 是一个 Cloudflare-native 的多人分账 PWA。前端、API、实时协作、附件和 PDF 导出均已迁移到 Cloudflare Workers 技术栈；PostgreSQL 继续作为关系数据的唯一事实来源。
 
-## Features
+## 当前架构
 
-- 🔐 **Multi-method auth** — Passkey (WebAuthn), username + Argon2id
-  password, multiple credentials per account, plus admin-managed username
-  allowlist for closed deployments.
-- 🔗 **Anonymous share links** — hand a link (with optional passcode,
-  expiry, read / write scope) to a guest member so they can drop in
-  without an account; can later "claim" the membership by linking a real
-  user.
-- 👥 **One-shot groups** — settle once and the group archives itself;
-  reopen with one click if you need to keep going.
-- 🧮 **Three split rules** — equal, subset-equal, weighted (integer
-  "shares" UI by default); cents are distributed deterministically so
-  every cent is accounted for.
-- 💰 **Multi-currency** — FX rate is frozen per expense
-  (frankfurter.app + in-memory cache); each member has a preferred display
-  currency.
-- 🤖 **AI-assisted entry** — paste a sentence (or upload a photo of the
-  receipt) and a Cloudflare AI Gateway-fronted LLM pre-fills the form.
-  You always review before submit.
-- 📷 **Receipt uploads** to Vercel Blob (signed direct uploads, no proxy).
-- 🔄 **Live multi-user editing** via Postgres `LISTEN` / `NOTIFY` + SSE —
-  open the same group on two tabs and edits stream in.
-- 📤 **CSV / Excel / PDF export** of expenses, summaries, and the final
-  set of transfers. PDF bundles Noto Sans SC so Chinese renders on
-  Vercel by default.
-- 🌏 **Bilingual** (中文 / English) UI via `next-intl`, cookie-based locale.
-- 📲 **Installable PWA** with offline read-only fallback and themed icons.
+```mermaid
+flowchart LR
+  Browser["React SPA / PWA"] -->|"HTTPS + JSON"| Worker["Hono Worker"]
+  Browser <-->|"WebSocket"| Worker
+  Worker -->|"鉴权后升级连接 / 发布事件"| DO["GroupRoom Durable Object"]
+  DO --> DOStore["DO Storage: revision event history"]
+  Worker -->|"postgres.js"| Hyperdrive["Cloudflare Hyperdrive"]
+  Hyperdrive --> Postgres["PostgreSQL / Neon"]
+  Worker -->|"私有对象"| R2["R2 receipts"]
+  Worker -->|"HTML + CSS"| BrowserRun["Cloudflare Browser Run"]
+  Worker -->|"OpenAI-compatible API"| AI["AI Gateway / model provider"]
+```
 
-## Tech stack
+| 层 | 实现 |
+| --- | --- |
+| 前端 | Vite、React 19、React Router、TanStack Query、Tailwind CSS |
+| API | Cloudflare Worker + Hono |
+| 数据 | Drizzle ORM + Postgres.js + Hyperdrive；推荐 Neon 作为托管 PostgreSQL |
+| 实时 | Durable Objects + WebSocket Hibernation；不再使用 PostgreSQL `LISTEN/NOTIFY` |
+| 登录 | WebAuthn + Worker-compatible WASM Argon2id (`hash-wasm`) |
+| 附件 | 私有 R2，由 Worker 做权限检查和流式下载 |
+| 导出 | CSV + Cloudflare Browser Run PDF；**不再提供 XLSX** |
+| 国际化 | `use-intl`，中文 / English |
+| 测试 | Vitest、TypeScript、ESLint、Wrangler dry-run |
 
-| Layer       | Choice                                                         |
-| ----------- | -------------------------------------------------------------- |
-| Framework   | Next.js 16 (App Router) + React 19 + TypeScript                |
-| Styling     | Tailwind CSS v4 + shadcn/ui + Radix primitives                 |
-| Data        | PostgreSQL 17 + Prisma 6                                       |
-| Realtime    | `pg` LISTEN/NOTIFY → Server-Sent Events                        |
-| Auth        | Argon2id (`@node-rs/argon2`) + WebAuthn (`@simplewebauthn/*`)  |
-| Money       | `decimal.js` for arithmetic, Frankfurter for FX                |
-| Storage     | Vercel Blob (signed client uploads)                            |
-| AI          | Cloudflare AI Gateway (DeepSeek / Qwen / DashScope-compatible) |
-| Export      | `exceljs` (xlsx), `@react-pdf/renderer` (pdf), CSV in-house    |
-| i18n        | `next-intl` (cookie-based locale)                              |
-| Theming     | `next-themes` (light / dark / system)                          |
-| Tests       | Vitest                                                         |
-| Deploy      | Vercel-first; Docker multi-stage image for self-hosting        |
+已移除 Next.js、Prisma、`pg` 实时通知、Vercel Blob、React PDF、ExcelJS 和生产容器镜像。
 
-## Quick start
+## 本地运行
+
+需要 Node.js 22.12+、pnpm 10+ 和 PostgreSQL。仓库中的 `docker-compose.yml` 只用于可选的本地 PostgreSQL，不参与生产部署。
 
 ```sh
-# 1. Node ≥ 22.12 (Prisma 6 requirement). Tested with 22.x and 23.x.
-node --version
-
-# 2. Install dependencies
 pnpm install
-
-# 3. Boot Postgres
 docker compose up -d postgres
 
-# 4. Configure environment
 cp .env.example .env
-#    See `.env.example` for every variable. The minimum to boot is
-#    DATABASE_URL + NEXT_PUBLIC_APP_URL + ADMIN_SECRET.
+cp .dev.vars.example .dev.vars
 
-# 5. Apply database migrations
-pnpm db:migrate        # creates / updates schema; auto-runs db:generate
-
-# 6. Start the dev server
+pnpm db:migrate
 pnpm dev
-# → http://localhost:3000
 ```
 
-For receipt uploads, create a Vercel Blob store and pull
-`BLOB_READ_WRITE_TOKEN` with `vercel env pull`.
-
-For AI-assisted entry, point `AI_API_URL` at a Cloudflare AI Gateway
-endpoint that proxies an OpenAI-compatible chat completion API and set
-`AI_GATEWAY_TOKEN`. See `src/lib/expenses/ai-parse.ts` for the full set
-of supported variables.
-
-## Available scripts
+打开 `http://localhost:5173`。默认 `wrangler.jsonc` 会把本地 `HYPERDRIVE` binding 连接到 `localhost:5432`；也可以导出以下变量覆盖它：
 
 ```sh
-pnpm dev              # Next.js dev server
-pnpm build            # Production build (standalone output)
-pnpm start            # Run the production build
-pnpm lint             # ESLint
-pnpm format           # Prettier write
-pnpm format:check     # Prettier check (CI)
-pnpm typecheck        # tsc --noEmit
-pnpm test             # Vitest run
-pnpm test:watch       # Vitest watch
-pnpm test:coverage    # Vitest coverage
-pnpm db:generate      # Generate Prisma client
-pnpm db:migrate       # Create / apply dev migration
-pnpm db:deploy        # Apply migrations (production)
-pnpm db:studio        # Prisma Studio GUI
-pnpm ai:speed         # Latency benchmark for the AI parse endpoint
+export CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE='postgresql://...'
+pnpm dev
 ```
 
-`scripts/smoke/` contains phase-by-phase end-to-end smoke scripts (`p2`
-through `p6`) that exercise live database flows. Run any of them with
-`pnpm tsx scripts/smoke/<file>` against a development database.
-
-## Project layout
-
-```
-src/
-  app/                       Next.js App Router
-    (root)                   Landing, manifest, layout, global CSS
-    login/, register/        Auth pages
-    account/                 Profile, credentials, admin sub-pages
-    groups/                  Group list + detail + expense flows
-    s/[token]/               Anonymous share-link landing
-    admin/[secret]/          Super-admin entry point
-    api/                     Route handlers
-      groups/[id]/stream     SSE feed (LISTEN/NOTIFY bridge)
-      groups/[id]/export     CSV / XLSX / PDF download
-      groups/[id]/expenses/  CRUD, receipts (sign), AI parse
-      webauthn/              Passkey register + login challenges
-  components/                Client / server UI, grouped by domain
-    auth/                    Login, register, passkey, password, allowlist
-    account/                 Display-name + account-delete
-    group/                   Members, roles, settings, live refresh
-    share/                   Share-link dialog, unlock, revoke
-    expense/                 Form, draft fill, receipts, split badges
-    settle/                  Settle, reopen, transfers, exports
-    layout/                  Site header, theme, locale, SW register
-    ui/                      shadcn/ui primitives (button, dialog, …)
-  lib/                       Server-only domain logic
-    auth/                    Sessions, passwords, passkeys, share sessions
-    expenses/                Actions, queries, AI parsing + prompts
-    groups/                  Group + share-link actions
-    settle/                  Settlement snapshotting + reopen
-    split/                   Split-rule algorithms (equal / subset / weighted)
-    settle/index.ts          Min-transfer algorithm
-    fx/                      Currency conversion + cache
-    money/                   Decimal helpers (currency-aware rounding)
-    export/                  CSV / XLSX / PDF builders + shared data shape
-    storage/                 Vercel Blob client wrappers
-    realtime/                pg LISTEN/NOTIFY pub/sub + SSE client hook
-    admin/                   Super-admin server actions
-    db.ts                    Prisma singleton
-  i18n/                      next-intl config + server actions
-messages/                    en.json / zh.json translation dictionaries
-prisma/
-  schema.prisma              Database schema
-  migrations/                SQL migrations (kept in sync with schema)
-public/                      Icons, PWA service worker
-scripts/
-  ai-speed.ts                AI latency benchmark (`pnpm ai:speed`)
-  gen-icons.ts               One-off PWA icon generator
-  smoke/                     Phase 2–6 end-to-end smoke scripts
-Dockerfile                   Production image (Next.js standalone)
-docker-compose.yml           Local Postgres (and a runtime profile)
-```
-
-## Deployment
-
-### Vercel
-
-The repo is wired for Vercel out of the box. Set the same variables as
-`.env.example` in the project settings, create a Vercel Blob store, and
-deploy. `@vercel/speed-insights` is enabled in the root layout.
-
-### Docker
+日常开发必须使用 `pnpm dev`，由 Cloudflare Vite plugin 同时提供 SPA 和 Worker。直接执行 `wrangler dev` 不会编译前端，因此在 `dist/client` 尚不存在时访问 `/` 会得到 `{"error":"NOT_FOUND"}`。如需单独验证 Wrangler 的构建产物，使用：
 
 ```sh
-docker build -t aaeasy .
-docker run --rm -p 3000:3000 \
-  --env-file .env \
-  aaeasy
+pnpm dev:wrangler
 ```
 
-The Dockerfile produces a Next.js standalone build on `node:22-alpine`
-and installs `font-noto-cjk` so PDF exports render Chinese without
-extra configuration.
+该命令会先生成 `dist/client` 再启动 Wrangler，不提供 Vite 前端热更新。
 
-## License
+本地 Worker secrets 放在 `.dev.vars`，Drizzle CLI 的直连数据库 URL 放在 `.env`。不要提交这两个文件。
 
-MIT
+## 数据库
 
+全新数据库直接运行：
+
+```sh
+pnpm db:migrate
+```
+
+从旧 Prisma schema 原地接管已有数据库时，先备份并冻结旧应用写入，再运行：
+
+```sh
+pnpm db:adopt -- --yes
+```
+
+`db:adopt` 会验证 19 张既有业务表、登记 Drizzle baseline，并添加 `groups.revision` 与 `expenses.version`。完整切流流程见 [`docs/migration/data-cutover.md`](docs/migration/data-cutover.md)。
+
+旧 Prisma 连接串中的 `schema=public` 会由迁移工具自动移除；Postgres.js 会把该参数误当成 PostgreSQL server 配置，因此不要在新的 `.env` 中继续使用它。
+
+## Cloudflare 部署
+
+生产配置位于 `wrangler.jsonc` 的 `env.production`。部署前必须替换：
+
+- `HYPERDRIVE` 的全零占位 ID；
+- `APP_URL` 的占位 HTTPS origin；
+- 如有需要，R2 bucket 名称和 PDF 启动间隔。
+
+然后配置 Worker secrets 并执行：
+
+```sh
+pnpm deploy
+```
+
+`pnpm build` 会显式设置 `CLOUDFLARE_ENV=production`，确保 Vite 生成的扁平 Wrangler 配置使用生产 binding。`pnpm deploy` 还会先运行配置检查，避免把本地 Hyperdrive、R2 或 `localhost` origin 部署到生产。
+
+资源创建、secret、域名、Browser Run 配额和上线检查详见 [`docs/deployment/cloudflare.md`](docs/deployment/cloudflare.md)。
+
+## PDF 方案
+
+PDF 不需要 Container。Worker 生成经过 HTML 转义的专用账本页面，再通过 Cloudflare Browser Run 的 Puppeteer binding 打印为 A4 PDF。运行时自带 Noto CJK 字体，因此中文不需要把大字体文件打进 Worker bundle。
+
+默认 `PDF_LAUNCH_INTERVAL_MS=20000`，兼容 Browser Run Free 的新浏览器启动频率。使用 Workers Paid 后可按账户配额改为 `1000`。每次渲染都在 `finally` 中关闭 browser session。
+
+## 常用命令
+
+```sh
+pnpm dev             # 本地 Worker + SPA
+pnpm dev:pdf         # 使用远程 Browser Run binding 测试 PDF（消耗账户配额）
+pnpm build           # 使用 production Cloudflare environment 构建
+pnpm build:local     # 使用顶层本地 bindings 构建
+pnpm typecheck       # SPA、共享包和 Worker 类型检查
+pnpm lint            # ESLint
+pnpm test            # Vitest
+pnpm format:check    # Prettier 检查
+pnpm check           # 全量质量检查
+pnpm cf:typegen      # 重新生成 Cloudflare binding 类型
+pnpm db:generate     # 生成新的 Drizzle migration
+pnpm db:migrate      # 应用 migration
+pnpm db:studio       # Drizzle Studio
+pnpm r2:migrate -- --help
+```
+
+## 目录
+
+```text
+src/                  React SPA、页面、组件和客户端 action wrappers
+worker/src/           Hono API、Durable Objects、R2、PDF、认证
+packages/contracts/   API schema 与 DTO
+packages/core/        金额、分摊、账本与清算纯函数
+packages/db/          Drizzle schema 和 Postgres.js client
+drizzle/              可从空库执行的 SQL migrations
+scripts/              DB 接管、配置检查、R2 对象迁移
+docs/                 架构、部署和数据切流手册
+```
+
+## 安全边界
+
+- 所有写请求经过 Hono CSRF origin 校验和身份 / 分享 scope 校验。
+- 密码登录、注册、AI 和 PDF 由 Durable Object 滑动窗口限流。
+- R2 bucket 保持私有；对象 URL 不直接暴露，上传和下载都经 Worker。
+- 分享访客不能导出完整账本；只读分享不能写费用。
+- 费用写入使用 `version` 乐观锁，账本事件使用单调 `revision` 自愈断线缺口。
+- CSV 会转义 RFC 4180 特殊字符并中和 spreadsheet formula injection。

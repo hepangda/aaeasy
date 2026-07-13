@@ -1,7 +1,5 @@
-'use client';
-
 import { useMemo } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from '@/compat/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -29,10 +27,7 @@ export function Pagination({
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const current = clamp(parseInt(params.get(paramKey) ?? '1', 10) || 1, 1, totalPages);
 
-  const visibleNumbers = useMemo(
-    () => buildPageWindow(current, totalPages),
-    [current, totalPages],
-  );
+  const visibleNumbers = useMemo(() => buildPageWindow(current, totalPages), [current, totalPages]);
 
   if (totalPages <= 1) return null;
 

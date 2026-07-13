@@ -1,11 +1,9 @@
-'use client';
-
 import { useTransition } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import { softDeleteExpenseAction } from '@/lib/expenses/actions';
+import { softDeleteExpenseAction } from '@/spa/actions/expenses';
 
 export function DeleteExpenseButton({
   groupId,

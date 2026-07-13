@@ -2,7 +2,6 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
@@ -12,23 +11,20 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "types": ["vite/client", "node"],
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "test/**/*.ts",
+    "scripts/**/*.ts",
+    "packages/core/src/**/*.ts",
+    "packages/contracts/src/**/*.ts",
+    "*.config.ts",
+    "*.mts"
   ],
-  "exclude": ["node_modules", "scripts"]
+  "exclude": ["node_modules", "worker", "worker-configuration.d.ts", "packages/db", "dist"]
 }

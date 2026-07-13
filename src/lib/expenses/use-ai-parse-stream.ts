@@ -1,11 +1,5 @@
-'use client';
-
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  AiParseErrorCode,
-  ParseFieldName,
-  CurrentSnapshot,
-} from '@/lib/expenses/ai-schema';
+import type { AiParseErrorCode, ParseFieldName, CurrentSnapshot } from '@/lib/expenses/ai-schema';
 import type { SplitInputRow } from '@/lib/split/input-state';
 
 export interface AiImage {
@@ -17,14 +11,8 @@ export interface AiImage {
 export interface UseAiParseStreamOptions {
   groupId: string;
   onField: (name: ParseFieldName, value: unknown) => void;
-  onSplit: (
-    mode: 'equal' | 'shares' | 'custom',
-    rows: SplitInputRow[],
-  ) => void;
-  onMeta: (unresolved: {
-    payerName?: string;
-    participants?: string[];
-  }) => void;
+  onSplit: (mode: 'equal' | 'shares' | 'custom', rows: SplitInputRow[]) => void;
+  onMeta: (unresolved: { payerName?: string; participants?: string[] }) => void;
   onError: (code: AiParseErrorCode, detail?: string) => void;
   onDone?: (tookMs: number) => void;
 }
@@ -72,22 +60,19 @@ export function useAiParseStream(opts: UseAiParseStreamOptions) {
       setPending(true);
 
       try {
-        const res = await fetch(
-          `/api/groups/${optsRef.current.groupId}/expenses/parse/stream`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'text/event-stream',
-            },
-            body: JSON.stringify({
-              text: req.text,
-              images: req.images ?? [],
-              ...(req.current ? { current: req.current } : {}),
-            }),
-            signal: controller.signal,
+        const res = await fetch(`/api/groups/${optsRef.current.groupId}/expenses/parse/stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'text/event-stream',
           },
-        );
+          body: JSON.stringify({
+            text: req.text,
+            images: req.images ?? [],
+            ...(req.current ? { current: req.current } : {}),
+          }),
+          signal: controller.signal,
+        });
 
         if (!res.ok) {
           let code: AiParseErrorCode = 'UPSTREAM_FAILED';

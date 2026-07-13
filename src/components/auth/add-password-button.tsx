@@ -1,14 +1,12 @@
-'use client';
-
-import { useActionState, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useActionState, useEffect, useState } from 'react';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { setPasswordAction, type AuthState } from '@/lib/auth/actions';
+import { setPasswordAction, type AuthState } from '@/spa/actions/auth';
 import { randomCredentialName } from '@/lib/auth/random-name';
 import { showI18nError } from '@/lib/ui/toast';
 
@@ -26,9 +24,7 @@ export function AddPasswordButton() {
   const [state, action, pending] = useActionState(setPasswordAction, initial);
   const [password, setPassword] = useState('');
   const [label, setLabel] = useState('');
-
-  // Generate a fresh suggestion each time the dialog opens.
-  const suggestion = useMemo(() => randomCredentialName(), [open]);
+  const [suggestion, setSuggestion] = useState(() => randomCredentialName());
 
   useEffect(() => {
     if (state.ok) {
@@ -47,7 +43,14 @@ export function AddPasswordButton() {
 
   return (
     <>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => {
+          setSuggestion(randomCredentialName());
+          setOpen(true);
+        }}
+      >
         <KeyRound /> {t('account.password_add_action')}
       </Button>
 

@@ -1,9 +1,7 @@
-'use client';
-
-import Link from 'next/link';
+import Link from '@/compat/link';
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import {
   startRegistration as startWebAuthnRegistration,
   browserSupportsWebAuthn,
@@ -13,12 +11,9 @@ import { KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  registerAction,
-  registerNoPasswordAction,
-  type AuthState,
-} from '@/lib/auth/actions';
+import { registerAction, registerNoPasswordAction, type AuthState } from '@/spa/actions/auth';
 import { showI18nError } from '@/lib/ui/toast';
+import { authRedirect } from '@/spa/navigation';
 
 type Mode = 'passkey' | 'password';
 type Phase = 'idle' | 'creating' | 'enrolling' | 'error' | 'done';
@@ -48,14 +43,14 @@ async function postJson<T>(url: string, body?: unknown): Promise<T> {
  *   2. We submit to `registerNoPasswordAction` (creates user with no
  *      password hash, display name defaults to username).
  *   3. We immediately invoke WebAuthn `navigator.credentials.create()`
- *      and POST the result to `/api/webauthn/register/verify`.
+ *      and POST the result to `/api/auth/webauthn/register/verify`.
  *   4. On enroll success, navigate home.
  *
  * If the browser doesn't support WebAuthn (or the user opts out via the
  * "use a password instead" toggle), we fall back to the legacy password
  * register flow.
  */
-export function RegisterForm() {
+export function RegisterForm({ requestedPath }: { requestedPath?: string | null }) {
   const t = useTranslations();
   const router = useRouter();
 
@@ -109,7 +104,7 @@ export function RegisterForm() {
         return;
       }
       // Server returns redirectTo on success.
-      router.replace(state.redirectTo ?? '/');
+      router.replace(authRedirect(state.redirectTo, requestedPath));
       router.refresh();
       setPhase('done');
       return;
@@ -128,16 +123,15 @@ export function RegisterForm() {
       const init = await postJson<{
         challengeId: string;
         options: PublicKeyCredentialCreationOptionsJSON;
-      }>('/api/webauthn/register/options');
+      }>('/api/auth/webauthn/register/options');
       const response = await startWebAuthnRegistration({ optionsJSON: init.options });
-      await postJson('/api/webauthn/register/verify', {
+      await postJson('/api/auth/webauthn/register/verify', {
         challengeId: init.challengeId,
         response,
-        deviceLabel:
-          typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+        deviceLabel: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
       });
       setPhase('done');
-      router.replace('/');
+      router.replace(authRedirect(created.redirectTo, requestedPath));
       router.refresh();
     } catch (e) {
       // The user is created and signed in but has no passkey AND no
@@ -218,18 +212,13 @@ export function RegisterForm() {
             setMode((m) => (m === 'passkey' ? 'password' : 'passkey'));
           }}
         >
-          {mode === 'passkey'
-            ? t('auth.use_password_instead')
-            : t('auth.use_passkey_instead')}
+          {mode === 'passkey' ? t('auth.use_password_instead') : t('auth.use_passkey_instead')}
         </button>
       )}
 
       <p className="text-muted-foreground text-center text-sm">
         {t('auth.have_account')}{' '}
-        <Link
-          href="/login"
-          className="text-foreground underline-offset-4 hover:underline"
-        >
+        <Link href="/login" className="text-foreground underline-offset-4 hover:underline">
           {t('auth.to_login')}
         </Link>
       </p>

@@ -1,7 +1,5 @@
-'use client';
-
 import { useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FloatingPanel } from '@/components/ui/floating-panel';

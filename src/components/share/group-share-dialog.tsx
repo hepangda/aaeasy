@@ -1,17 +1,12 @@
-'use client';
-
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { Copy, Forward, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  createGroupShareLinkAction,
-  revokeShareLinkAction,
-} from '@/lib/groups/share-actions';
+import { createGroupShareLinkAction, revokeShareLinkAction } from '@/spa/actions/shares';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { showI18nError } from '@/lib/ui/toast';
 import type { ExistingShareLink } from './types';
@@ -144,7 +139,7 @@ export function GroupShareDialog({
                   className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
                 >
                   <span className={`flex flex-col gap-0.5 ${tone}`}>
-                    <span className="text-foreground text-sm font-medium leading-tight">
+                    <span className="text-foreground text-sm leading-tight font-medium">
                       {l.label ?? t('share.group_default_label')}
                     </span>
                     <span className="text-muted-foreground">

@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * One-click draft fill panel.
  *
@@ -11,11 +9,11 @@
  */
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations, useFormatter } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations, useFormatter } from 'use-intl';
 import { Button } from '@/components/ui/button';
 import { NumericInput } from '@/components/ui/numeric-input';
-import { fillDraftsAction } from '@/lib/expenses/actions';
+import { fillDraftsAction } from '@/spa/actions/expenses';
 import { showI18nError, successToast } from '@/lib/ui/toast';
 
 export interface DraftRow {
@@ -26,13 +24,7 @@ export interface DraftRow {
   payerName: string;
 }
 
-export function DraftFillPanel({
-  groupId,
-  drafts,
-}: {
-  groupId: string;
-  drafts: DraftRow[];
-}) {
+export function DraftFillPanel({ groupId, drafts }: { groupId: string; drafts: DraftRow[] }) {
   const t = useTranslations();
   const fmt = useFormatter();
   const router = useRouter();
@@ -59,9 +51,7 @@ export function DraftFillPanel({
         showI18nError(t, res.failed[0]!.error);
       }
       if (res.ok) {
-        successToast(
-          t('expenses.draft_filled_count', { count: res.filled?.length ?? 0 }),
-        );
+        successToast(t('expenses.draft_filled_count', { count: res.filled?.length ?? 0 }));
         // Clear the inputs we just saved.
         setAmounts((cur) => {
           const next = { ...cur };
@@ -76,10 +66,7 @@ export function DraftFillPanel({
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="bg-secondary/40 flex flex-col gap-3 rounded-md border p-4"
-    >
+    <form onSubmit={onSubmit} className="bg-secondary/40 flex flex-col gap-3 rounded-md border p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">
           {t('expenses.drafts_to_fill', { count: drafts.length })}
@@ -88,9 +75,7 @@ export function DraftFillPanel({
           {pending ? t('expenses.submitting') : t('expenses.fill_all')}
         </Button>
       </div>
-      <p className="text-muted-foreground text-xs">
-        {t('expenses.drafts_hint')}
-      </p>
+      <p className="text-muted-foreground text-xs">{t('expenses.drafts_hint')}</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[480px] text-sm">
           <colgroup>
@@ -99,20 +84,12 @@ export function DraftFillPanel({
             <col className="w-[120px]" />
             <col className="w-[160px]" />
           </colgroup>
-          <thead className="text-muted-foreground text-xs uppercase tracking-wide">
+          <thead className="text-muted-foreground text-xs tracking-wide uppercase">
             <tr>
-              <th className="px-2 py-1.5 text-left font-medium">
-                {t('expenses.date')}
-              </th>
-              <th className="px-2 py-1.5 text-left font-medium">
-                {t('expenses.title_field')}
-              </th>
-              <th className="px-2 py-1.5 text-left font-medium">
-                {t('expenses.payer')}
-              </th>
-              <th className="px-2 py-1.5 text-right font-medium">
-                {t('expenses.amount')}
-              </th>
+              <th className="px-2 py-1.5 text-left font-medium">{t('expenses.date')}</th>
+              <th className="px-2 py-1.5 text-left font-medium">{t('expenses.title_field')}</th>
+              <th className="px-2 py-1.5 text-left font-medium">{t('expenses.payer')}</th>
+              <th className="px-2 py-1.5 text-right font-medium">{t('expenses.amount')}</th>
             </tr>
           </thead>
           <tbody>
@@ -127,9 +104,7 @@ export function DraftFillPanel({
                 <td className="px-2 py-2 whitespace-nowrap">{d.payerName}</td>
                 <td className="px-2 py-2">
                   <div className="flex items-center justify-end gap-1.5">
-                    <span className="text-muted-foreground text-xs">
-                      {d.currency}
-                    </span>
+                    <span className="text-muted-foreground text-xs">{d.currency}</span>
                     <NumericInput
                       placeholder="0.00"
                       className="h-8 w-24 text-right tabular-nums"

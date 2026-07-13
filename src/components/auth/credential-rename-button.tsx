@@ -1,17 +1,12 @@
-'use client';
-
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  renameCredentialAction,
-  type CredentialKind,
-} from '@/lib/auth/credential-actions';
+import { renameCredentialAction, type CredentialKind } from '@/spa/actions/credentials';
 import { showI18nError } from '@/lib/ui/toast';
 
 /**
@@ -61,11 +56,7 @@ export function CredentialRenameButton({
         <Pencil />
       </Button>
 
-      <Dialog
-        open={open}
-        onClose={() => setOpen(false)}
-        title={t('account.credential_rename')}
-      >
+      <Dialog open={open} onClose={() => setOpen(false)} title={t('account.credential_rename')}>
         <form
           onSubmit={(e) => {
             e.preventDefault();

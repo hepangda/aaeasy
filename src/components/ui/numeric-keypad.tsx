@@ -1,7 +1,5 @@
-'use client';
-
 import { useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Check, Delete } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -151,9 +149,7 @@ export function NumericKeypad({
     <BottomSheet open={open} onClose={onClose} ariaLabel={title} className="pt-2">
       <div className="text-muted-foreground flex items-center justify-between px-4 pt-1 pb-2 text-xs">
         <span>{title}</span>
-        <span className="text-foreground text-base font-medium tabular-nums">
-          {draft || '0'}
-        </span>
+        <span className="text-foreground text-base font-medium tabular-nums">{draft || '0'}</span>
       </div>
       <div className="grid grid-cols-4 gap-2 p-3 pt-1">
         <KeypadButton onClick={() => pressDigit('7')}>7</KeypadButton>

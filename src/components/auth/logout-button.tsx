@@ -1,10 +1,8 @@
-'use client';
-
 import { useTransition } from 'react';
 import { LogOut } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Button } from '@/components/ui/button';
-import { logoutAction } from '@/lib/auth/actions';
+import { logoutAction } from '@/spa/actions/auth';
 
 export function LogoutButton() {
   const t = useTranslations('common');

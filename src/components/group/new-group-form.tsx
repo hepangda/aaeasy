@@ -1,12 +1,10 @@
-'use client';
-
 import { useActionState, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChipInput, type MemberChip } from '@/components/ui/chip-input';
-import { createGroupAction, type ActionState } from '@/lib/groups/actions';
+import { createGroupAction, type ActionState } from '@/spa/actions/groups';
 import { showI18nError } from '@/lib/ui/toast';
 
 const initial: ActionState = { ok: false };
@@ -57,14 +55,8 @@ export function NewGroupForm() {
           ariaLabel={t('groups.initial_members')}
           disabled={pending}
         />
-        <p className="text-muted-foreground text-xs">
-          {t('groups.chip_mention_hint')}
-        </p>
-        <input
-          type="hidden"
-          name="members"
-          value={chips.length ? JSON.stringify(chips) : ''}
-        />
+        <p className="text-muted-foreground text-xs">{t('groups.chip_mention_hint')}</p>
+        <input type="hidden" name="members" value={chips.length ? JSON.stringify(chips) : ''} />
       </div>
 
       <Button type="submit" disabled={pending} className="self-start">

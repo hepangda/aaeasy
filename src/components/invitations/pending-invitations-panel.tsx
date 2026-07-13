@@ -1,8 +1,6 @@
-'use client';
-
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import { Check, X, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -11,8 +9,8 @@ import {
   acceptInvitationsAction,
   rejectInvitationsAction,
   rejectAllInvitationsAction,
-} from '@/lib/invitations/actions';
-import type { GroupRole } from '@prisma/client';
+} from '@/spa/actions/invitations';
+import type { GroupRole } from '@aaeasy/contracts';
 
 export interface PendingInvitationItem {
   id: string;
@@ -30,11 +28,7 @@ export interface PendingInvitationItem {
  * Supports multi-select accept/reject and a one-click "reject all". Hidden
  * entirely when there are no pending invitations.
  */
-export function PendingInvitationsPanel({
-  invitations,
-}: {
-  invitations: PendingInvitationItem[];
-}) {
+export function PendingInvitationsPanel({ invitations }: { invitations: PendingInvitationItem[] }) {
   const t = useTranslations();
   const router = useRouter();
   const confirmDialog = useConfirm();
@@ -43,8 +37,7 @@ export function PendingInvitationsPanel({
 
   if (invitations.length === 0) return null;
 
-  const allSelected =
-    invitations.length > 0 && selected.size === invitations.length;
+  const allSelected = invitations.length > 0 && selected.size === invitations.length;
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -57,9 +50,7 @@ export function PendingInvitationsPanel({
 
   function toggleAll() {
     setSelected((prev) =>
-      prev.size === invitations.length
-        ? new Set()
-        : new Set(invitations.map((i) => i.id)),
+      prev.size === invitations.length ? new Set() : new Set(invitations.map((i) => i.id)),
     );
   }
 
@@ -124,9 +115,7 @@ export function PendingInvitationsPanel({
           showI18nError(t, res.error ?? 'errors.unknown');
           return;
         }
-        successToast(
-          t('invitations.rejected_toast', { count: invitations.length }),
-        );
+        successToast(t('invitations.rejected_toast', { count: invitations.length }));
         setSelected(new Set());
         router.refresh();
       });
@@ -138,7 +127,7 @@ export function PendingInvitationsPanel({
   return (
     <section className="bg-card flex flex-col gap-3 rounded-lg border p-4">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold inline-flex items-center gap-1.5">
+        <h2 className="inline-flex items-center gap-1.5 text-base font-semibold">
           <Mail className="size-4" />
           {t('invitations.section_title')}
           <span className="bg-muted text-muted-foreground ml-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs tabular-nums">
@@ -146,16 +135,8 @@ export function PendingInvitationsPanel({
           </span>
         </h2>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={toggleAll}
-            disabled={pending}
-          >
-            {allSelected
-              ? t('invitations.deselect_all')
-              : t('invitations.select_all')}
+          <Button type="button" size="sm" variant="ghost" onClick={toggleAll} disabled={pending}>
+            {allSelected ? t('invitations.deselect_all') : t('invitations.select_all')}
           </Button>
           <Button
             type="button"
@@ -190,10 +171,7 @@ export function PendingInvitationsPanel({
       </header>
       <ul className="divide-y rounded-md border">
         {invitations.map((inv) => (
-          <li
-            key={inv.id}
-            className="flex items-start gap-3 px-3 py-2.5 text-sm"
-          >
+          <li key={inv.id} className="flex items-start gap-3 px-3 py-2.5 text-sm">
             <input
               type="checkbox"
               checked={selected.has(inv.id)}
@@ -206,9 +184,7 @@ export function PendingInvitationsPanel({
               <p className="truncate">
                 {t.rich('invitations.row_summary', {
                   inviter:
-                    inv.inviterDisplayName ??
-                    inv.inviterUsername ??
-                    t('invitations.someone'),
+                    inv.inviterDisplayName ?? inv.inviterUsername ?? t('invitations.someone'),
                   role: t(`members.role.${inv.assignedRole}` as never),
                   member: inv.memberDisplayName,
                   group: inv.groupName,

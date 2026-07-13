@@ -1,9 +1,7 @@
-'use client';
-
-import { useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'use-intl';
 import { useTransition } from 'react';
 import { Languages } from 'lucide-react';
-import { setLocaleAction } from '@/i18n/actions';
+import { setLocaleAction } from '@/spa/actions/locale';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,

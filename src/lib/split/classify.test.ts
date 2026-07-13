@@ -4,9 +4,7 @@ import type { SplitRule } from './types';
 
 describe('classifySplit', () => {
   it('SOLO when only one person owes', () => {
-    expect(
-      classifySplit({ splits: [{ memberId: 'a', shareMinor: 100n }] }),
-    ).toBe('SOLO');
+    expect(classifySplit({ splits: [{ memberId: 'a', shareMinor: 100n }] })).toBe('SOLO');
   });
 
   it('EQUAL when all amounts match exactly', () => {

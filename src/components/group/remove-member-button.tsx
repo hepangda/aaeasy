@@ -1,19 +1,11 @@
-'use client';
-
 import { useTransition } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import { removeMemberAction } from '@/lib/groups/actions';
+import { removeMemberAction } from '@/spa/actions/groups';
 
-export function RemoveMemberButton({
-  groupId,
-  memberId,
-}: {
-  groupId: string;
-  memberId: string;
-}) {
+export function RemoveMemberButton({ groupId, memberId }: { groupId: string; memberId: string }) {
   const t = useTranslations();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();

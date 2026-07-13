@@ -1,0 +1,102 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aaeasy-dev",
+  "main": "worker/src/index.ts",
+  "compatibility_date": "2026-07-08",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "placement": {
+    "mode": "smart",
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "00000000000000000000000000000000",
+      "localConnectionString": "postgresql://aaeasy:aaeasy@localhost:5432/aaeasy?sslmode=disable",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GROUP_ROOMS",
+        "class_name": "GroupRoom",
+      },
+      {
+        "name": "AUTH_LIMITER",
+        "class_name": "RateLimiter",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["GroupRoom"],
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["RateLimiter"],
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RECEIPTS",
+      "bucket_name": "aaeasy-receipts-dev",
+    },
+  ],
+  "browser": {
+    "binding": "BROWSER",
+  },
+  "vars": {
+    "APP_NAME": "AAEasy",
+    "APP_URL": "http://localhost:5173",
+    "ENVIRONMENT": "development",
+    "PDF_LAUNCH_INTERVAL_MS": "20000",
+  },
+  "env": {
+    "production": {
+      "name": "aaeasy",
+      "vars": {
+        "APP_NAME": "AAEasy",
+        "APP_URL": "https://replace-me.example.com",
+        "ENVIRONMENT": "production",
+        "PDF_LAUNCH_INTERVAL_MS": "20000",
+      },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "00000000000000000000000000000000",
+        },
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "GROUP_ROOMS",
+            "class_name": "GroupRoom",
+          },
+          {
+            "name": "AUTH_LIMITER",
+            "class_name": "RateLimiter",
+          },
+        ],
+      },
+      "r2_buckets": [
+        {
+          "binding": "RECEIPTS",
+          "bucket_name": "aaeasy-receipts",
+        },
+      ],
+      "browser": {
+        "binding": "BROWSER",
+      },
+    },
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "upload_source_maps": true,
+}

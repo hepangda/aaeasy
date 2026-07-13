@@ -1,12 +1,10 @@
-'use client';
-
 import { useEffect, useState } from 'react';
 import { useActionState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from 'use-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { setDisplayNameAction, type AccountActionState } from '@/lib/auth/account-actions';
+import { setDisplayNameAction, type AccountActionState } from '@/spa/actions/account';
 import { showI18nError } from '@/lib/ui/toast';
 
 const initialState: AccountActionState = { ok: false };
@@ -47,9 +45,7 @@ export function SetDisplayNameForm({ currentDisplayName }: { currentDisplayName:
           {pending ? t('common.saving') : t('common.save')}
         </Button>
         {showSaved && (
-          <p className="text-muted-foreground flex items-center text-sm">
-            ✓ {t('account.saved')}
-          </p>
+          <p className="text-muted-foreground flex items-center text-sm">✓ {t('account.saved')}</p>
         )}
       </div>
     </form>

@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
@@ -79,7 +77,7 @@ export function Dialog({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-7 -mr-1"
+              className="-mr-1 size-7"
               onClick={onClose}
               aria-label="Close"
             >

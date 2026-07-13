@@ -1,8 +1,6 @@
-'use client';
-
 import { useActionState, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { mergeUsersAction, type AdminActionState } from '@/lib/admin/actions';
+import { useTranslations } from 'use-intl';
+import { mergeUsersAction, type AdminActionState } from '@/spa/actions/admin';
 import { showI18nError, successToast } from '@/lib/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -35,7 +33,6 @@ export function UserMergeManager({
     if (state.ok) {
       successToast(t('admin.merge_success'));
       // Clear the pickers after a successful merge.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSourceId('');
       setTargetId('');
     } else if (state.error) {
@@ -93,9 +90,7 @@ export function UserMergeManager({
         <p className="text-muted-foreground text-xs">{t('admin.merge_target_hint')}</p>
       </div>
 
-      {sameUser && (
-        <p className="text-destructive text-sm">{t('admin.merge_same_user_error')}</p>
-      )}
+      {sameUser && <p className="text-destructive text-sm">{t('admin.merge_same_user_error')}</p>}
       {sourceIsSelf && (
         <p className="text-destructive text-sm">{t('admin.merge_source_is_self_error')}</p>
       )}
@@ -113,7 +108,12 @@ export function UserMergeManager({
         </p>
       )}
 
-      <Button type="submit" variant="destructive" disabled={!canSubmit || pending} className="w-fit">
+      <Button
+        type="submit"
+        variant="destructive"
+        disabled={!canSubmit || pending}
+        className="w-fit"
+      >
         {pending ? t('admin.merge_pending') : t('admin.merge_button')}
       </Button>
     </form>

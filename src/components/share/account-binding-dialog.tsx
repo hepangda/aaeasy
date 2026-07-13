@@ -1,8 +1,6 @@
-'use client';
-
 import { useEffect, useState, useTransition, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useRouter } from '@/compat/navigation';
+import { useTranslations } from 'use-intl';
 import {
   AtSign,
   ChevronDown,
@@ -13,26 +11,31 @@ import {
   UserPlus,
   X,
 } from 'lucide-react';
-import type { GroupRole } from '@prisma/client';
+import type { GroupRole } from '@aaeasy/contracts';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import {
-  createMemberShareLinkAction,
-  revokeShareLinkAction,
-} from '@/lib/groups/share-actions';
+import { createMemberShareLinkAction, revokeShareLinkAction } from '@/spa/actions/shares';
 import {
   inviteUserToMemberAction,
   cancelInvitationAction,
   type InvitationRole,
-} from '@/lib/invitations/actions';
+} from '@/spa/actions/invitations';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { showI18nError, successToast } from '@/lib/ui/toast';
 import type { ExistingShareLink } from './types';
-import type { MemberPendingInvitationRow } from '@/lib/invitations/queries';
+
+export interface MemberPendingInvitationRow {
+  id: string;
+  memberId: string;
+  assignedRole: GroupRole;
+  createdAt: string | Date;
+  invitedUser: { id: string; displayName: string; username: string | null };
+  invitedBy: { id: string; displayName: string } | null;
+}
 
 const EXPIRES_OPTIONS = [
   { value: '24', i18n: 'share.expires_24h' as const },
@@ -126,10 +129,7 @@ export function AccountBindingDialog({
         className="max-w-lg"
       >
         <div className="flex flex-col gap-4">
-          <div
-            role="tablist"
-            className="border-border/60 -mx-1 flex gap-1 border-b"
-          >
+          <div role="tablist" className="border-border/60 -mx-1 flex gap-1 border-b">
             <SectionTab
               active={tab === 'bind'}
               onClick={() => setTab('bind')}
@@ -243,9 +243,7 @@ function SectionTab({
       onClick={onClick}
       className={cn(
         'relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-        active
-          ? 'text-foreground'
-          : 'text-muted-foreground hover:text-foreground',
+        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
       )}
     >
       {label}
@@ -255,10 +253,7 @@ function SectionTab({
         </span>
       )}
       {active && (
-        <span
-          aria-hidden
-          className="bg-foreground absolute -bottom-px left-0 h-0.5 w-full"
-        />
+        <span aria-hidden className="bg-foreground absolute -bottom-px left-0 h-0.5 w-full" />
       )}
     </button>
   );
@@ -295,9 +290,7 @@ function MethodCard({
             {icon}
             {title}
           </span>
-          {!open && (
-            <span className="text-muted-foreground truncate text-xs">{desc}</span>
-          )}
+          {!open && <span className="text-muted-foreground truncate text-xs">{desc}</span>}
         </span>
         <ChevronDown
           className={cn(
@@ -307,7 +300,7 @@ function MethodCard({
         />
       </button>
       {open && (
-        <div className="flex flex-col gap-3 px-3 pb-3 pt-1">
+        <div className="flex flex-col gap-3 px-3 pt-1 pb-3">
           <p className="text-muted-foreground text-xs">{desc}</p>
           {children}
         </div>
@@ -347,9 +340,7 @@ function InviteSection({
       if (cancelled) return;
       setSearching(true);
       try {
-        const res = await fetch(
-          `/api/users/search?q=${encodeURIComponent(trimmed)}`,
-        );
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(trimmed)}`);
         if (cancelled) return;
         if (!res.ok) throw new Error('search failed');
         const body = (await res.json()) as { users: UserSearchHit[] };
@@ -369,9 +360,7 @@ function InviteSection({
   }, [username]);
 
   const showSuggestionsList =
-    showSuggestions &&
-    username.trim().replace(/^@/, '').length >= 3 &&
-    suggestions.length > 0;
+    showSuggestions && username.trim().replace(/^@/, '').length >= 3 && suggestions.length > 0;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -417,7 +406,7 @@ function InviteSection({
             className="pr-8"
           />
           {searching && (
-            <Loader2 className="text-muted-foreground absolute right-2.5 top-1/2 size-4 -translate-y-1/2 animate-spin" />
+            <Loader2 className="text-muted-foreground absolute top-1/2 right-2.5 size-4 -translate-y-1/2 animate-spin" />
           )}
           {showSuggestionsList && (
             <ul className="border-input bg-popover absolute top-full z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-md">
@@ -509,11 +498,7 @@ function ShareLinkSection({
         <div className="border-foreground/30 bg-secondary/40 flex flex-col gap-2 rounded-md border-2 border-dashed p-3">
           <p className="text-xs">{t('share.link_one_time_warning')}</p>
           <div className="flex flex-col gap-1.5 sm:flex-row">
-            <Input
-              readOnly
-              value={`${baseUrl}/s/${revealedToken}`}
-              className="font-mono text-xs"
-            />
+            <Input readOnly value={`${baseUrl}/s/${revealedToken}`} className="font-mono text-xs" />
             <Button
               type="button"
               size="sm"
@@ -601,9 +586,7 @@ function SentList({
         pending: inv,
       }),
     ),
-    ...existingLinks.map(
-      (link): SentItem => ({ kind: 'link', id: link.id, link }),
-    ),
+    ...existingLinks.map((link): SentItem => ({ kind: 'link', id: link.id, link })),
   ];
 
   function cancelInvite(id: string) {
@@ -640,9 +623,7 @@ function SentList({
   return (
     <section className="flex flex-col gap-2">
       {items.length === 0 ? (
-        <p className="text-muted-foreground text-xs">
-          {t('binding.sent_empty')}
-        </p>
+        <p className="text-muted-foreground text-xs">{t('binding.sent_empty')}</p>
       ) : (
         <ul className="divide-y rounded-md border">
           {items.map((item) =>
@@ -652,7 +633,7 @@ function SentList({
                 className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
               >
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm font-medium leading-tight">
+                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm leading-tight font-medium">
                     <TypeChip label={t('binding.type_invite')} />
                     <span className="min-w-0 truncate">
                       {item.pending.invitedUser.displayName}
@@ -691,7 +672,7 @@ function SentList({
                     !item.link.revoked && item.link.expired && 'text-muted-foreground',
                   )}
                 >
-                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm font-medium leading-tight">
+                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm leading-tight font-medium">
                     <TypeChip label={t('binding.type_link')} />
                     <span className="min-w-0 truncate">{item.link.label ?? memberName}</span>
                   </span>
@@ -734,7 +715,7 @@ function SentList({
 
 function TypeChip({ label }: { label: string }) {
   return (
-    <span className="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide">
+    <span className="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-[10px] font-normal tracking-wide uppercase">
       {label}
     </span>
   );

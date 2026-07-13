@@ -1,4 +1,4 @@
-import type { GroupRole, ShareScope } from '@prisma/client';
+import type { GroupRole, ShareScope } from '@aaeasy/contracts';
 
 /**
  * Shared shape for share-link rows fed to both the group-level
