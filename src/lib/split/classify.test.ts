@@ -30,6 +30,17 @@ describe('classifySplit', () => {
     ).toBe('EQUAL');
   });
 
+  it('does not call a two-minor-unit difference equal', () => {
+    expect(
+      classifySplit({
+        splits: [
+          { memberId: 'a', shareMinor: 102n },
+          { memberId: 'b', shareMinor: 100n },
+        ],
+      }),
+    ).not.toBe('EQUAL');
+  });
+
   it('RATIO for clean integer ratio (2:1:1)', () => {
     expect(
       classifySplit({
@@ -120,5 +131,42 @@ describe('classifySplit', () => {
         splitRule: weighted,
       }),
     ).toBe('RATIO');
+  });
+
+  it('normalizes equivalent decimal weights before classifying', () => {
+    const weighted: SplitRule = {
+      type: 'WEIGHTED',
+      weights: [
+        { memberId: 'a', weight: '1' },
+        { memberId: 'b', weight: '1.0' },
+        { memberId: 'c', weight: '01.000' },
+      ],
+    };
+
+    expect(
+      classifySplit({
+        splits: [
+          { memberId: 'a', shareMinor: 34n },
+          { memberId: 'b', shareMinor: 33n },
+          { memberId: 'c', shareMinor: 33n },
+        ],
+        splitRule: weighted,
+      }),
+    ).toBe('EQUAL');
+  });
+
+  it('keeps an explicit equal rule equal when rounding leaves one non-zero share', () => {
+    const equalRule: SplitRule = { type: 'EQUAL', memberIds: ['a', 'b', 'c'] };
+
+    expect(
+      classifySplit({
+        splits: [
+          { memberId: 'a', shareMinor: 1n },
+          { memberId: 'b', shareMinor: 0n },
+          { memberId: 'c', shareMinor: 0n },
+        ],
+        splitRule: equalRule,
+      }),
+    ).toBe('EQUAL');
   });
 });

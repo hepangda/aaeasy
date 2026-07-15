@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { deleteGroupAction } from '@/spa/actions/groups';
+import { showI18nError } from '@/lib/ui/toast';
 
 export function DeleteGroupButton({ groupId }: { groupId: string }) {
   const t = useTranslations();
@@ -25,12 +26,12 @@ export function DeleteGroupButton({ groupId }: { groupId: string }) {
             router.push('/groups');
             router.refresh();
           } else {
-            await confirm({ message: t(res.error ?? 'errors.unknown') });
+            showI18nError(t, res.error ?? 'errors.unknown');
           }
         });
       }}
     >
-      <Trash2 className="text-destructive" /> {t('groups.delete')}
+      <Trash2 className="text-destructive-ink" /> {t('groups.delete')}
     </Button>
   );
 }

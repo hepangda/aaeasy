@@ -1,12 +1,15 @@
 import { useTransition } from 'react';
 import { useTranslations } from 'use-intl';
+import { useRouter } from '@/compat/navigation';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { removeMemberAction } from '@/spa/actions/groups';
+import { showI18nError } from '@/lib/ui/toast';
 
 export function RemoveMemberButton({ groupId, memberId }: { groupId: string; memberId: string }) {
   const t = useTranslations();
+  const router = useRouter();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   return (
@@ -20,13 +23,15 @@ export function RemoveMemberButton({ groupId, memberId }: { groupId: string; mem
         startTransition(async () => {
           const res = await removeMemberAction({ groupId, memberId });
           if (!res.ok) {
-            await confirm({ message: t(res.error ?? 'errors.unknown') });
+            showI18nError(t, res.error ?? 'errors.unknown');
+            return;
           }
+          router.refresh();
         });
       }}
       aria-label={t('members.remove')}
     >
-      <Trash2 className="text-destructive" />
+      <Trash2 className="text-destructive-ink" />
     </Button>
   );
 }

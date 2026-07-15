@@ -57,6 +57,7 @@ export function ReceiptActionsButton({
         onClose={() => setOpen(false)}
         align="end"
         className="w-fit max-w-xs"
+        ariaLabel={t('receipts')}
       >
         <div className="bg-popover rounded-md border p-2 shadow-md">
           <ReceiptList

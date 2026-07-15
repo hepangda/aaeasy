@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
+import { useModalLayer } from '@/components/ui/dialog';
 
 const BACKDROP_DISMISS_GRACE_MS = 200;
 
@@ -15,32 +16,20 @@ export function BottomSheet({
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
-  ariaLabel?: string;
+  ariaLabel: string;
 }) {
   const openedAt = useRef(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const requestClose = useModalLayer(open, onClose, panelRef);
 
   useEffect(() => {
-    if (!open) return;
-    openedAt.current = performance.now();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open, onClose]);
+    if (open) openedAt.current = performance.now();
+  }, [open]);
 
   if (typeof document === 'undefined' || !open) return null;
 
   return createPortal(
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={ariaLabel}
       className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40"
       onPointerDown={(e) => {
         if (e.target !== e.currentTarget) return;
@@ -49,12 +38,17 @@ export function BottomSheet({
       onClick={(e) => {
         if (e.target !== e.currentTarget) return;
         if (performance.now() - openedAt.current < BACKDROP_DISMISS_GRACE_MS) return;
-        onClose();
+        requestClose();
       }}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
+        tabIndex={-1}
         className={cn(
-          'bg-background flex max-h-[90vh] w-full flex-col overflow-y-auto rounded-t-xl border-t shadow-2xl',
+          'bg-background shadow-lifted flex max-h-[90dvh] w-full flex-col overflow-y-auto rounded-t-2xl border-t',
           className,
         )}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}

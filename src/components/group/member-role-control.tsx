@@ -1,4 +1,4 @@
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from '@/compat/navigation';
 import { useTranslations } from 'use-intl';
 import { Select } from '@/components/ui/select';
@@ -31,6 +31,10 @@ export function MemberRoleControl({
   const t = useTranslations();
   const [role, setRole] = useState<Role>(currentRole);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setRole(currentRole);
+  }, [currentRole]);
 
   // OWNER badge or non-editable: render label only.
   if (!editable || currentRole === 'OWNER') {

@@ -31,19 +31,10 @@ export function NewGroupForm() {
         />
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="defaultCurrency">{t('groups.default_currency')}</Label>
-        <Input
-          id="defaultCurrency"
-          name="defaultCurrency"
-          defaultValue="CNY"
-          maxLength={3}
-          minLength={3}
-          className="uppercase"
-          required
-          disabled
-        />
-      </div>
+      <input type="hidden" name="defaultCurrency" value="CNY" />
+      <p className="text-muted-foreground text-sm">
+        {t('groups.default_currency')} · <span className="text-foreground font-mono">CNY</span>
+      </p>
 
       <div className="grid gap-2">
         <Label htmlFor="members">{t('groups.initial_members')}</Label>

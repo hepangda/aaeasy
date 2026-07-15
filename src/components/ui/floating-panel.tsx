@@ -11,6 +11,8 @@ export interface FloatingPanelProps {
   /** Pixel gap between anchor and panel. */
   gap?: number;
   className?: string;
+  ariaLabel: string;
+  role?: 'dialog' | 'region';
   children: React.ReactNode;
 }
 
@@ -31,6 +33,8 @@ export function FloatingPanel({
   align = 'end',
   gap = 4,
   className,
+  ariaLabel,
+  role = 'dialog',
   children,
 }: FloatingPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -52,8 +56,13 @@ export function FloatingPanel({
       const r = anchor.getBoundingClientRect();
       const panel = panelRef.current;
       const pw = panel?.offsetWidth ?? 0;
-      // Position so the panel sits below the anchor.
-      const top = r.bottom + gap + window.scrollY;
+      const ph = panel?.offsetHeight ?? 0;
+      const inset = 8;
+      const belowTop = r.bottom + gap;
+      const aboveTop = r.top - gap - ph;
+      const viewportTop =
+        belowTop + ph <= window.innerHeight - inset ? belowTop : Math.max(inset, aboveTop);
+      const top = viewportTop + window.scrollY;
       let left: number;
       if (align === 'end') {
         left = r.right - pw + window.scrollX;
@@ -61,18 +70,22 @@ export function FloatingPanel({
         left = r.left + window.scrollX;
       }
       // Clamp horizontally to viewport with a small inset.
-      const inset = 8;
       const maxLeft = window.scrollX + window.innerWidth - pw - inset;
       const minLeft = window.scrollX + inset;
       left = Math.max(minLeft, Math.min(left, maxLeft));
       setCoords({ top, left });
     }
     update();
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    resizeObserver?.observe(anchor);
+    if (panelRef.current) resizeObserver?.observe(panelRef.current);
     window.addEventListener('scroll', update, true);
     window.addEventListener('resize', update);
     return () => {
       window.removeEventListener('scroll', update, true);
       window.removeEventListener('resize', update);
+      resizeObserver?.disconnect();
     };
   }, [open, anchor, align, gap]);
 
@@ -108,7 +121,8 @@ export function FloatingPanel({
         visibility: coords ? 'visible' : 'hidden',
       }}
       className={cn('z-50', className)}
-      role="dialog"
+      role={role}
+      aria-label={ariaLabel}
     >
       {children}
     </div>,

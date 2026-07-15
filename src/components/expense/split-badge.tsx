@@ -13,7 +13,7 @@ export interface SharePill {
 
 /**
  * Compact label ("均分" / "比例" / "特殊" / "单人支付") + an info icon that,
- * on hover or click, reveals the per-member share breakdown in a portal so
+ * on click or keyboard focus, reveals the per-member share breakdown in a portal so
  * the popover doesn't trip the table's `overflow-x-auto`.
  */
 export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePill[] }) {
@@ -24,28 +24,28 @@ export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePi
   const labelKey = `split_class_${kind.toLowerCase()}` as const;
 
   return (
-    <span
-      className="inline-flex items-center gap-1"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
+    <span className="inline-flex items-center gap-1">
       <span className="text-sm">{t(labelKey)}</span>
-      <button
-        ref={anchorRef}
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={t('show_split_details')}
-        aria-expanded={open}
-        className="text-muted-foreground hover:text-foreground inline-flex"
-      >
-        <Info className="size-3.5" />
-      </button>
+      {shares.length > 0 ? (
+        <button
+          ref={anchorRef}
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={t('show_split_details')}
+          aria-expanded={open}
+          className="text-muted-foreground hover:bg-accent hover:text-foreground inline-grid size-8 place-items-center rounded-lg"
+        >
+          <Info className="size-3.5" />
+        </button>
+      ) : null}
       <FloatingPanel
         open={open && shares.length > 0}
         anchor={anchorRef.current}
         onClose={() => setOpen(false)}
         align="start"
         className="w-48"
+        role="region"
+        ariaLabel={t('show_split_details')}
       >
         <div className="bg-popover rounded-md border p-2 shadow-md">
           <ul className="flex flex-col gap-0.5 text-xs">

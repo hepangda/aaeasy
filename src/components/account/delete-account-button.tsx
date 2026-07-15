@@ -6,6 +6,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { deleteAccountAction } from '@/spa/actions/account';
+import { showI18nError } from '@/lib/ui/toast';
 
 export function DeleteAccountButton({
   ownedGroups,
@@ -25,7 +26,8 @@ export function DeleteAccountButton({
   function doDelete() {
     if (!phraseOk || pending) return;
     startTransition(async () => {
-      await deleteAccountAction();
+      const result = await deleteAccountAction();
+      if (!result.ok) showI18nError(t, result.error ?? 'errors.unknown');
     });
   }
 
@@ -36,7 +38,7 @@ export function DeleteAccountButton({
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+        className="border-destructive text-destructive-ink hover:bg-destructive/10 hover:text-destructive-ink"
       >
         <Trash2 /> {t('account.delete_button')}
       </Button>

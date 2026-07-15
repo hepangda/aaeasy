@@ -22,6 +22,7 @@ export function AddMemberForm({ groupId }: { groupId: string }) {
       <div className="flex-1">
         <Input
           name="displayName"
+          aria-label={t('members.add_placeholder')}
           required
           maxLength={40}
           placeholder={t('members.add_placeholder')}

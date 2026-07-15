@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslations } from 'use-intl';
 import { useRouter, usePathname, useSearchParams } from '@/compat/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,11 +24,13 @@ export function Pagination({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const common = useTranslations('common');
 
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const current = clamp(parseInt(params.get(paramKey) ?? '1', 10) || 1, 1, totalPages);
 
   const visibleNumbers = useMemo(() => buildPageWindow(current, totalPages), [current, totalPages]);
+  const pageLabel = (page: number) => common('page_number', { page });
 
   if (totalPages <= 1) return null;
 
@@ -44,7 +47,7 @@ export function Pagination({
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={common('pagination')}
       className="text-muted-foreground flex items-center justify-end gap-1 text-xs"
     >
       <Button
@@ -54,7 +57,7 @@ export function Pagination({
         className="size-8"
         disabled={current <= 1}
         onClick={() => goto(current - 1)}
-        aria-label="Previous page"
+        aria-label={common('previous_page')}
       >
         <ChevronLeft />
       </Button>
@@ -72,6 +75,7 @@ export function Pagination({
             className="size-8 text-xs tabular-nums"
             onClick={() => goto(p)}
             aria-current={p === current ? 'page' : undefined}
+            aria-label={pageLabel(p)}
           >
             {p}
           </Button>
@@ -84,7 +88,7 @@ export function Pagination({
         className="size-8"
         disabled={current >= totalPages}
         onClick={() => goto(current + 1)}
-        aria-label="Next page"
+        aria-label={common('next_page')}
       >
         <ChevronRight />
       </Button>

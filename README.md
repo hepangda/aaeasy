@@ -15,6 +15,8 @@ flowchart LR
   Worker -->|"私有对象"| R2["R2 receipts"]
   Worker -->|"HTML + CSS"| BrowserRun["Cloudflare Browser Run"]
   Worker -->|"OpenAI-compatible API"| AI["AI Gateway / model provider"]
+  Browser -->|"OIDC authorization code + PKCE"| Auth["Pangda Auth / KeyForge"]
+  Worker -->|"token exchange / UserInfo / refresh"| Auth
 ```
 
 | 层 | 实现 |
@@ -23,7 +25,7 @@ flowchart LR
 | API | Cloudflare Worker + Hono |
 | 数据 | Drizzle ORM + Postgres.js + Hyperdrive；推荐 Neon 作为托管 PostgreSQL |
 | 实时 | Durable Objects + WebSocket Hibernation；不再使用 PostgreSQL `LISTEN/NOTIFY` |
-| 登录 | WebAuthn + Worker-compatible WASM Argon2id (`hash-wasm`) |
+| 登录 | Pangda Auth（KeyForge）OIDC authorization code + PKCE；应用只保留加密的服务端会话 |
 | 附件 | 私有 R2，由 Worker 做权限检查和流式下载 |
 | 导出 | CSV + Cloudflare Browser Run PDF；**不再提供 XLSX** |
 | 国际化 | `use-intl`，中文 / English |
@@ -47,6 +49,8 @@ pnpm dev
 ```
 
 打开 `http://localhost:5173`。默认 `wrangler.jsonc` 会把本地 `HYPERDRIVE` binding 连接到 `localhost:5432`；也可以导出以下变量覆盖它：
+
+本地登录固定使用 `https://auth-staging.pangda.app`。需要先在该环境创建 `aaeasy` confidential application client，注册回调 `http://localhost:5173/api/auth/callback` 和退出地址 `http://localhost:5173/`，再把一次性返回的 client secret 与一个独立的 32-byte session secret 写入 `.dev.vars`。完整配置见 [`docs/deployment/cloudflare.md`](docs/deployment/cloudflare.md)。
 
 ```sh
 export CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE='postgresql://...'
@@ -77,7 +81,7 @@ pnpm db:migrate
 pnpm db:adopt -- --yes
 ```
 
-`db:adopt` 会验证 19 张既有业务表、登记 Drizzle baseline，并添加 `groups.revision` 与 `expenses.version`。完整切流流程见 [`docs/migration/data-cutover.md`](docs/migration/data-cutover.md)。
+`db:adopt` 会验证迁移前的 19 张表、登记 Drizzle baseline，随后应用 Cloudflare revision 与 Pangda Auth OIDC migrations；业务用户 ID 和账本关系保留，本地凭据及旧会话被移除。完整切流流程见 [`docs/migration/data-cutover.md`](docs/migration/data-cutover.md)。
 
 旧 Prisma 连接串中的 `schema=public` 会由迁移工具自动移除；Postgres.js 会把该参数误当成 PostgreSQL server 配置，因此不要在新的 `.env` 中继续使用它。
 
@@ -86,10 +90,9 @@ pnpm db:adopt -- --yes
 生产配置位于 `wrangler.jsonc` 的 `env.production`。部署前必须替换：
 
 - `HYPERDRIVE` 的全零占位 ID；
-- `APP_URL` 的占位 HTTPS origin；
 - 如有需要，R2 bucket 名称和 PDF 启动间隔。
 
-然后配置 Worker secrets 并执行：
+然后在 `auth.pangda.app` 创建生产 OAuth client、配置 Worker secrets 并执行：
 
 ```sh
 pnpm deploy
@@ -140,7 +143,9 @@ docs/                 架构、部署和数据切流手册
 ## 安全边界
 
 - 所有写请求经过 Hono CSRF origin 校验和身份 / 分享 scope 校验。
-- 密码登录、注册、AI 和 PDF 由 Durable Object 滑动窗口限流。
+- AAEasy 不接收或保存密码、Passkey 等登录凭据；浏览器登录只能跳转到 Pangda Auth。
+- OIDC state、nonce 与 PKCE verifier 使用短期加密 Cookie；访问、刷新和 ID token 使用服务端 AES-GCM 加密后保存。
+- KeyForge 用户禁用、授权撤销和 `admins` 组变化会在会话重新校验时生效；AI、成员搜索和 PDF 继续由 Durable Object 限流。
 - R2 bucket 保持私有；对象 URL 不直接暴露，上传和下载都经 Worker。
 - 分享访客不能导出完整账本；只读分享不能写费用。
 - 费用写入使用 `version` 乐观锁，账本事件使用单调 `revision` 自愈断线缺口。

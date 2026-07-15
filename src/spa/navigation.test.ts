@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { authRedirect, safeInternalPath } from './navigation';
+import { safeInternalPath } from './navigation';
 
 describe('safeInternalPath', () => {
   it('accepts an application-relative path', () => {
@@ -10,14 +10,4 @@ describe('safeInternalPath', () => {
     'rejects external redirect %s',
     (value) => expect(safeInternalPath(value)).toBeNull(),
   );
-});
-
-describe('authRedirect', () => {
-  it('prioritizes a claimed share destination', () => {
-    expect(authRedirect('/groups/claimed', '/account')).toBe('/groups/claimed');
-  });
-
-  it('uses the requested path for ordinary login', () => {
-    expect(authRedirect('/', '/groups/original')).toBe('/groups/original');
-  });
 });

@@ -49,13 +49,20 @@ export function NewExpensePage() {
     displayName: member.displayName,
   }));
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-10">
+    <section className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-5 px-4 py-5 sm:gap-7 sm:px-6 sm:py-10 lg:px-8">
       <Button asChild variant="ghost" size="sm" className="-ml-2 self-start">
         <Link href={`/groups/${groupId}`}>
           <ChevronLeft /> {detail.data.group.name}
         </Link>
       </Button>
-      <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t('expenses.add')}</h1>
+      <header className="flex flex-col gap-2">
+        <h1 className="font-display text-3xl leading-none font-semibold tracking-[-0.05em] sm:text-4xl">
+          {t('expenses.add')}
+        </h1>
+        <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">
+          {t('expenses.form_intro')}
+        </p>
+      </header>
       <ExpenseForm
         groupId={groupId}
         groupCurrency={detail.data.group.defaultCurrency}
@@ -101,7 +108,7 @@ export function EditExpensePage() {
   }
   if (expense.lockedBySettlementId) {
     return (
-      <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-10">
+      <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-10">
         <Button asChild variant="ghost" size="sm" className="-ml-2 self-start">
           <Link href={`/groups/${groupId}`}>
             <ChevronLeft /> {detail.data.group.name}
@@ -119,21 +126,38 @@ export function EditExpensePage() {
     displayName: member.displayName,
   }));
   const parsedRule = splitRuleSchema.safeParse(expense.splitRule);
+  const recoveredExactRule: SplitRule | null =
+    expense.splits.length > 0
+      ? {
+          type: 'EXACT',
+          amounts: expense.splits.map((split) => ({
+            memberId: split.memberId,
+            amountMinor: BigInt(split.shareMinor).toString(),
+          })),
+        }
+      : null;
   const splitRule: SplitRule = parsedRule.success
     ? parsedRule.data
-    : { type: 'EQUAL', memberIds: members.map((member) => member.id) };
+    : (recoveredExactRule ?? { type: 'EQUAL', memberIds: members.map((member) => member.id) });
   const parsedState = splitInputStateSchema.safeParse(expense.splitInputState);
   const splitInputState: SplitInputState | null = parsedState.success ? parsedState.data : null;
   const amountMinor = expense.amountMinor === null ? 0n : BigInt(expense.amountMinor);
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-10">
+    <section className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-5 px-4 py-5 sm:gap-7 sm:px-6 sm:py-10 lg:px-8">
       <Button asChild variant="ghost" size="sm" className="-ml-2 self-start">
         <Link href={`/groups/${groupId}`}>
           <ChevronLeft /> {detail.data.group.name}
         </Link>
       </Button>
-      <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t('expenses.edit')}</h1>
+      <header className="flex flex-col gap-2">
+        <h1 className="font-display text-3xl leading-none font-semibold tracking-[-0.05em] sm:text-4xl">
+          {t('expenses.edit')}
+        </h1>
+        <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">
+          {t('expenses.form_intro_edit')}
+        </p>
+      </header>
       <ExpenseForm
         groupId={groupId}
         groupCurrency={detail.data.group.defaultCurrency}
@@ -154,7 +178,10 @@ export function EditExpensePage() {
           payerMemberId: expense.payerMemberId,
           splitRule,
           splitInputState,
-          fxRateOverride: null,
+          fxRateOverride:
+            expense.currency === detail.data.group.defaultCurrency
+              ? null
+              : expense.fxRateToGroupCurrency,
           isDraft: expense.isDraft,
         }}
       />

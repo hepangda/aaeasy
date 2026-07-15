@@ -16,6 +16,7 @@ import {
   type ExpenseActionState,
 } from '@/spa/actions/expenses';
 import { errorToast, showI18nError, successToast } from '@/lib/ui/toast';
+import { describeSplitIntent } from '@/lib/split/intent';
 import type { SplitRule } from '@/lib/split/types';
 import type { SplitInputState, SplitInputRow } from '@/lib/split/input-state';
 import { computeSplit } from '@/lib/split';
@@ -300,6 +301,7 @@ export function ExpenseForm({
       defaults?.currency ?? groupCurrency,
     ),
   );
+  const [splitEditorOpen, setSplitEditorOpen] = useState(false);
 
   // If the currency changes, formatting of base/extra columns should follow
   // (different minor-unit precision). For simplicity we just re-format them
@@ -471,6 +473,36 @@ export function ExpenseForm({
 
   const sumMatchesTotal = totalMinor !== null && !anyParseError && sumMinor === totalMinor;
   const diffMinor = totalMinor !== null ? totalMinor - sumMinor : 0n;
+  const splitIntent = describeSplitIntent(rows);
+  const participantIdSet = new Set(splitIntent.participantIds);
+  const activeSplitRows = rows.flatMap((row, index) =>
+    participantIdSet.has(row.memberId) ? [{ row, finalMinor: perMemberFinal[index]! }] : [],
+  );
+  const activeSplitCount = activeSplitRows.length;
+  const equalShareMinor = activeSplitRows[0]?.finalMinor ?? 0n;
+  const equalAmountsMatch = activeSplitRows.every(
+    ({ finalMinor }) => finalMinor === equalShareMinor,
+  );
+  const soloMemberName =
+    members.find((member) => member.id === splitIntent.participantIds[0])?.displayName ?? '?';
+  const splitSummaryTitle =
+    splitIntent.kind === 'SOLO'
+      ? t('expenses.split_summary_solo', { name: soloMemberName })
+      : splitIntent.kind === 'EQUAL'
+        ? t('expenses.split_summary_equal', { count: activeSplitCount })
+        : splitIntent.kind === 'RATIO'
+          ? t('expenses.split_summary_ratio', { count: activeSplitCount })
+          : t('expenses.split_summary_custom', { count: activeSplitCount });
+  const splitSummaryDetail =
+    splitIntent.kind === 'SOLO'
+      ? `${formatMinor(equalShareMinor, currency)} ${currency}`
+      : splitIntent.kind === 'EQUAL' && totalMinor !== null && equalAmountsMatch
+        ? `${t('expenses.share_per_person')} ${formatMinor(equalShareMinor, currency)} ${currency}`
+        : splitIntent.kind === 'EQUAL' && totalMinor !== null
+          ? t('expenses.split_summary_equal_rounded')
+          : splitIntent.kind === 'EQUAL' || splitIntent.kind === 'RATIO'
+            ? t('expenses.split_summary_ratio_detail', { ratio: splitIntent.ratio.join(':') })
+            : t('expenses.split_summary_custom_detail');
 
   // ─── Server expects splitRule JSON ──────────────────────────────────
   const ruleJson = useMemo(() => {
@@ -505,6 +537,8 @@ export function ExpenseForm({
   const [receiptAiPending, setReceiptAiPending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigatedRef = useRef(false);
+  const pendingFilesRef = useRef<File[]>([]);
+  const receiptControlsLocked = pending || uploadingReceipts || state.ok;
 
   async function fileToDataUrl(file: File): Promise<string> {
     return await new Promise<string>((resolve, reject) => {
@@ -519,7 +553,7 @@ export function ExpenseForm({
   }
 
   async function addFiles(picked: FileList | null) {
-    if (!picked) return;
+    if (!picked || receiptControlsLocked) return;
     const next: File[] = [...pendingFiles];
     let firstImageForAi: File | null = null;
     for (const f of Array.from(picked)) {
@@ -535,6 +569,7 @@ export function ExpenseForm({
       next.push(f);
     }
     setPendingFiles(next);
+    pendingFilesRef.current = next;
     if (fileInputRef.current) fileInputRef.current.value = '';
 
     // Ask once per pick-batch using the app modal. If accepted, we submit
@@ -558,7 +593,12 @@ export function ExpenseForm({
   }
 
   function removeFile(idx: number) {
-    setPendingFiles((cur) => cur.filter((_, i) => i !== idx));
+    if (receiptControlsLocked) return;
+    setPendingFiles((cur) => {
+      const next = cur.filter((_, i) => i !== idx);
+      pendingFilesRef.current = next;
+      return next;
+    });
   }
 
   // After the action succeeds, upload staged files and navigate.
@@ -566,9 +606,10 @@ export function ExpenseForm({
     if (!state.ok || !state.expenseId || navigatedRef.current) return;
     navigatedRef.current = true;
     const expenseId = state.expenseId;
-    const filesToUpload = pendingFiles;
+    const filesToUpload = [...pendingFilesRef.current];
     let cancelled = false;
     (async () => {
+      let failedUploads = 0;
       if (filesToUpload.length > 0) {
         setUploadingReceipts(true);
         for (const file of filesToUpload) {
@@ -579,18 +620,21 @@ export function ExpenseForm({
               headers: { 'Content-Type': file.type },
               body: file,
             });
-            if (!uploadRes.ok) continue;
+            if (!uploadRes.ok) failedUploads += 1;
           } catch {
-            // best effort
+            failedUploads += 1;
           }
         }
       }
-      if (!cancelled) router.push(`/groups/${groupId}`);
+      if (!cancelled) {
+        if (failedUploads > 0) errorToast(t('expenses.upload_failed'));
+        router.push(`/groups/${groupId}`);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [state.ok, state.expenseId, pendingFiles, groupId, router]);
+  }, [state.ok, state.expenseId, groupId, router, t]);
 
   // Suppress unused-import warnings (used only conditionally).
   void minorToDecimal;
@@ -791,7 +835,11 @@ export function ExpenseForm({
   }
 
   return (
-    <form action={formAction} ref={formRef} className="flex w-full flex-col gap-5">
+    <form
+      action={formAction}
+      ref={formRef}
+      className="bg-card shadow-soft relative flex w-full flex-col overflow-hidden rounded-2xl border pb-24 sm:rounded-[1.75rem] lg:pb-0"
+    >
       <input type="hidden" name="groupId" value={groupId} />
       {/* Only submit a splitRule when we actually have a materialized split.
           In DRAFT mode the row amounts are all zero, which would fail the
@@ -844,12 +892,13 @@ export function ExpenseForm({
           Keep both controls in the same row and same button style. The
           draft button is hidden when editing an already-materialized
           expense to avoid an accidental "demote-to-draft". */}
-      <div className="-mb-1 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 px-5 pt-5 sm:px-8 sm:pt-7">
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={() => setAiOpen((open) => !open)}
+          aria-expanded={aiOpen}
           className={aiOpen ? 'bg-secondary' : undefined}
         >
           <Sparkles className="size-4" /> {t('expenses.ai_open')}
@@ -860,6 +909,7 @@ export function ExpenseForm({
             variant="outline"
             size="sm"
             onClick={() => setIsDraftMode((v) => !v)}
+            aria-pressed={isDraftMode}
             className={isDraftMode ? 'bg-secondary' : undefined}
             title={t('expenses.draft_mode_hint')}
           >
@@ -873,8 +923,8 @@ export function ExpenseForm({
           the parse endpoint and applies the returned suggestion to the
           form fields. The user always reviews before saving. */}
       {aiOpen && (
-        <div className="flex flex-col gap-2">
-          <div className="bg-secondary/30 flex flex-col gap-2 rounded-md border p-3">
+        <div className="flex flex-col gap-2 px-5 pt-3 sm:px-8">
+          <div className="bg-secondary/55 flex flex-col gap-3 rounded-2xl border p-4">
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 text-sm font-medium">
                 <Sparkles className="size-4" />{' '}
@@ -924,7 +974,7 @@ export function ExpenseForm({
               }
             />
             {aiAmbiguousHint && (
-              <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+              <p className="bg-signal/20 text-signal-foreground dark:text-signal rounded-lg px-2.5 py-1.5 text-xs">
                 {aiAmbiguousHint}
               </p>
             )}
@@ -952,37 +1002,10 @@ export function ExpenseForm({
         </div>
       )}
 
-      {/* ─── Row 1: Date | Title ──────────────────────────────────── */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="grid gap-2">
-          <Label htmlFor="occurredAt">{t('expenses.date')}</Label>
-          <Input
-            id="occurredAt"
-            name="occurredAt"
-            type="date"
-            required
-            defaultValue={
-              defaults ? defaults.occurredAt.toISOString().slice(0, 10) : todayLocalISO()
-            }
-          />
-        </div>
-        <div className="grid gap-2 sm:col-span-2">
-          <Label htmlFor="title">{t('expenses.title_field')}</Label>
-          <Input
-            id="title"
-            name="title"
-            required
-            maxLength={120}
-            defaultValue={defaults?.title ?? ''}
-            placeholder={t('expenses.title_placeholder')}
-          />
-        </div>
-      </div>
-
       {/* ─── Row 2: Amount | Currency | Payer | Attach receipts ────
           Mobile: amount + currency share one row, then payer + attach
           stack below. Desktop keeps the original four-column row. */}
-      <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr_auto] sm:items-end">
+      <section className="from-secondary/55 via-secondary/30 mt-5 flex flex-col gap-4 border-y bg-linear-to-br to-transparent px-5 py-6 sm:mt-7 sm:grid sm:grid-cols-[1.35fr_auto_1fr_auto] sm:items-end sm:px-8 sm:py-8">
         <input type="hidden" name="currency" value={currency} />
         {!isDraftMode && (
           <div className="grid gap-2 sm:contents">
@@ -997,35 +1020,24 @@ export function ExpenseForm({
                   value={amountText}
                   onChange={(e) => setAmountText(e.target.value)}
                   keypadTitle={t('expenses.amount')}
+                  className="h-14 rounded-2xl border-0 bg-transparent px-0 font-mono text-3xl font-semibold tracking-[-0.04em] shadow-none ring-0 focus-visible:ring-0 sm:h-16 sm:text-4xl"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="currency">{t('expenses.currency')}</Label>
-                <Input
-                  id="currency"
-                  minLength={3}
-                  maxLength={3}
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                  className="w-20 uppercase"
-                  disabled
-                />
+                <span className="text-sm font-medium">{t('expenses.currency')}</span>
+                <span className="text-muted-foreground flex h-11 w-20 items-center font-mono text-sm">
+                  {currency}
+                </span>
               </div>
             </div>
           </div>
         )}
         {isDraftMode && (
           <div className="grid gap-2">
-            <Label htmlFor="currency">{t('expenses.currency')}</Label>
-            <Input
-              id="currency"
-              minLength={3}
-              maxLength={3}
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              className="w-20 uppercase"
-              disabled
-            />
+            <span className="text-sm font-medium">{t('expenses.currency')}</span>
+            <span className="text-muted-foreground flex h-11 w-20 items-center font-mono text-sm">
+              {currency}
+            </span>
           </div>
         )}
         <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
@@ -1060,18 +1072,52 @@ export function ExpenseForm({
               multiple
               accept="image/*,application/pdf"
               className="hidden"
+              disabled={receiptControlsLocked}
               onChange={(e) => addFiles(e.target.files)}
             />
-            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={receiptControlsLocked}
+              aria-label={t('expenses.attach_receipts')}
+            >
               <Paperclip />
               <span className="hidden sm:inline">{t('expenses.attach_receipts')}</span>
             </Button>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* ─── Identity: title first, then date ─────────────────────── */}
+      <section className="grid gap-4 px-5 py-6 sm:grid-cols-3 sm:px-8 sm:py-8">
+        <div className="grid gap-2 sm:col-span-2">
+          <Label htmlFor="title">{t('expenses.title_field')}</Label>
+          <Input
+            id="title"
+            name="title"
+            required
+            maxLength={120}
+            defaultValue={defaults?.title ?? ''}
+            placeholder={t('expenses.title_placeholder')}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="occurredAt">{t('expenses.date')}</Label>
+          <Input
+            id="occurredAt"
+            name="occurredAt"
+            type="date"
+            required
+            defaultValue={
+              defaults ? defaults.occurredAt.toISOString().slice(0, 10) : todayLocalISO()
+            }
+          />
+        </div>
+      </section>
 
       {!isDraftMode && currency !== groupCurrency && (
-        <div className="grid gap-2">
+        <div className="mx-5 grid gap-2 sm:mx-8">
           <Label htmlFor="fxRateOverride">{t('expenses.fx_rate_override')}</Label>
           <NumericInput
             id="fxRateOverride"
@@ -1086,7 +1132,7 @@ export function ExpenseForm({
       )}
 
       {pendingFiles.length > 0 && (
-        <div className="flex flex-col gap-1">
+        <div className="mx-5 flex flex-col gap-1 sm:mx-8">
           {pendingFiles.length > 0 && (
             <ul className="flex flex-col gap-1">
               {pendingFiles.map((f, i) => (
@@ -1107,6 +1153,7 @@ export function ExpenseForm({
                     size="icon"
                     className="size-6"
                     onClick={() => removeFile(i)}
+                    disabled={receiptControlsLocked}
                     aria-label={t('expenses.remove_receipt')}
                   >
                     <X className="size-3" />
@@ -1120,247 +1167,300 @@ export function ExpenseForm({
 
       {/* ─── Split rule (hidden in DRAFT mode) ──────────────── */}
       {!isDraftMode && (
-        <fieldset className="grid gap-3 rounded-md border p-3 sm:p-4">
-          <legend className="px-2 text-sm font-medium">{t('expenses.split_rule')}</legend>
+        <fieldset className="bg-background/55 mx-5 mb-6 grid gap-4 rounded-2xl border p-4 sm:mx-8 sm:p-5">
+          <legend className="px-2 text-sm font-semibold">{t('expenses.split_rule')}</legend>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={btnToggleAll}>
-              {rows.every((r) => r.checked)
-                ? t('expenses.btn_deselect_all')
-                : t('expenses.btn_select_all')}
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={btnEqualSplitAll}>
-              {t('expenses.btn_equal_split_all')}
-            </Button>
-          </div>
+          <details
+            className="group"
+            open={splitEditorOpen}
+            onToggle={(event) => setSplitEditorOpen(event.currentTarget.open)}
+          >
+            <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center gap-3 rounded-xl p-1 focus-visible:ring-2 focus-visible:outline-hidden [&::-webkit-details-marker]:hidden">
+              <span className="flex shrink-0 -space-x-1.5">
+                {activeSplitRows.slice(0, 4).map(({ row }) => {
+                  const member = members.find((candidate) => candidate.id === row.memberId);
+                  return (
+                    <span
+                      key={row.memberId}
+                      className="bg-secondary text-secondary-foreground ring-background grid size-7 place-items-center rounded-full text-[10px] font-bold ring-2"
+                      aria-hidden
+                    >
+                      {member?.displayName.trim().slice(0, 1).toUpperCase() || '?'}
+                    </span>
+                  );
+                })}
+                {activeSplitRows.length > 4 ? (
+                  <span
+                    className="bg-muted text-muted-foreground ring-background grid size-7 place-items-center rounded-full text-[9px] font-bold ring-2"
+                    aria-hidden
+                  >
+                    +{activeSplitRows.length - 4}
+                  </span>
+                ) : null}
+              </span>
+              <span className="min-w-0 flex-1">
+                <strong className="block text-sm">{splitSummaryTitle}</strong>
+                <span className="text-muted-foreground mt-0.5 block text-xs">
+                  {splitSummaryDetail}
+                </span>
+              </span>
+              <span className="text-primary-ink text-xs font-semibold group-open:hidden">
+                {t('expenses.adjust_split')}
+              </span>
+              <span className="text-muted-foreground hidden text-xs font-semibold group-open:inline">
+                {t('expenses.collapse_split')}
+              </span>
+            </summary>
 
-          {/* ─── Desktop: tabular layout ───────────────────────── */}
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-sm">
-              <thead className="text-muted-foreground text-xs">
-                <tr>
-                  <th className="w-7 px-1 py-1 text-left"></th>
-                  <th className="px-2 py-1 text-left font-medium">{t('expenses.col_member')}</th>
-                  <th className="w-32 px-1 py-1 text-center font-medium">
-                    {t('expenses.col_shares')}
-                  </th>
-                  <th className="w-24 px-1 py-1 text-right font-medium">
-                    {t('expenses.col_base')}
-                  </th>
-                  <th className="w-28 px-1 py-1 text-right font-medium">
-                    {t('expenses.col_extra')}
-                  </th>
-                  <th className="px-2 py-1 text-right font-medium whitespace-nowrap">
-                    {t('expenses.col_subtotal')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+            <div className="mt-4 flex flex-col gap-4 border-t pt-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={btnToggleAll}>
+                  {rows.every((r) => r.checked)
+                    ? t('expenses.btn_deselect_all')
+                    : t('expenses.btn_select_all')}
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={btnEqualSplitAll}>
+                  {t('expenses.btn_equal_split_all')}
+                </Button>
+              </div>
+
+              {/* ─── Desktop: tabular layout ───────────────────────── */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-sm">
+                  <thead className="text-muted-foreground text-xs">
+                    <tr>
+                      <th className="w-7 px-1 py-1 text-left"></th>
+                      <th className="px-2 py-1 text-left font-medium">
+                        {t('expenses.col_member')}
+                      </th>
+                      <th className="w-32 px-1 py-1 text-center font-medium">
+                        {t('expenses.col_shares')}
+                      </th>
+                      <th className="w-24 px-1 py-1 text-right font-medium">
+                        {t('expenses.col_base')}
+                      </th>
+                      <th className="w-28 px-1 py-1 text-right font-medium">
+                        {t('expenses.col_extra')}
+                      </th>
+                      <th className="px-2 py-1 text-right font-medium whitespace-nowrap">
+                        {t('expenses.col_subtotal')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => {
+                      const m = members.find((x) => x.id === r.memberId);
+                      if (!m) return null;
+                      const hasContribution = r.checked || perMemberFinal[i]! > 0n;
+                      const baseShown = r.checked ? r.baseText || formatMinor(0n, currency) : null;
+                      return (
+                        <tr key={r.memberId} className="border-t">
+                          <td className="px-1 py-1.5">
+                            <input
+                              type="checkbox"
+                              className="size-4"
+                              checked={r.checked}
+                              onChange={(e) => setChecked(r.memberId, e.target.checked)}
+                              aria-label={t('expenses.member_field', {
+                                name: m.displayName,
+                                field: t('expenses.split_rule'),
+                              })}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 font-medium">{m.displayName}</td>
+                          <td className="px-1 py-1.5">
+                            <SharesStepper
+                              value={r.shares}
+                              disabled={!r.checked}
+                              onChange={(v) => setShares(r.memberId, v)}
+                              onBump={(d) => bumpShares(r.memberId, d)}
+                              decLabel={t('expenses.shares_dec')}
+                              incLabel={t('expenses.shares_inc')}
+                              label={t('expenses.member_field', {
+                                name: m.displayName,
+                                field: t('expenses.col_shares'),
+                              })}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-mono tabular-nums">
+                            {baseShown ?? <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="px-1 py-1.5">
+                            <ExtraInput
+                              value={r.extraText}
+                              onChange={(v) => updateRow(r.memberId, { extraText: v })}
+                              clearLabel={t('expenses.clear')}
+                              label={t('expenses.member_field', {
+                                name: m.displayName,
+                                field: t('expenses.col_extra'),
+                              })}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-mono whitespace-nowrap tabular-nums">
+                            {hasContribution ? (
+                              <>
+                                <span className="text-muted-foreground mr-1 text-xs">
+                                  {currency}
+                                </span>
+                                {formatMinor(perMemberFinal[i]!, currency)}
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t font-medium">
+                      <td colSpan={4} className="px-2 py-2 text-right text-xs">
+                        {t('expenses.split_total')}
+                      </td>
+                      <td className="px-1 py-2 text-right font-mono text-xs whitespace-nowrap tabular-nums">
+                        {totalMinor !== null ? (
+                          <>
+                            <span className="text-muted-foreground mr-1">{currency}</span>
+                            {formatMinor(totalMinor, currency)}
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td
+                        className={`px-2 py-2 text-right font-mono whitespace-nowrap tabular-nums ${
+                          sumMatchesTotal
+                            ? 'text-positive-ink'
+                            : totalMinor === null
+                              ? 'text-muted-foreground'
+                              : 'text-destructive-ink'
+                        }`}
+                      >
+                        <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
+                        {formatMinor(sumMinor, currency)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* ─── Mobile: stacked card layout ────────────────────
+            Tapping the row toggles the checkbox; stepper sits in the same
+            row so adjustments need only one thumb. */}
+              <ul className="flex flex-col gap-2 md:hidden">
                 {rows.map((r, i) => {
                   const m = members.find((x) => x.id === r.memberId);
                   if (!m) return null;
-                  const hasContribution = r.checked || perMemberFinal[i]! > 0n;
-                  const baseShown = r.checked ? r.baseText || formatMinor(0n, currency) : null;
+                  const finalMinor = perMemberFinal[i]!;
+                  const hasContribution = r.checked || finalMinor > 0n;
                   return (
-                    <tr key={r.memberId} className="border-t">
-                      <td className="px-1 py-1.5">
+                    <li
+                      key={r.memberId}
+                      className={`flex flex-col gap-2 rounded-md border p-2.5 ${
+                        r.checked ? 'bg-card' : 'bg-muted/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
                         <input
                           type="checkbox"
-                          className="size-4"
+                          className="size-4 shrink-0"
                           checked={r.checked}
                           onChange={(e) => setChecked(r.memberId, e.target.checked)}
+                          aria-label={m.displayName}
                         />
-                      </td>
-                      <td className="px-2 py-1.5 font-medium">{m.displayName}</td>
-                      <td className="px-1 py-1.5">
-                        <SharesStepper
-                          value={r.shares}
-                          disabled={!r.checked}
-                          onChange={(v) => setShares(r.memberId, v)}
-                          onBump={(d) => bumpShares(r.memberId, d)}
-                          decLabel={t('expenses.shares_dec')}
-                          incLabel={t('expenses.shares_inc')}
-                          label={t('expenses.member_field', {
-                            name: m.displayName,
-                            field: t('expenses.col_shares'),
-                          })}
-                        />
-                      </td>
-                      <td className="px-2 py-1.5 text-right font-mono tabular-nums">
-                        {baseShown ?? <span className="text-muted-foreground">—</span>}
-                      </td>
-                      <td className="px-1 py-1.5">
-                        <ExtraInput
-                          value={r.extraText}
-                          onChange={(v) => updateRow(r.memberId, { extraText: v })}
-                          clearLabel={t('expenses.clear')}
-                          label={t('expenses.member_field', {
-                            name: m.displayName,
-                            field: t('expenses.col_extra'),
-                          })}
-                        />
-                      </td>
-                      <td className="px-2 py-1.5 text-right font-mono whitespace-nowrap tabular-nums">
-                        {hasContribution ? (
-                          <>
-                            <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
-                            {formatMinor(perMemberFinal[i]!, currency)}
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                          {m.displayName}
+                        </span>
+                        <span className="text-right font-mono text-sm whitespace-nowrap tabular-nums">
+                          {hasContribution ? (
+                            <>
+                              <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
+                              {formatMinor(finalMinor, currency)}
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+                            {t('expenses.col_shares')}
+                          </span>
+                          <SharesStepper
+                            value={r.shares}
+                            disabled={!r.checked}
+                            onChange={(v) => setShares(r.memberId, v)}
+                            onBump={(d) => bumpShares(r.memberId, d)}
+                            decLabel={t('expenses.shares_dec')}
+                            incLabel={t('expenses.shares_inc')}
+                            label={t('expenses.member_field', {
+                              name: m.displayName,
+                              field: t('expenses.col_shares'),
+                            })}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+                            {t('expenses.col_extra')}
+                          </span>
+                          <ExtraInput
+                            value={r.extraText}
+                            onChange={(v) => updateRow(r.memberId, { extraText: v })}
+                            clearLabel={t('expenses.clear')}
+                            label={t('expenses.member_field', {
+                              name: m.displayName,
+                              field: t('expenses.col_extra'),
+                            })}
+                          />
+                        </div>
+                      </div>
+                    </li>
                   );
                 })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t font-medium">
-                  <td colSpan={4} className="px-2 py-2 text-right text-xs">
-                    {t('expenses.split_total')}
-                  </td>
-                  <td className="px-1 py-2 text-right font-mono text-xs whitespace-nowrap tabular-nums">
-                    {totalMinor !== null ? (
-                      <>
-                        <span className="text-muted-foreground mr-1">{currency}</span>
-                        {formatMinor(totalMinor, currency)}
-                      </>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td
-                    className={`px-2 py-2 text-right font-mono whitespace-nowrap tabular-nums ${
+              </ul>
+
+              {/* ─── Totals readout (mobile only — desktop has it in tfoot) ─ */}
+              <div className="flex items-center justify-between gap-3 text-sm md:hidden">
+                <span className="text-muted-foreground text-xs">{t('expenses.split_total')}</span>
+                <span className="flex items-baseline gap-3 font-mono tabular-nums">
+                  <span className="text-muted-foreground text-xs">
+                    {totalMinor !== null ? formatMinor(totalMinor, currency) : '—'}
+                  </span>
+                  <span
+                    className={
                       sumMatchesTotal
-                        ? 'text-emerald-600'
+                        ? 'text-positive-ink'
                         : totalMinor === null
                           ? 'text-muted-foreground'
-                          : 'text-destructive'
-                    }`}
+                          : 'text-destructive-ink'
+                    }
                   >
-                    <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
-                    {formatMinor(sumMinor, currency)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                    {formatMinor(sumMinor, currency)} {currency}
+                  </span>
+                </span>
+              </div>
 
-          {/* ─── Mobile: stacked card layout ────────────────────
-            Tapping the row toggles the checkbox; stepper sits in the same
-            row so adjustments need only one thumb. */}
-          <ul className="flex flex-col gap-2 md:hidden">
-            {rows.map((r, i) => {
-              const m = members.find((x) => x.id === r.memberId);
-              if (!m) return null;
-              const finalMinor = perMemberFinal[i]!;
-              const hasContribution = r.checked || finalMinor > 0n;
-              return (
-                <li
-                  key={r.memberId}
-                  className={`flex flex-col gap-2 rounded-md border p-2.5 ${
-                    r.checked ? 'bg-card' : 'bg-muted/30'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      className="size-4 shrink-0"
-                      checked={r.checked}
-                      onChange={(e) => setChecked(r.memberId, e.target.checked)}
-                      aria-label={m.displayName}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                      {m.displayName}
-                    </span>
-                    <span className="text-right font-mono text-sm whitespace-nowrap tabular-nums">
-                      {hasContribution ? (
-                        <>
-                          <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
-                          {formatMinor(finalMinor, currency)}
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
-                        {t('expenses.col_shares')}
-                      </span>
-                      <SharesStepper
-                        value={r.shares}
-                        disabled={!r.checked}
-                        onChange={(v) => setShares(r.memberId, v)}
-                        onBump={(d) => bumpShares(r.memberId, d)}
-                        decLabel={t('expenses.shares_dec')}
-                        incLabel={t('expenses.shares_inc')}
-                        label={t('expenses.member_field', {
-                          name: m.displayName,
-                          field: t('expenses.col_shares'),
-                        })}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
-                        {t('expenses.col_extra')}
-                      </span>
-                      <ExtraInput
-                        value={r.extraText}
-                        onChange={(v) => updateRow(r.memberId, { extraText: v })}
-                        clearLabel={t('expenses.clear')}
-                        label={t('expenses.member_field', {
-                          name: m.displayName,
-                          field: t('expenses.col_extra'),
-                        })}
-                      />
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-
-          {/* ─── Totals readout (mobile only — desktop has it in tfoot) ─ */}
-          <div className="flex items-center justify-between gap-3 text-sm md:hidden">
-            <span className="text-muted-foreground text-xs">{t('expenses.split_total')}</span>
-            <span className="flex items-baseline gap-3 font-mono tabular-nums">
-              <span className="text-muted-foreground text-xs">
-                {totalMinor !== null ? formatMinor(totalMinor, currency) : '—'}
-              </span>
-              <span
-                className={
-                  sumMatchesTotal
-                    ? 'text-emerald-600'
-                    : totalMinor === null
-                      ? 'text-muted-foreground'
-                      : 'text-destructive'
-                }
-              >
-                {formatMinor(sumMinor, currency)} {currency}
-              </span>
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            {totalMinor !== null && !sumMatchesTotal && !anyParseError && (
-              <p className="text-destructive text-xs">
-                {t('expenses.split_diff', {
-                  diff: `${diffMinor < 0n ? '+' : ''}${formatMinor(-diffMinor, currency)}`,
-                  currency,
-                })}
-              </p>
-            )}
-            {anyParseError && (
-              <p className="text-destructive text-xs">{t('errors.invalid_amount')}</p>
-            )}
-          </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {totalMinor !== null && !sumMatchesTotal && !anyParseError && (
+                  <p className="text-destructive-ink text-xs">
+                    {t('expenses.split_diff', {
+                      diff: `${diffMinor < 0n ? '+' : ''}${formatMinor(-diffMinor, currency)}`,
+                      currency,
+                    })}
+                  </p>
+                )}
+                {anyParseError && (
+                  <p className="text-destructive-ink text-xs">{t('errors.invalid_amount')}</p>
+                )}
+              </div>
+            </div>
+          </details>
         </fieldset>
       )}
 
       {/* ─── Note ─────────────────────────────────────────────────── */}
-      <div className="grid gap-2">
+      <div className="mx-5 mb-5 grid gap-2 sm:mx-8 sm:mb-7">
         <Label htmlFor="note">{t('expenses.note')}</Label>
         <Textarea
           id="note"
@@ -1371,20 +1471,27 @@ export function ExpenseForm({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="submit"
-          disabled={submitDisabled}
-          {...(isDraftMode ? { formNoValidate: true } : {})}
-        >
-          {uploadingReceipts
-            ? t('expenses.uploading_receipts')
-            : pending
-              ? t('expenses.submitting')
-              : isDraftMode
-                ? t('expenses.submit_draft')
-                : t('expenses.submit')}
-        </Button>
+      <div className="bg-card/92 fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:sticky lg:inset-x-auto lg:z-10 lg:px-8 lg:py-4">
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3">
+          <p className="text-muted-foreground hidden text-xs sm:block">
+            {isDraftMode ? t('expenses.draft_mode_hint') : t('expenses.ai_hint')}
+          </p>
+          <Button
+            type="submit"
+            disabled={submitDisabled}
+            size="lg"
+            className="w-full sm:ml-auto sm:w-auto sm:min-w-40"
+            {...(isDraftMode ? { formNoValidate: true } : {})}
+          >
+            {uploadingReceipts
+              ? t('expenses.uploading_receipts')
+              : pending
+                ? t('expenses.submitting')
+                : isDraftMode
+                  ? t('expenses.submit_draft')
+                  : t('expenses.submit')}
+          </Button>
+        </div>
       </div>
     </form>
   );
@@ -1431,6 +1538,7 @@ function SharesStepper({
         disabled={disabled}
         unstyled
         keypadTitle={label}
+        aria-label={label}
         className="w-full min-w-0 flex-1 border-x bg-transparent text-center text-sm tabular-nums focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
       />
       <button
@@ -1465,6 +1573,7 @@ function ExtraInput({
         placeholder="0"
         allowNegative
         keypadTitle={label}
+        aria-label={label}
         className="h-9 w-full pr-7 pl-2 text-right font-mono tabular-nums"
       />
       {value && (

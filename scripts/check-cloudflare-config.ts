@@ -49,8 +49,18 @@ async function main() {
   const durableBindings = new Set(
     production.durable_objects?.bindings?.map((binding) => binding.name) ?? [],
   );
-  for (const binding of ['GROUP_ROOMS', 'AUTH_LIMITER']) {
+  for (const binding of ['GROUP_ROOMS', 'RATE_LIMITER']) {
     if (!durableBindings.has(binding)) failures.push(`configure the production ${binding} binding`);
+  }
+
+  if (production.vars?.OIDC_ISSUER !== 'https://auth.pangda.app') {
+    failures.push('set env.production.vars.OIDC_ISSUER to https://auth.pangda.app');
+  }
+  if (!production.vars?.OIDC_CLIENT_ID) {
+    failures.push('set env.production.vars.OIDC_CLIENT_ID');
+  }
+  if (production.vars?.OIDC_RESOURCE !== 'https://aaeasy.pangda.app') {
+    failures.push('set env.production.vars.OIDC_RESOURCE to https://aaeasy.pangda.app');
   }
 
   if (failures.length > 0) {

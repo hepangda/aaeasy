@@ -2,9 +2,9 @@ import { createDatabase } from '@aaeasy/db';
 import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { csrf } from 'hono/csrf';
-import { secureHeaders } from 'hono/secure-headers';
 import type { AppEnv } from './app-env';
 import { handleApiError } from './lib/errors';
+import { apiSecureHeaders } from './middleware/secure-headers';
 import { accountRoutes } from './routes/account';
 import { aiRoutes } from './routes/ai';
 import { authRoutes } from './routes/auth';
@@ -20,7 +20,7 @@ export { RateLimiter } from './durable-objects/rate-limiter';
 
 const app = new Hono<AppEnv>();
 
-app.use('/api/*', secureHeaders());
+app.use('/api/*', apiSecureHeaders());
 app.use('/api/*', csrf());
 app.use('/api/*', async (c, next) => {
   c.set('db', createDatabase(c.env.HYPERDRIVE.connectionString));

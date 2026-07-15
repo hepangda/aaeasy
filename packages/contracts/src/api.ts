@@ -12,6 +12,8 @@ export interface SessionUserDto {
   id: string;
   displayName: string;
   username: string | null;
+  email: string | null;
+  picture: string | null;
   isSuperAdmin: boolean;
 }
 

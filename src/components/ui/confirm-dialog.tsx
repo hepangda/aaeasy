@@ -60,6 +60,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
         open={state !== null}
         onClose={() => finish(false)}
         title={state?.opts.title}
+        ariaLabel={state?.opts.title ?? state?.opts.message}
         className="max-w-sm"
       >
         <p className="text-sm leading-relaxed">{state?.opts.message}</p>

@@ -1,20 +1,10 @@
-import { actionRequest, formString } from '@/spa/api';
+import { actionRequest } from '@/spa/api';
 
 export type AccountActionState = {
   ok: boolean;
   error?: string;
   fieldErrors?: Record<string, string>;
 };
-
-export async function setDisplayNameAction(
-  _previous: AccountActionState,
-  formData: FormData,
-): Promise<AccountActionState> {
-  return actionRequest('/api/account/profile', {
-    method: 'PATCH',
-    body: JSON.stringify({ displayName: formString(formData, 'displayName') }),
-  });
-}
 
 export async function transferOwnershipAction(input: {
   groupId: string;
@@ -26,10 +16,12 @@ export async function transferOwnershipAction(input: {
   });
 }
 
-export async function deleteAccountAction(): Promise<never> {
-  await actionRequest('/api/account', { method: 'DELETE' });
-  window.location.assign('/');
-  throw new Error('REDIRECT');
+export async function deleteAccountAction(): Promise<AccountActionState> {
+  const result = await actionRequest<AccountActionState & { redirectTo?: string }>('/api/account', {
+    method: 'DELETE',
+  });
+  if (result.ok) window.location.assign(result.redirectTo ?? '/');
+  return result;
 }
 
 export async function listOwnedGroups() {

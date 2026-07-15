@@ -29,27 +29,31 @@ const RATIO_MAX_WEIGHT = 10;
 export function classifySplit({ splits, splitRule }: ClassifyInput): SplitClass {
   const nonZero = splits.filter((s) => s.shareMinor > 0n);
   if (nonZero.length === 0) return 'CUSTOM';
-  if (nonZero.length === 1) return 'SOLO';
 
   // Trust an explicit non-EXACT rule.
   if (splitRule) {
-    if (splitRule.type === 'EQUAL' || splitRule.type === 'SUBSET') return 'EQUAL';
+    if (splitRule.type === 'EQUAL' || splitRule.type === 'SUBSET') {
+      return splitRule.memberIds.length === 1 ? 'SOLO' : 'EQUAL';
+    }
     if (splitRule.type === 'WEIGHTED') {
       const weights = splitRule.weights
-        .filter((w) => w.weight !== '0' && w.weight !== '0.0')
-        .map((w) => w.weight);
+        .map((entry) => normalizeWeight(entry.weight))
+        .filter((weight) => weight !== '0');
+      if (weights.length === 1) return 'SOLO';
       return new Set(weights).size === 1 ? 'EQUAL' : 'RATIO';
     }
     // EXACT → fall through to the numeric heuristic.
   }
 
+  if (nonZero.length === 1) return 'SOLO';
+
   const amounts = nonZero.map((s) => s.shareMinor).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const min = amounts[0]!;
   const max = amounts[amounts.length - 1]!;
 
-  // EQUAL within LRM tail-difference (max-min ≤ N is impossible to exceed
-  // when all participants got the same fair share).
-  if (max - min <= BigInt(amounts.length)) return 'EQUAL';
+  // Equal splitting with largest-remainder rounding can only make the
+  // highest and lowest resolved shares differ by one minor unit.
+  if (max - min <= 1n) return 'EQUAL';
 
   // Try to spot a small integer ratio by dividing every amount by their GCD.
   let g = amounts[0]!;
@@ -61,6 +65,13 @@ export function classifySplit({ splits, splitRule }: ClassifyInput): SplitClass 
   }
 
   return 'CUSTOM';
+}
+
+function normalizeWeight(weight: string): string {
+  const [whole = '0', fraction = ''] = weight.split('.');
+  const normalizedWhole = whole.replace(/^0+(?=\d)/, '');
+  const normalizedFraction = fraction.replace(/0+$/, '');
+  return normalizedFraction ? `${normalizedWhole}.${normalizedFraction}` : normalizedWhole;
 }
 
 function bigGcd(a: bigint, b: bigint): bigint {

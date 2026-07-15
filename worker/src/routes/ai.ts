@@ -35,7 +35,7 @@ async function context(c: Parameters<typeof requireGroupAccess>[0], groupId: str
   const access = await requireGroupAccess(c, groupId, 'WRITE_EXPENSE');
   const principal =
     access.kind === 'user' ? `user:${access.userId}` : `share:${access.shareLinkId}`;
-  const limit = await c.env.AUTH_LIMITER.getByName(`ai:${principal}:${getClientIp(c)}`).consume({
+  const limit = await c.env.RATE_LIMITER.getByName(`ai:${principal}:${getClientIp(c)}`).consume({
     windowMs: 60_000,
     max: 10,
   });

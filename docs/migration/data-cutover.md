@@ -4,8 +4,9 @@
 
 ## 迁移对象
 
-- PostgreSQL：19 张业务表及全部行。
-- Schema 增量：`groups.revision bigint not null default 0`、`expenses.version integer not null default 1`。
+- PostgreSQL：迁移前的 19 张表及全部业务行；迁移后保留 15 张业务/会话表。
+- Schema 增量：`groups.revision bigint not null default 0`、`expenses.version integer not null default 1`，以及 OIDC 用户资料和加密会话字段。
+- 认证切换：删除 `allowed_usernames`、`auth_challenges`、`passkey_credentials`、`password_credentials`，清空不能迁移到 OIDC 的旧 `sessions`；`users.id` 和全部业务外键保持不变。
 - Drizzle metadata：`drizzle.__drizzle_migrations`。
 - 小票对象：按数据库中的 `receipts.objectKey` 原样复制到私有 R2。
 - 不迁移 XLSX 逻辑；新系统保留 CSV 和 PDF。
@@ -20,7 +21,9 @@ export DIRECT_DATABASE_URL='postgresql://...'
 pnpm db:adopt -- --yes
 ```
 
-脚本会验证既有 19 张表，登记 baseline，再应用 Cloudflare revision migration。若新增列已由其他流程创建，脚本只登记 migration，不重复修改。
+脚本会验证既有 19 张表，登记 baseline，再依次应用 Cloudflare revision 与 Pangda Auth OIDC migration。若 revision 列已由其他流程创建，脚本会登记对应 migration 后继续执行 OIDC migration。
+
+OIDC migration 不可逆地删除本地登录凭据。执行前必须确认每个需要保留的 KeyForge 用户 `sub` 与对应 AAEasy `users.id` 完全一致，并保留迁移前数据库备份。
 
 ## 路径 B：迁移到 Neon
 
@@ -145,13 +148,13 @@ Importer 会逐对象校验 HTTP 状态和可选 `sizeBytes`，上传失败立�
 5. 完成 R2 增量复制并抽样。
 6. 确认 `wrangler.jsonc` 的 production Hyperdrive、R2、APP_URL 和 secrets。
 7. 执行 `pnpm check` 和 `pnpm deploy`。
-8. 用 Worker URL 做登录、写入、WebSocket、R2、CSV、PDF smoke test。
+8. 用 Worker URL 完成 Pangda Auth 登录/退出、写入、WebSocket、R2、CSV、PDF smoke test。
 9. 切 custom domain / DNS。
 10. 观察至少一个业务高峰后，再撤下旧部署；旧 Blob 先保留一个回滚窗口。
 
 ## 写入后回滚
 
-数据库仍可回滚到旧应用读取，但必须处理两类新数据：
+OIDC schema 不兼容旧应用的本地登录实现。回滚旧应用时必须恢复迁移前数据库备份；仅切换代码或 DNS 无法恢复密码/Passkey 登录。恢复后仍需处理两类新数据：
 
 - 新 Worker 创建的小票只存在 R2，旧 Blob reader 无法读取；
 - 新 Worker 的 WebSocket revision history 只存在 DO storage，但它不是业务事实，不需要回迁。

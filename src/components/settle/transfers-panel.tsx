@@ -1,4 +1,4 @@
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from '@/compat/navigation';
 import { useTranslations } from 'use-intl';
 import { ArrowRight, Check, Copy, Plus, Trash2, X } from 'lucide-react';
@@ -65,13 +65,49 @@ export function TransfersPanel({
 
   // Manual-add form state.
   const [manualOpen, setManualOpen] = useState(false);
-  const [from, setFrom] = useState(members[0]?.id ?? '');
-  const [to, setTo] = useState(members[1]?.id ?? members[0]?.id ?? '');
+  const [from, setFrom] = useState(boundMemberId ?? members[0]?.id ?? '');
+  const [to, setTo] = useState(
+    members.find((member) => member.id !== (boundMemberId ?? members[0]?.id))?.id ?? '',
+  );
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const memberIdsKey = members.map((member) => member.id).join('|');
+  const toOptions =
+    boundMemberId && from !== boundMemberId
+      ? members.filter((member) => member.id === boundMemberId)
+      : members.filter((member) => member.id !== from);
+  const manualSelectionValid =
+    Boolean(from && to && from !== to) &&
+    (!boundMemberId || from === boundMemberId || to === boundMemberId);
+  const manualSubmissionReady = manualSelectionValid && amount.trim().length > 0;
+  const canAddManual = canEdit && members.length >= 2;
+
+  useEffect(() => {
+    const memberIds = memberIdsKey.split('|').filter(Boolean);
+    const ids = new Set(memberIds);
+    const nextFrom = boundMemberId && ids.has(boundMemberId) ? boundMemberId : (memberIds[0] ?? '');
+    const nextTo = memberIds.find((memberId) => memberId !== nextFrom) ?? '';
+    setFrom(nextFrom);
+    setTo(nextTo);
+  }, [boundMemberId, memberIdsKey]);
+
+  function changeFrom(next: string) {
+    setFrom(next);
+    if (boundMemberId && next !== boundMemberId) {
+      setTo(boundMemberId);
+      return;
+    }
+    if (to === next || !members.some((member) => member.id === to)) {
+      setTo(members.find((member) => member.id !== next)?.id ?? '');
+    }
+  }
+
+  function changeTo(next: string) {
+    setTo(next);
+  }
 
   function execute(s: SuggestedTransfer) {
-    if (!canEdit || pending) return;
+    if (!canEdit || pending || !manualSubmissionReady) return;
     startTransition(async () => {
       const res = await addSettlementEntryAction({
         groupId,
@@ -134,7 +170,7 @@ export function TransfersPanel({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // ignore
+      showI18nError(t, 'errors.unknown');
     }
   }
 
@@ -155,20 +191,23 @@ export function TransfersPanel({
             {t('summary.transfers_empty')}
           </p>
         ) : (
-          <ul className="divide-y rounded-md border">
+          <ul className="divide-y rounded-xl border">
             {suggested.map((s, i) => {
               const involves =
                 !boundMemberId ||
                 s.fromMemberId === boundMemberId ||
                 s.toMemberId === boundMemberId;
               return (
-                <li key={i} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="font-medium">{s.fromName}</span>
+                <li
+                  key={i}
+                  className="flex flex-col items-stretch gap-2.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="min-w-0 truncate font-medium">{s.fromName}</span>
                     <ArrowRight className="text-muted-foreground size-4" />
-                    <span className="font-medium">{s.toName}</span>
+                    <span className="min-w-0 truncate font-medium">{s.toName}</span>
                   </span>
-                  <span className="flex items-center gap-3">
+                  <span className="flex items-center justify-between gap-3 sm:justify-end">
                     <span className="font-mono whitespace-nowrap tabular-nums">{s.amountText}</span>
                     {canEdit && involves && (
                       <Button
@@ -177,7 +216,7 @@ export function TransfersPanel({
                         variant="outline"
                         onClick={() => execute(s)}
                         disabled={pending}
-                        className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950"
+                        className="border-positive/50 text-positive-ink hover:bg-positive/10 hover:text-positive-ink"
                       >
                         <Check /> {t('settlements.execute')}
                       </Button>
@@ -194,23 +233,23 @@ export function TransfersPanel({
       <section className="flex flex-col gap-2">
         <header className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium">{t('settlements.executed')}</h3>
-          {canEdit && !manualOpen && (
+          {canAddManual && !manualOpen && (
             <Button type="button" size="sm" variant="outline" onClick={() => setManualOpen(true)}>
               <Plus /> {t('settlements.add_entry')}
             </Button>
           )}
         </header>
 
-        {manualOpen && canEdit && (
+        {manualOpen && canAddManual && (
           <form
             onSubmit={submitManual}
-            className="bg-muted/30 grid gap-3 rounded-md border p-4 sm:grid-cols-[1fr_auto_1fr_120px_auto]"
+            className="bg-muted/30 grid gap-3 rounded-xl border p-4 sm:grid-cols-[1fr_auto_1fr_120px_auto]"
           >
             <div className="grid gap-1.5">
               <Label htmlFor="se-from" className="text-xs">
                 {t('settlements.from')}
               </Label>
-              <Select id="se-from" value={from} onChange={(e) => setFrom(e.target.value)}>
+              <Select id="se-from" value={from} onChange={(e) => changeFrom(e.target.value)}>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.displayName}
@@ -225,8 +264,8 @@ export function TransfersPanel({
               <Label htmlFor="se-to" className="text-xs">
                 {t('settlements.to')}
               </Label>
-              <Select id="se-to" value={to} onChange={(e) => setTo(e.target.value)}>
-                {members.map((m) => (
+              <Select id="se-to" value={to} onChange={(e) => changeTo(e.target.value)}>
+                {toOptions.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.displayName}
                   </option>
@@ -247,7 +286,7 @@ export function TransfersPanel({
               />
             </div>
             <div className="flex items-end gap-1">
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" disabled={pending || !manualSubmissionReady}>
                 <Check /> {t('common.save')}
               </Button>
               <Button
@@ -261,6 +300,11 @@ export function TransfersPanel({
                 <X />
               </Button>
             </div>
+            {!manualSelectionValid ? (
+              <p className="text-destructive-ink text-xs sm:col-span-5">
+                {t('errors.same_member')}
+              </p>
+            ) : null}
             <div className="grid gap-1.5 sm:col-span-5">
               <Label htmlFor="se-note" className="text-xs">
                 {t('expenses.note')}
@@ -280,7 +324,7 @@ export function TransfersPanel({
             {t('settlements.no_entries')}
           </p>
         ) : (
-          <ul className="divide-y rounded-md border">
+          <ul className="divide-y rounded-xl border">
             {executed.map((e) => {
               const involves =
                 !boundMemberId ||
@@ -289,13 +333,13 @@ export function TransfersPanel({
               return (
                 <li
                   key={e.id}
-                  className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                  className="flex flex-col items-stretch gap-2.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex flex-col gap-0.5">
-                    <span className="flex items-center gap-2">
-                      <span className="font-medium">{e.fromName}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="min-w-0 truncate font-medium">{e.fromName}</span>
                       <ArrowRight className="text-muted-foreground size-4" />
-                      <span className="font-medium">{e.toName}</span>
+                      <span className="min-w-0 truncate font-medium">{e.toName}</span>
                     </span>
                     <span className="text-muted-foreground text-xs">
                       {e.occurredAt}
@@ -303,7 +347,7 @@ export function TransfersPanel({
                       {e.note ? ` · ${e.note}` : ''}
                     </span>
                   </div>
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center justify-between gap-2 sm:justify-end">
                     <span className="font-mono whitespace-nowrap tabular-nums">{e.amountText}</span>
                     {canEdit && involves && (
                       <Button
@@ -315,7 +359,7 @@ export function TransfersPanel({
                         disabled={pending}
                         aria-label={t('common.delete')}
                       >
-                        <Trash2 className="text-destructive" />
+                        <Trash2 className="text-destructive-ink" />
                       </Button>
                     )}
                   </span>
@@ -325,6 +369,10 @@ export function TransfersPanel({
           </ul>
         )}
       </section>
+
+      <p className="bg-muted/45 text-muted-foreground rounded-xl px-3 py-2.5 text-xs leading-5">
+        {t('settlements.record_disclaimer')}
+      </p>
     </div>
   );
 }

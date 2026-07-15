@@ -11,8 +11,8 @@
 // uncached API requests. Navigations stay network-first so a deployment picks
 // up its newest hashed assets before using the offline shell.
 
-const STATIC_CACHE = 'aaeasy-static-v2';
-const SHELL_CACHE = 'aaeasy-shell-v2';
+const STATIC_CACHE = 'aaeasy-static-v3';
+const SHELL_CACHE = 'aaeasy-shell-v3';
 const SHELL_URL = '/';
 
 self.addEventListener('install', (event) => {
@@ -51,6 +51,7 @@ function isStatic(url) {
     url.pathname === '/sw.js' ||
     url.pathname === '/favicon.ico' ||
     url.pathname === '/favicon-32x32.png' ||
+    url.pathname === '/brand-mark.svg' ||
     url.pathname === '/apple-icon.png' ||
     url.pathname === '/manifest.webmanifest'
   );

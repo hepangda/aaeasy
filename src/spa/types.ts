@@ -229,15 +229,6 @@ export interface ExpenseResponse {
 
 export interface AccountResponse {
   user: SessionUserDto;
-  session: { userAgent: string | null };
-  credentials: Array<{
-    id: string;
-    kind: 'passkey' | 'password';
-    label: string | null;
-    transports: string[];
-    createdAt: string;
-    lastUsedAt: string | null;
-  }>;
   ownedGroups: Array<{ id: string; name: string; memberCount: number }>;
   allLedgers: Array<{
     id: string;

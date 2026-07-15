@@ -37,7 +37,9 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
 
   if (invitations.length === 0) return null;
 
-  const allSelected = invitations.length > 0 && selected.size === invitations.length;
+  const validIds = new Set(invitations.map((invitation) => invitation.id));
+  const selectedIds = Array.from(selected).filter((id) => validIds.has(id));
+  const allSelected = invitations.length > 0 && selectedIds.length === invitations.length;
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -49,8 +51,8 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
   }
 
   function toggleAll() {
-    setSelected((prev) =>
-      prev.size === invitations.length ? new Set() : new Set(invitations.map((i) => i.id)),
+    setSelected(() =>
+      selectedIds.length === invitations.length ? new Set() : new Set(invitations.map((i) => i.id)),
     );
   }
 
@@ -122,10 +124,8 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
     });
   }
 
-  const selectedIds = Array.from(selected);
-
   return (
-    <section className="bg-card flex flex-col gap-3 rounded-lg border p-4">
+    <section className="bg-card flex flex-col gap-3 rounded-2xl border p-4">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="inline-flex items-center gap-1.5 text-base font-semibold">
           <Mail className="size-4" />
@@ -138,38 +138,36 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
           <Button type="button" size="sm" variant="ghost" onClick={toggleAll} disabled={pending}>
             {allSelected ? t('invitations.deselect_all') : t('invitations.select_all')}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => accept(selectedIds)}
-            disabled={pending || selectedIds.length === 0}
-          >
-            <Check />
-            {t('invitations.accept_selected')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => reject(selectedIds)}
-            disabled={pending || selectedIds.length === 0}
-          >
-            <X />
-            {t('invitations.reject_selected')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="destructive"
-            onClick={rejectAll}
-            disabled={pending}
-          >
-            {t('invitations.reject_all')}
-          </Button>
+          {selectedIds.length > 0 ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => accept(selectedIds)}
+                disabled={pending}
+              >
+                <Check />
+                {t('invitations.accept_selected')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => reject(selectedIds)}
+                disabled={pending}
+              >
+                <X />
+                {t('invitations.reject_selected')}
+              </Button>
+            </>
+          ) : (
+            <Button type="button" size="sm" variant="ghost" onClick={rejectAll} disabled={pending}>
+              {t('invitations.reject_all')}
+            </Button>
+          )}
         </div>
       </header>
-      <ul className="divide-y rounded-md border">
+      <ul className="divide-y rounded-xl border">
         {invitations.map((inv) => (
           <li key={inv.id} className="flex items-start gap-3 px-3 py-2.5 text-sm">
             <input
@@ -203,7 +201,7 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
                 aria-label={t('invitations.accept')}
                 title={t('invitations.accept')}
               >
-                <Check className="text-primary" />
+                <Check className="text-primary-ink" />
               </Button>
               <Button
                 type="button"
@@ -214,7 +212,7 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
                 aria-label={t('invitations.reject')}
                 title={t('invitations.reject')}
               >
-                <X className="text-destructive" />
+                <X className="text-destructive-ink" />
               </Button>
             </div>
           </li>

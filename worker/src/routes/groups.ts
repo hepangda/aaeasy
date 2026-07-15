@@ -84,7 +84,7 @@ async function rateLimit(
   key: string,
   input: { windowMs: number; max: number },
 ) {
-  const result = await c.env.AUTH_LIMITER.getByName(key).consume(input);
+  const result = await c.env.RATE_LIMITER.getByName(key).consume(input);
   if (!result.ok) {
     c.header('Retry-After', String(Math.max(1, Math.ceil((result.retryAfterMs ?? 1000) / 1000))));
   }

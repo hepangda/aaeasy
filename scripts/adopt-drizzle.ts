@@ -6,6 +6,9 @@ import postgres from 'postgres';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { drizzle } from 'drizzle-orm/postgres-js';
 
+// The adoption entrypoint targets the pre-OIDC legacy schema. Migration 0002
+// removes the four local-auth tables after their presence confirms that this is
+// the expected AAEasy database rather than an unrelated PostgreSQL schema.
 const expectedTables = [
   'allowed_usernames',
   'audit_logs',
@@ -105,9 +108,7 @@ try {
     }
   });
 
-  if (!hasRevision) {
-    await migrate(drizzle(client), { migrationsFolder: 'drizzle' });
-  }
+  await migrate(drizzle(client), { migrationsFolder: 'drizzle' });
   console.log('Drizzle now owns the existing AAEasy schema.');
 } finally {
   await client.end();

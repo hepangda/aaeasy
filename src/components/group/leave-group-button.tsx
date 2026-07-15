@@ -5,6 +5,7 @@ import { LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { leaveGroupAction } from '@/spa/actions/groups';
+import { showI18nError } from '@/lib/ui/toast';
 
 export function LeaveGroupButton({ groupId }: { groupId: string }) {
   const t = useTranslations();
@@ -25,12 +26,12 @@ export function LeaveGroupButton({ groupId }: { groupId: string }) {
             router.push('/groups');
             router.refresh();
           } else {
-            await confirm({ message: t(res.error ?? 'errors.unknown') });
+            showI18nError(t, res.error ?? 'errors.unknown');
           }
         });
       }}
     >
-      <LogOut className="text-destructive" /> {t('groups.leave')}
+      <LogOut className="text-destructive-ink" /> {t('groups.leave')}
     </Button>
   );
 }

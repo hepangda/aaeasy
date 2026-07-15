@@ -39,6 +39,7 @@ interface SettingsPanelProps {
   };
   isOwner: boolean;
   canManage: boolean;
+  canSettle: boolean;
   isArchived: boolean;
   settlementId?: string;
   existingShareLinks: ExistingShareLink[];
@@ -53,6 +54,7 @@ export function SettingsPanel({
   membersPage,
   isOwner,
   canManage,
+  canSettle,
   isArchived,
   settlementId,
   existingShareLinks,
@@ -68,7 +70,7 @@ export function SettingsPanel({
       <div className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">{t('members.title')}</h2>
         {canManage && <AddMemberForm groupId={groupId} />}
-        <ul className="divide-y rounded-md border">
+        <ul className="divide-y rounded-xl border">
           {membersPage.slice.map((m) => {
             const isLinked = !!m.linkedUserId;
             const displayName = isLinked
@@ -76,7 +78,7 @@ export function SettingsPanel({
               : m.displayName;
             return (
               <li key={m.id} className="flex flex-col gap-2 px-4 py-3 text-sm">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="font-medium">{displayName}</span>
                     {m.linkedUsername && (
@@ -88,7 +90,7 @@ export function SettingsPanel({
                       </span>
                     )}
                   </div>
-                  <span className="flex items-center gap-1">
+                  <span className="flex flex-wrap items-center justify-end gap-1">
                     {isLinked && m.linkedUserRole && (
                       <MemberRoleControl
                         groupId={groupId}
@@ -133,7 +135,7 @@ export function SettingsPanel({
       </div>
 
       {/* Ownership & Reopening Section */}
-      {(isOwner || isArchived) && (
+      {(isOwner || (isArchived && canSettle)) && (
         <div className="flex flex-col gap-4 border-t pt-6">
           {isOwner && (
             <div className="flex flex-col gap-2">
@@ -143,7 +145,7 @@ export function SettingsPanel({
             </div>
           )}
 
-          {isArchived && settlementId && (
+          {isArchived && canSettle && settlementId && (
             <div className="flex flex-col gap-2">
               <h2 className="text-lg font-semibold">{t('expenses.reopen_title')}</h2>
               <p className="text-muted-foreground text-sm">{t('expenses.reopen_desc')}</p>
@@ -156,13 +158,13 @@ export function SettingsPanel({
       {/* Danger Zone */}
       {isOwner ? (
         <div className="flex flex-col gap-2 border-t pt-6">
-          <h2 className="text-destructive text-lg font-semibold">{t('account.danger_zone')}</h2>
+          <h2 className="text-destructive-ink text-lg font-semibold">{t('account.danger_zone')}</h2>
           <p className="text-muted-foreground text-sm">{t('groups.delete_desc')}</p>
           <DeleteGroupButton groupId={groupId} />
         </div>
       ) : (
         <div className="flex flex-col gap-2 border-t pt-6">
-          <h2 className="text-destructive text-lg font-semibold">{t('account.danger_zone')}</h2>
+          <h2 className="text-destructive-ink text-lg font-semibold">{t('account.danger_zone')}</h2>
           <p className="text-muted-foreground text-sm">{t('groups.leave_desc')}</p>
           <LeaveGroupButton groupId={groupId} />
         </div>

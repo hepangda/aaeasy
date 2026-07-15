@@ -9,8 +9,11 @@ import { useTheme } from '@/components/layout/theme-provider';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -41,63 +44,83 @@ export function HeaderActionsMenu({ userDisplayName }: { userDisplayName?: strin
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel className="flex items-center gap-2">
-          <Languages className="size-4" />
-          {common('language')}
-        </DropdownMenuLabel>
-        {LANGS.map((lang) => (
-          <DropdownMenuItem
-            key={lang.code}
-            disabled={isPending}
-            onSelect={() => startTransition(() => setLocaleAction(lang.code))}
-            className="justify-between"
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center gap-2">
+            <Languages className="size-4" />
+            {common('language')}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={locale}
+            onValueChange={(value) =>
+              startTransition(() => setLocaleAction(value === 'en' ? 'en' : 'zh'))
+            }
           >
-            {lang.label}
-            {locale === lang.code && <Check className="size-4" />}
-          </DropdownMenuItem>
-        ))}
+            {LANGS.map((lang) => (
+              <DropdownMenuRadioItem
+                key={lang.code}
+                value={lang.code}
+                disabled={isPending}
+                className="justify-between"
+              >
+                {lang.label}
+                {locale === lang.code && <Check className="size-4" />}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="flex items-center gap-2">
-          <Sun className="size-4" />
-          {common('theme')}
-        </DropdownMenuLabel>
-        {THEMES.map(({ code, labelKey, Icon }) => (
-          <DropdownMenuItem key={code} onSelect={() => setTheme(code)} className="justify-between">
-            <span className="flex items-center gap-2">
-              <Icon className="size-4" />
-              {common(labelKey)}
-            </span>
-            {theme === code && <Check className="size-4" />}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center gap-2">
+            <Sun className="size-4" />
+            {common('theme')}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={theme}
+            onValueChange={(value) =>
+              setTheme(value === 'light' || value === 'dark' ? value : 'system')
+            }
+          >
+            {THEMES.map(({ code, labelKey, Icon }) => (
+              <DropdownMenuRadioItem key={code} value={code} className="justify-between">
+                <span className="flex items-center gap-2">
+                  <Icon className="size-4" />
+                  {common(labelKey)}
+                </span>
+                {theme === code && <Check className="size-4" />}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
-        {userDisplayName ? (
-          <>
+        <DropdownMenuGroup>
+          {userDisplayName ? (
+            <>
+              <DropdownMenuItem asChild>
+                <Link href="/account" className="gap-2">
+                  <User className="size-4" />
+                  <span className="truncate">{account('title')}</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={isPending}
+                onSelect={() => startTransition(() => logoutAction())}
+                className="text-destructive-ink focus:text-destructive-ink gap-2"
+              >
+                <LogOut className="size-4" />
+                {common('logout')}
+              </DropdownMenuItem>
+            </>
+          ) : (
             <DropdownMenuItem asChild>
-              <Link href="/account" className="gap-2">
-                <User className="size-4" />
-                <span className="truncate">{account('title')}</span>
+              <Link href="/login" className="gap-2">
+                <LogIn className="size-4" />
+                {common('login')}
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={isPending}
-              onSelect={() => startTransition(() => logoutAction())}
-              className="text-destructive focus:text-destructive gap-2"
-            >
-              <LogOut className="size-4" />
-              {common('logout')}
-            </DropdownMenuItem>
-          </>
-        ) : (
-          <DropdownMenuItem asChild>
-            <Link href="/login" className="gap-2">
-              <LogIn className="size-4" />
-              {common('login')}
-            </Link>
-          </DropdownMenuItem>
-        )}
+          )}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

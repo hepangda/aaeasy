@@ -3,9 +3,9 @@
 ## 状态
 
 - 实施状态：代码迁移已完成；生产资源 ID、最终域名和数据切流由部署阶段填写。
-- 完成日期：2026-07-13。
+- 最近更新：2026-07-15。
 - 明确移除：Next.js、Prisma、PostgreSQL `LISTEN/NOTIFY`、Vercel Blob、React PDF、ExcelJS / XLSX、生产 Container。
-- 保留：React UI、WebAuthn、密码登录、匿名分享、AI 流式解析、CSV、PDF、PWA。
+- 保留：React UI、匿名分享、AI 流式解析、CSV、PDF、PWA；登录统一迁移到 Pangda Auth OIDC。
 
 ## 架构决策
 
@@ -19,7 +19,7 @@
 - 文件：私有 R2 bucket，Worker 负责鉴权、限流、上传和下载。
 - PDF：Cloudflare Browser Run Puppeteer binding，把专用 HTML/CSS 打印为 PDF。
 - 限流：RateLimiter Durable Object。
-- 密码：`hash-wasm` Argon2id，不依赖原生 Node addon。
+- 身份：Pangda Auth / KeyForge OIDC authorization code + S256 PKCE；AAEasy 不保存登录凭据。
 
 Hyperdrive 和 Neon 不是互斥选项：Neon 提供 PostgreSQL，Hyperdrive 提供 Worker 侧连接复用和快速路由。应用保留交互式事务，因此不改用 Neon HTTP driver。
 
@@ -36,6 +36,8 @@ flowchart LR
   Worker -->|"private object I/O"| R2["R2 receipts"]
   Worker -->|"HTML to PDF"| BrowserRun["Browser Run"]
   Worker -->|"LLM stream"| AIGateway["AI Gateway / provider"]
+  Browser -->|"OIDC authorization code + PKCE"| Auth["Pangda Auth"]
+  Worker -->|"token exchange / UserInfo / refresh"| Auth
 ```
 
 PostgreSQL 是业务数据的唯一事实来源。DO 不保存完整账本，只保存最近 256 个 compact events 和活跃 WebSocket。
@@ -53,10 +55,11 @@ PostgreSQL 是业务数据的唯一事实来源。DO 不保存完整账本，只
 
 ## 数据层
 
-`packages/db/src/schema.ts` 定义 19 张 Drizzle PostgreSQL 表。迁移目录包含：
+`packages/db/src/schema.ts` 当前定义 15 张 Drizzle PostgreSQL 表。迁移目录包含：
 
 - `0000_baseline.sql`：可从空数据库建立完整 schema；
 - `0001_cloudflare-revisions.sql`：增加 `groups.revision` 和 `expenses.version`；
+- `0002_lucky_sentinels.sql`：保留业务用户 ID，删除本地凭据/注册表并把 session 切换为加密 OIDC token set；
 - Drizzle snapshots 和 journal。
 
 两种数据库路径：
@@ -140,8 +143,8 @@ CSV 在 Worker 内纯字符串生成，保留 UTF-8 BOM、RFC 4180 quoting，并
 
 - Hono `csrf()` 校验写请求 origin，`secureHeaders()` 应用于全部 API。
 - Session 和 share token 只以 SHA-256 hash 入库，cookie 为 HttpOnly、SameSite=Lax，HTTPS 下 Secure。
-- 注册、登录、AI、分享 unlock 和 PDF 均有限流。
-- Argon2id 在 Worker 使用 WASM，未知用户登录也执行 dummy verify，降低用户名枚举时序差异。
+- OIDC state、nonce、PKCE verifier 和服务端 token set 使用独立 32-byte secret 做 AES-GCM 加密；issuer 被限制为 Pangda Auth production/staging。
+- KeyForge 负责登录限流和凭据安全；AAEasy 的 AI、成员搜索、分享 unlock 和 PDF 继续在 Worker 内限流。
 - Group access 统一区分 OWNER、MANAGER、MEMBER、VIEWER、READ share 和 WRITE share。
 - 只读 share 不具备 `WRITE_EXPENSE`；成员写入受 linked member / bound member 约束。
 - 费用修改和删除检查 optimistic version，settled expense 保持锁定。
@@ -152,7 +155,7 @@ CSV 在 Worker 内纯字符串生成，保留 UTF-8 BOM、RFC 4180 quoting，并
 src/spa/              router、页面、query client、客户端 action wrappers
 src/components/       React UI
 worker/src/routes/    Hono API
-worker/src/auth/      session、WebAuthn、group access、claim
+worker/src/auth/      OIDC、服务端 session、group access、claim
 worker/src/durable-objects/
 worker/src/export/    CSV 与 Browser Run PDF
 worker/src/storage/   R2 key、body limit、批量清理
@@ -164,7 +167,7 @@ drizzle/              baseline、revision migration、metadata
 
 ## 实施结果
 
-- React SPA、Hono API、Drizzle 数据层、WebAuthn、密码凭据、分享、邀请、结算、AI、PWA 已迁移。
+- React SPA、Hono API、Drizzle 数据层、Pangda Auth OIDC、分享、邀请、结算、AI、PWA 已迁移。
 - `GroupRoom` 和 `RateLimiter` Durable Objects 已实现并配置 migrations。
 - PostgreSQL 新库 migration 与旧 schema adoption 均在临时数据库验证通过。
 - R2 raw upload、鉴权下载、删除和账号级对象清理已实现。
@@ -172,4 +175,4 @@ drizzle/              baseline、revision migration、metadata
 - Next、Prisma、Vercel Blob、React PDF、ExcelJS、`pg` 和生产 Dockerfile 已移除。
 - 类型检查、ESLint、107+ Vitest tests、Vite production build 和 Wrangler dry-run 已接入。
 
-生产上线只剩外部状态：创建真实 Hyperdrive / R2、填写 HTTPS origin、设置 secrets、复制生产数据和切域名。执行手册见 [`../deployment/cloudflare.md`](../deployment/cloudflare.md) 与 [`data-cutover.md`](data-cutover.md)。
+生产上线只剩外部状态：创建真实 Hyperdrive / R2、在两个 KeyForge 环境注册 AAEasy resource/client、设置 secrets、复制生产数据和切域名。执行手册见 [`../deployment/cloudflare.md`](../deployment/cloudflare.md) 与 [`data-cutover.md`](data-cutover.md)。

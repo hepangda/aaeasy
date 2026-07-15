@@ -131,11 +131,15 @@ export function AccountBindingDialog({
         <div className="flex flex-col gap-4">
           <div role="tablist" className="border-border/60 -mx-1 flex gap-1 border-b">
             <SectionTab
+              id={`bind-tab-${memberId}`}
+              controls={`bind-panel-${memberId}`}
               active={tab === 'bind'}
               onClick={() => setTab('bind')}
               label={t('binding.tab_bind')}
             />
             <SectionTab
+              id={`sent-tab-${memberId}`}
+              controls={`sent-panel-${memberId}`}
               active={tab === 'sent'}
               onClick={() => setTab('sent')}
               label={t('binding.tab_sent')}
@@ -151,8 +155,10 @@ export function AccountBindingDialog({
               wider than the dialog. */}
           <div className="grid min-w-0">
             <div
+              id={`bind-panel-${memberId}`}
               role="tabpanel"
-              aria-labelledby="bind-tab"
+              aria-labelledby={`bind-tab-${memberId}`}
+              aria-hidden={tab !== 'bind'}
               className={cn(
                 'col-start-1 row-start-1 flex min-w-0 flex-col gap-4',
                 tab === 'bind' ? 'visible' : 'pointer-events-none invisible',
@@ -201,8 +207,10 @@ export function AccountBindingDialog({
             </div>
 
             <div
+              id={`sent-panel-${memberId}`}
               role="tabpanel"
-              aria-labelledby="sent-tab"
+              aria-labelledby={`sent-tab-${memberId}`}
+              aria-hidden={tab !== 'sent'}
               className={cn(
                 'col-start-1 row-start-1 min-w-0',
                 tab === 'sent' ? 'visible' : 'pointer-events-none invisible',
@@ -225,11 +233,15 @@ export function AccountBindingDialog({
 }
 
 function SectionTab({
+  id,
+  controls,
   active,
   onClick,
   label,
   badge,
 }: {
+  id: string;
+  controls: string;
   active: boolean;
   onClick: () => void;
   label: string;
@@ -237,9 +249,11 @@ function SectionTab({
 }) {
   return (
     <button
+      id={id}
       type="button"
       role="tab"
       aria-selected={active}
+      aria-controls={controls}
       onClick={onClick}
       className={cn(
         'relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
@@ -275,7 +289,7 @@ function MethodCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-md border">
+    <div className="overflow-hidden rounded-xl border">
       <button
         type="button"
         onClick={onOpen}
@@ -299,12 +313,10 @@ function MethodCard({
           )}
         />
       </button>
-      {open && (
-        <div className="flex flex-col gap-3 px-3 pt-1 pb-3">
-          <p className="text-muted-foreground text-xs">{desc}</p>
-          {children}
-        </div>
-      )}
+      <div hidden={!open} className="flex flex-col gap-3 px-3 pt-1 pb-3">
+        <p className="text-muted-foreground text-xs">{desc}</p>
+        {children}
+      </div>
     </div>
   );
 }
@@ -399,23 +411,33 @@ function InviteSection({
             value={username}
             onChange={(e) => {
               setUsername(e.target.value);
+              setSuggestions([]);
               setShowSuggestions(true);
             }}
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 120)}
             className="pr-8"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={showSuggestionsList}
+            aria-controls={`bind-suggestions-${memberId}`}
           />
           {searching && (
             <Loader2 className="text-muted-foreground absolute top-1/2 right-2.5 size-4 -translate-y-1/2 animate-spin" />
           )}
           {showSuggestionsList && (
-            <ul className="border-input bg-popover absolute top-full z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-md">
+            <ul
+              id={`bind-suggestions-${memberId}`}
+              role="listbox"
+              className="border-input bg-popover absolute top-full z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border shadow-md"
+            >
               {suggestions.map((s) => (
                 <li key={s.username}>
                   <button
                     type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
+                    role="option"
+                    aria-selected={username.replace(/^@/, '') === s.username}
+                    onClick={() => {
                       setUsername(s.username);
                       setSuggestions([]);
                       setShowSuggestions(false);
@@ -487,9 +509,13 @@ function ShareLinkSection({
   }
 
   async function copyLink(text: string) {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showI18nError(t, 'errors.unknown');
+    }
   }
 
   return (
@@ -657,7 +683,7 @@ function SentList({
                   disabled={pending}
                   aria-label={t('binding.cancel_invitation')}
                 >
-                  <X className="text-destructive size-3.5" />
+                  <X className="text-destructive-ink size-3.5" />
                 </Button>
               </li>
             ) : (
@@ -701,7 +727,7 @@ function SentList({
                     disabled={pending}
                     aria-label={t('share.revoke')}
                   >
-                    <Trash2 className="text-destructive size-3.5" />
+                    <Trash2 className="text-destructive-ink size-3.5" />
                   </Button>
                 )}
               </li>
@@ -741,6 +767,7 @@ function RoleSegmented({
   return (
     <div
       role="radiogroup"
+      aria-label={t('binding.assigned_role')}
       className="border-input bg-background flex h-10 w-full rounded-md border p-0.5"
     >
       {options.map((r) => {

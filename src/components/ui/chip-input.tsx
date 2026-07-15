@@ -30,7 +30,6 @@ interface ChipInputProps {
 
 const MENTION_MIN_LEN = 3;
 const MENTION_PATTERN = /^[a-zA-Z0-9_.-]+$/;
-const RESOLVE_DEBOUNCE_MS = 250;
 // Any of these characters inside the buffer flushes the preceding text as a
 // chip. ASCII comma + Chinese full-width comma cover desktop typing, mobile
 // IME, and paste in both locales.
@@ -83,32 +82,29 @@ export function ChipInput({
     );
     if (pending.length === 0) return;
     let cancelled = false;
-    (async () => {
-      // Resolve sequentially; queue is tiny (max 50 chips).
-      for (const u of pending) {
-        try {
-          const res = await fetch(`/api/users/search?q=${encodeURIComponent(u)}`);
-          if (cancelled) return;
-          if (!res.ok) {
-            setResolutions((prev) => ({ ...prev, [u]: { status: 'unresolved' } }));
-            continue;
+    void (async () => {
+      const results = await Promise.all(
+        pending.map(async (u): Promise<[string, ResolveState]> => {
+          try {
+            const res = await fetch(`/api/users/search?q=${encodeURIComponent(u)}`);
+            if (!res.ok) {
+              return [u, { status: 'unresolved' }];
+            }
+            const body = (await res.json()) as {
+              users: { username: string; displayName: string }[];
+            };
+            const hit = body.users.find((x) => x.username.toLowerCase() === u);
+            return [
+              u,
+              hit ? { status: 'resolved', displayName: hit.displayName } : { status: 'unresolved' },
+            ];
+          } catch {
+            return [u, { status: 'unresolved' }];
           }
-          const body = (await res.json()) as {
-            users: { username: string; displayName: string }[];
-          };
-          if (cancelled) return;
-          const hit = body.users.find((x) => x.username.toLowerCase() === u);
-          setResolutions((prev) => ({
-            ...prev,
-            [u]: hit
-              ? { status: 'resolved', displayName: hit.displayName }
-              : { status: 'unresolved' },
-          }));
-        } catch {
-          if (cancelled) return;
-          setResolutions((prev) => ({ ...prev, [u]: { status: 'unresolved' } }));
-        }
-      }
+        }),
+      );
+      if (cancelled) return;
+      setResolutions((prev) => ({ ...prev, ...Object.fromEntries(results) }));
     })();
     return () => {
       cancelled = true;
@@ -192,28 +188,12 @@ export function ChipInput({
     }
   }
 
-  // Debounced commit-on-pause for mention-style typing so users don't have
-  // to press Enter to see the resolution icon while they're still typing.
-  React.useEffect(() => {
-    if (!buffer.trim().startsWith('@')) return;
-    const username = buffer.trim().slice(1).toLowerCase();
-    if (username.length < MENTION_MIN_LEN) return;
-    if (resolutions[username]) return;
-    const handle = setTimeout(() => {
-      // Pre-warm the resolver cache without committing a chip yet.
-      setResolutions((prev) =>
-        prev[username] ? prev : { ...prev, [username]: { status: 'idle' } },
-      );
-    }, RESOLVE_DEBOUNCE_MS);
-    return () => clearTimeout(handle);
-  }, [buffer, resolutions]);
-
   const atCap = value.length >= max;
 
   return (
     <div
       className={cn(
-        'border-input bg-background ring-offset-background focus-within:ring-ring flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-md border px-2 py-1.5 text-sm focus-within:ring-2 focus-within:ring-offset-2',
+        'border-input bg-card focus-within:border-primary/40 focus-within:ring-ring/25 flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-lg border px-2 py-1.5 text-sm focus-within:ring-4',
         disabled && 'cursor-not-allowed opacity-50',
       )}
       onClick={() => inputRef.current?.focus()}
@@ -230,6 +210,9 @@ export function ChipInput({
           onRemove={() => removeAt(i)}
           disabled={disabled}
           unresolvedLabel={t('groups.chip_unresolved_mention')}
+          removeLabel={`${t('common.remove')} ${
+            chip.kind === 'name' ? chip.text : `@${chip.username}`
+          }`}
         />
       ))}
       <input
@@ -256,12 +239,14 @@ function ChipPill({
   onRemove,
   disabled,
   unresolvedLabel,
+  removeLabel,
 }: {
   chip: MemberChip;
   state?: ResolveState;
   onRemove: () => void;
   disabled: boolean;
   unresolvedLabel: string;
+  removeLabel: string;
 }) {
   const isMention = chip.kind === 'mention';
   const unresolved = isMention && state?.status === 'unresolved';
@@ -271,7 +256,7 @@ function ChipPill({
         'inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-xs leading-tight',
         isMention
           ? unresolved
-            ? 'border-destructive/50 bg-destructive/10 text-destructive'
+            ? 'border-destructive/50 bg-destructive/10 text-destructive-ink'
             : 'border-primary/40 bg-primary/10 text-foreground'
           : 'border-input bg-muted/60',
       )}
@@ -302,8 +287,8 @@ function ChipPill({
           onRemove();
         }}
         disabled={disabled}
-        className="hover:bg-foreground/10 -mr-1 ml-0.5 inline-flex size-4 items-center justify-center rounded-full disabled:cursor-not-allowed"
-        aria-label="Remove"
+        className="hover:bg-foreground/10 -mr-1 ml-0.5 inline-flex size-7 items-center justify-center rounded-full disabled:cursor-not-allowed"
+        aria-label={removeLabel}
       >
         <X className="size-3" />
       </button>

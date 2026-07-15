@@ -2,7 +2,6 @@ import { relations, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
-  customType,
   date,
   index,
   integer,
@@ -18,13 +17,6 @@ import {
 } from 'drizzle-orm/pg-core';
 
 const timestampColumn = (name: string) => timestamp(name, { mode: 'date', precision: 3 });
-const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({
-  dataType() {
-    return 'bytea';
-  },
-});
-
-export const authChallengeTypeEnum = pgEnum('AuthChallengeType', ['REG', 'AUTH']);
 export const groupStatusEnum = pgEnum('GroupStatus', ['ACTIVE', 'ARCHIVED']);
 export const groupRoleEnum = pgEnum('GroupRole', ['OWNER', 'MANAGER', 'MEMBER', 'VIEWER']);
 export const invitationStatusEnum = pgEnum('InvitationStatus', [
@@ -44,33 +36,12 @@ export const users = pgTable(
     id: text('id').primaryKey(),
     displayName: text('displayName').notNull(),
     username: text('username'),
-    passwordHash: text('passwordHash'),
-    isSuperAdmin: boolean('isSuperAdmin').notNull().default(false),
+    email: text('email'),
+    picture: text('picture'),
     createdAt: timestampColumn('createdAt').notNull().defaultNow(),
     updatedAt: timestampColumn('updatedAt').notNull(),
   },
   (table) => [uniqueIndex('users_username_key').on(table.username)],
-);
-
-export const allowedUsernames = pgTable('allowed_usernames', {
-  username: text('username').primaryKey(),
-  createdAt: timestampColumn('createdAt').notNull().defaultNow(),
-  createdById: text('createdById'),
-});
-
-export const passwordCredentials = pgTable(
-  'password_credentials',
-  {
-    id: text('id').primaryKey(),
-    userId: text('userId')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    passwordHash: text('passwordHash').notNull(),
-    label: text('label'),
-    createdAt: timestampColumn('createdAt').notNull().defaultNow(),
-    lastUsedAt: timestampColumn('lastUsedAt'),
-  },
-  (table) => [index('password_credentials_userId_idx').on(table.userId)],
 );
 
 export const sessions = pgTable(
@@ -84,6 +55,9 @@ export const sessions = pgTable(
     expiresAt: timestampColumn('expiresAt').notNull(),
     userAgent: text('userAgent'),
     ipHash: text('ipHash'),
+    oidcTokens: text('oidcTokens').notNull(),
+    oidcValidatedAt: timestampColumn('oidcValidatedAt').notNull(),
+    isSuperAdmin: boolean('isSuperAdmin').notNull().default(false),
     createdAt: timestampColumn('createdAt').notNull().defaultNow(),
     lastSeenAt: timestampColumn('lastSeenAt').notNull().defaultNow(),
   },
@@ -91,44 +65,6 @@ export const sessions = pgTable(
     uniqueIndex('sessions_tokenHash_key').on(table.tokenHash),
     index('sessions_userId_idx').on(table.userId),
     index('sessions_expiresAt_idx').on(table.expiresAt),
-  ],
-);
-
-export const passkeyCredentials = pgTable(
-  'passkey_credentials',
-  {
-    id: text('id').primaryKey(),
-    userId: text('userId')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    publicKey: bytea('publicKey').notNull(),
-    counter: bigint('counter', { mode: 'bigint' }).notNull(),
-    transports: text('transports')
-      .array()
-      .default(sql`ARRAY[]::text[]`),
-    deviceLabel: text('deviceLabel'),
-    createdAt: timestampColumn('createdAt').notNull().defaultNow(),
-    lastUsedAt: timestampColumn('lastUsedAt'),
-  },
-  (table) => [index('passkey_credentials_userId_idx').on(table.userId)],
-);
-
-export const authChallenges = pgTable(
-  'auth_challenges',
-  {
-    id: text('id').primaryKey(),
-    type: authChallengeTypeEnum('type').notNull(),
-    challenge: text('challenge').notNull(),
-    userId: text('userId').references(() => users.id, {
-      onDelete: 'cascade',
-      onUpdate: 'cascade',
-    }),
-    expiresAt: timestampColumn('expiresAt').notNull(),
-    createdAt: timestampColumn('createdAt').notNull().defaultNow(),
-  },
-  (table) => [
-    index('auth_challenges_userId_idx').on(table.userId),
-    index('auth_challenges_expiresAt_idx').on(table.expiresAt),
   ],
 );
 
@@ -454,8 +390,6 @@ export const auditLogs = pgTable(
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
-  passwordCredentials: many(passwordCredentials),
-  passkeys: many(passkeyCredentials),
   memberships: many(groupMemberships),
 }));
 

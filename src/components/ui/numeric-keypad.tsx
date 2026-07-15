@@ -24,7 +24,7 @@ interface NumericKeypadProps {
   allowNegative?: boolean;
   onChange: (next: string) => void;
   onClose: () => void;
-  title?: string;
+  title: string;
 }
 
 const LONG_PRESS_DELAY = 300;

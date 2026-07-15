@@ -13,7 +13,7 @@ export interface NumericInputProps extends Omit<
   precision?: number;
   onChange?: (event: { target: { value: string; name?: string } }) => void;
   onValueChange?: (value: string) => void;
-  keypadTitle?: string;
+  keypadTitle: string;
   unstyled?: boolean;
   allowNegative?: boolean;
 }
@@ -46,6 +46,8 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
       name,
       disabled,
       readOnly,
+      onFocus,
+      onPointerDown,
       unstyled,
       allowNegative,
       ...rest
@@ -80,6 +82,7 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
 
     if (!coarse) {
       const desktopProps = {
+        ...rest,
         ref,
         className,
         placeholder,
@@ -87,17 +90,19 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
         name,
         disabled,
         readOnly,
+        onFocus,
+        onPointerDown,
         value: isControlled ? value : undefined,
         defaultValue: isControlled ? undefined : defaultValue,
         onChange: desktopOnChange,
-        ...rest,
       };
       return unstyled ? <input {...desktopProps} /> : <Input {...desktopProps} />;
     }
 
     const mobileProps = {
+      ...rest,
       ref,
-      className: unstyled ? className : cn('cursor-pointer', className),
+      className: unstyled ? className : cn(!disabled && !readOnly && 'cursor-pointer', className),
       placeholder,
       inputMode: 'none' as const,
       name,
@@ -105,16 +110,17 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
       readOnly: true,
       value: current,
       onPointerDown: (e: React.PointerEvent<HTMLInputElement>) => {
-        if (disabled) return;
+        onPointerDown?.(e);
+        if (e.defaultPrevented || disabled || readOnly) return;
         e.preventDefault();
         setOpen(true);
       },
       onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-        if (disabled) return;
+        onFocus?.(e);
+        if (e.defaultPrevented || disabled || readOnly) return;
         e.currentTarget.blur();
         setOpen(true);
       },
-      ...rest,
     };
 
     return (
@@ -129,7 +135,7 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
           allowNegative={allowNegative}
           onChange={emit}
           onClose={() => setOpen(false)}
-          title={keypadTitle ?? placeholder}
+          title={keypadTitle}
         />
       </>
     );

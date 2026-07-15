@@ -15,6 +15,13 @@
       "when": 1783881037399,
       "tag": "0001_cloudflare-revisions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784105531538,
+      "tag": "0002_lucky_sentinels",
+      "breakpoints": true
     }
   ]
 }

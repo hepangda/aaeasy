@@ -1,5 +1,5 @@
-ADMIN_SECRET="change-me"
-INITIAL_ALLOWED_USERNAMES="alice,bob"
+OIDC_CLIENT_SECRET="replace-with-staging-client-secret"
+OIDC_SESSION_SECRET="replace-with-32-byte-base64url-secret"
 AI_API_URL="https://gateway.ai.cloudflare.com/v1/<account-id>/<gateway-name>/<provider>/v1/chat/completions"
 AI_MODEL="qwen-plus"
 AI_PROVIDER="dashscope"

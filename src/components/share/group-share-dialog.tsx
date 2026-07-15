@@ -66,9 +66,13 @@ export function GroupShareDialog({
   }
 
   async function copyLink(linkText: string) {
-    await navigator.clipboard.writeText(linkText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(linkText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showI18nError(t, 'errors.unknown');
+    }
   }
 
   const activeLinks = existingLinks.filter((l) => !l.expired && !l.revoked);
@@ -158,7 +162,7 @@ export function GroupShareDialog({
                       disabled={pending}
                       aria-label={t('share.revoke')}
                     >
-                      <Trash2 className="text-destructive size-3.5" />
+                      <Trash2 className="text-destructive-ink size-3.5" />
                     </Button>
                   )}
                 </li>
@@ -221,9 +225,7 @@ export function GroupShareDialog({
               setOpen(false);
               reset();
               setRevealedToken(null);
-              if (typeof window !== 'undefined') {
-                window.location.hash = 'settings';
-              }
+              router.push(`/groups/${groupId}#settings`);
             }}
           >
             {t('share.go_to_settings')}

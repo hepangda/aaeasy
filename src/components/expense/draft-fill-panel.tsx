@@ -66,7 +66,7 @@ export function DraftFillPanel({ groupId, drafts }: { groupId: string; drafts: D
   }
 
   return (
-    <form onSubmit={onSubmit} className="bg-secondary/40 flex flex-col gap-3 rounded-md border p-4">
+    <form onSubmit={onSubmit} className="bg-secondary/40 flex flex-col gap-3 rounded-xl border p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">
           {t('expenses.drafts_to_fill', { count: drafts.length })}
@@ -76,7 +76,35 @@ export function DraftFillPanel({ groupId, drafts }: { groupId: string; drafts: D
         </Button>
       </div>
       <p className="text-muted-foreground text-xs">{t('expenses.drafts_hint')}</p>
-      <div className="overflow-x-auto">
+      <ul className="divide-y rounded-lg border sm:hidden">
+        {drafts.map((draft) => (
+          <li key={draft.expenseId} className="grid gap-3 p-3">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{draft.title}</p>
+                <p className="text-muted-foreground mt-0.5 text-xs">
+                  {fmt.dateTime(draft.occurredAt, 'short')} · {draft.payerName}
+                </p>
+              </div>
+              <span className="text-muted-foreground font-mono text-xs">{draft.currency}</span>
+            </div>
+            <NumericInput
+              aria-label={`${t('expenses.amount')} · ${draft.title}`}
+              placeholder="0.00"
+              className="text-right tabular-nums"
+              value={amounts[draft.expenseId] ?? ''}
+              onChange={(event) =>
+                setAmounts((current) => ({
+                  ...current,
+                  [draft.expenseId]: event.target.value,
+                }))
+              }
+              keypadTitle={draft.title}
+            />
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[480px] text-sm">
           <colgroup>
             <col className="w-[88px]" />
@@ -106,6 +134,7 @@ export function DraftFillPanel({ groupId, drafts }: { groupId: string; drafts: D
                   <div className="flex items-center justify-end gap-1.5">
                     <span className="text-muted-foreground text-xs">{d.currency}</span>
                     <NumericInput
+                      aria-label={`${t('expenses.amount')} · ${d.title}`}
                       placeholder="0.00"
                       className="h-8 w-24 text-right tabular-nums"
                       value={amounts[d.expenseId] ?? ''}

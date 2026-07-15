@@ -46,7 +46,7 @@ exportRoutes.get('/groups/:groupId/export', async (c) => {
       },
     });
   }
-  const userLimit = await c.env.AUTH_LIMITER.getByName(`pdf:${access.userId}`).consume({
+  const userLimit = await c.env.RATE_LIMITER.getByName(`pdf:${access.userId}`).consume({
     windowMs: 60_000,
     max: 5,
   });
@@ -55,7 +55,7 @@ exportRoutes.get('/groups/:groupId/export', async (c) => {
       'Retry-After': retryAfterSeconds(userLimit.retryAfterMs),
     });
   }
-  const globalLimit = await c.env.AUTH_LIMITER.getByName('pdf:browser-launch').consume({
+  const globalLimit = await c.env.RATE_LIMITER.getByName('pdf:browser-launch').consume({
     windowMs: launchInterval(c.env.PDF_LAUNCH_INTERVAL_MS),
     max: 1,
   });
