@@ -14,6 +14,9 @@ export function useSessionQuery() {
     queryKey: ['session'],
     queryFn: () => apiRequest<SessionResponse>('/api/session'),
     staleTime: 30_000,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
+    refetchInterval: (query) => (query.state.data?.user ? 60_000 : false),
   });
 }
 
@@ -25,20 +28,22 @@ export function useGroupsQuery(enabled = true) {
   });
 }
 
-export function useGroupQuery(groupId: string) {
+export function useGroupQuery(groupId: string, enabled = Boolean(groupId)) {
   return useQuery({
     queryKey: ['group', groupId],
     queryFn: () => apiRequest<GroupDetailResponse>(`/api/groups/${encodeURIComponent(groupId)}`),
+    enabled,
   });
 }
 
-export function useLedgerQuery(groupId: string) {
+export function useLedgerQuery(groupId: string, enabled = Boolean(groupId)) {
   return useQuery({
     queryKey: ['ledger', groupId],
     queryFn: async () =>
       hydrateLedger(
         await apiRequest<LedgerResponse>(`/api/groups/${encodeURIComponent(groupId)}/ledger`),
       ),
+    enabled,
   });
 }
 

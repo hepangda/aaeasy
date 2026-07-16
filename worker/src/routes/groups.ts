@@ -3,6 +3,9 @@ import {
   createMemberSchema,
   createShareLinkSchema,
   inviteMemberSchema,
+  KEYFORGE_ALIAS_MAX_LENGTH,
+  KEYFORGE_ALIAS_MIN_LENGTH,
+  KEYFORGE_ALIAS_PATTERN,
   renameGroupSchema,
   updateMemberSchema,
   type GroupAccessDto,
@@ -183,9 +186,11 @@ groupRoutes.post('/groups', async (c) => {
       : await c.var.db
           .select({ id: users.id, username: users.username, displayName: users.displayName })
           .from(users)
-          .where(inArray(users.username, mentionUsernames));
+          .where(inArray(sql`lower(${users.username})`, mentionUsernames));
   const usersByUsername = new Map(
-    matchedUsers.flatMap((user) => (user.username ? ([[user.username, user]] as const) : [])),
+    matchedUsers.flatMap((user) =>
+      user.username ? ([[user.username.toLowerCase(), user]] as const) : [],
+    ),
   );
 
   type PendingMember = {
@@ -849,7 +854,7 @@ groupRoutes.post('/groups/:groupId/invitations', async (c) => {
   const [target] = await c.var.db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.username, parsed.data.username.toLowerCase()))
+    .where(sql`lower(${users.username}) = ${parsed.data.username}`)
     .limit(1);
   if (!target) return c.json({ ok: false, error: 'errors.user_not_found' }, 404);
   if (target.id === access.userId)
@@ -1016,7 +1021,13 @@ groupRoutes.post('/invitations/reject-all', async (c) => {
 groupRoutes.get('/users/search', async (c) => {
   await requireUser(c);
   const query = c.req.query('q')?.trim().toLowerCase() ?? '';
-  if (query.length < 2) return c.json({ users: [] });
+  if (
+    query.length < KEYFORGE_ALIAS_MIN_LENGTH ||
+    query.length > KEYFORGE_ALIAS_MAX_LENGTH ||
+    !KEYFORGE_ALIAS_PATTERN.test(query)
+  ) {
+    return c.json({ users: [] });
+  }
   const rows = await c.var.db
     .select({ id: users.id, username: users.username, displayName: users.displayName })
     .from(users)

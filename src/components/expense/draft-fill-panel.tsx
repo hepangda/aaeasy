@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { fillDraftsAction } from '@/spa/actions/expenses';
 import { showI18nError, successToast } from '@/lib/ui/toast';
+import { formatMinor, minorUnits } from '@/lib/money';
 
 export interface DraftRow {
   expenseId: string;
@@ -90,7 +91,8 @@ export function DraftFillPanel({ groupId, drafts }: { groupId: string; drafts: D
             </div>
             <NumericInput
               aria-label={`${t('expenses.amount')} · ${draft.title}`}
-              placeholder="0.00"
+              placeholder={formatMinor(0n, draft.currency)}
+              precision={minorUnits(draft.currency)}
               className="text-right tabular-nums"
               value={amounts[draft.expenseId] ?? ''}
               onChange={(event) =>
@@ -135,7 +137,8 @@ export function DraftFillPanel({ groupId, drafts }: { groupId: string; drafts: D
                     <span className="text-muted-foreground text-xs">{d.currency}</span>
                     <NumericInput
                       aria-label={`${t('expenses.amount')} · ${d.title}`}
-                      placeholder="0.00"
+                      placeholder={formatMinor(0n, d.currency)}
+                      precision={minorUnits(d.currency)}
                       className="h-8 w-24 text-right tabular-nums"
                       value={amounts[d.expenseId] ?? ''}
                       onChange={(e) =>

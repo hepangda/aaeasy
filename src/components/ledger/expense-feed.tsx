@@ -123,7 +123,9 @@ function ExpenseFeedItem({
             </span>
             {!expense.isDraft ? (
               <>
-                <span aria-hidden>·</span>
+                <span aria-hidden className="hidden sm:inline">
+                  ·
+                </span>
                 <SplitBadge kind={kind} shares={splitShares(expense, members, locale)} />
               </>
             ) : null}

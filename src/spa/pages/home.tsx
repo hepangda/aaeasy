@@ -1,5 +1,6 @@
 import Link from '@/compat/link';
 import { ArrowRight, Check, ReceiptText, Scale, UsersRound, type LucideIcon } from 'lucide-react';
+import { Navigate } from 'react-router';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/ui/button';
 import { useSessionQuery } from '../queries';
@@ -172,8 +173,7 @@ export function HomePage() {
   const t = useTranslations('home');
   const commonT = useTranslations('common');
   const session = useSessionQuery();
-  const signedIn = Boolean(session.data?.user);
-  const cta = signedIn ? '/groups' : '/login?next=%2Fgroups';
+  if (session.data?.user) return <Navigate to="/groups" replace />;
 
   return (
     <div className="relative isolate flex flex-1 flex-col overflow-hidden">
@@ -195,8 +195,8 @@ export function HomePage() {
               </Button>
             ) : (
               <Button asChild size="lg">
-                <Link href={cta}>
-                  {signedIn ? t('cta_signed_in') : t('cta_signed_out')}
+                <Link href="/login?next=%2Fgroups">
+                  {t('cta_signed_out')}
                   <ArrowRight aria-hidden="true" />
                 </Link>
               </Button>

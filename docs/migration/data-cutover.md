@@ -23,7 +23,7 @@ pnpm db:adopt -- --yes
 
 脚本会验证既有 19 张表，登记 baseline，再依次应用 Cloudflare revision 与 Pangda Auth OIDC migration。若 revision 列已由其他流程创建，脚本会登记对应 migration 后继续执行 OIDC migration。
 
-OIDC migration 不可逆地删除本地登录凭据。执行前必须确认每个需要保留的 KeyForge 用户 `sub` 与对应 AAEasy `users.id` 完全一致，并保留迁移前数据库备份。
+OIDC migration 不可逆地删除本地登录凭据。执行前必须确认每个需要保留的 KeyForge 用户 `sub` 与对应 AAEasy `users.id` 完全一致，并保留迁移前数据库备份。首次 OIDC 登录会把 KeyForge `preferred_username`（alias）同步到对应的 AAEasy `users.username`。
 
 ## 路径 B：迁移到 Neon
 

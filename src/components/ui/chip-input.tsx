@@ -1,4 +1,9 @@
 import * as React from 'react';
+import {
+  KEYFORGE_ALIAS_MAX_LENGTH,
+  KEYFORGE_ALIAS_MIN_LENGTH,
+  KEYFORGE_ALIAS_PATTERN,
+} from '@aaeasy/contracts/identity';
 import { useTranslations } from 'use-intl';
 import { AtSign, Check, Loader2, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,8 +33,6 @@ interface ChipInputProps {
   disabled?: boolean;
 }
 
-const MENTION_MIN_LEN = 3;
-const MENTION_PATTERN = /^[a-zA-Z0-9_.-]+$/;
 // Any of these characters inside the buffer flushes the preceding text as a
 // chip. ASCII comma + Chinese full-width comma cover desktop typing, mobile
 // IME, and paste in both locales.
@@ -143,8 +146,13 @@ export function ChipInput({
     if (!trimmed) return null;
     if (trimmed.startsWith('@')) {
       const username = trimmed.slice(1).toLowerCase();
-      if (username.length < MENTION_MIN_LEN) return null;
-      if (!MENTION_PATTERN.test(username)) return null;
+      if (
+        username.length < KEYFORGE_ALIAS_MIN_LENGTH ||
+        username.length > KEYFORGE_ALIAS_MAX_LENGTH
+      ) {
+        return null;
+      }
+      if (!KEYFORGE_ALIAS_PATTERN.test(username)) return null;
       if (pool.some((c) => c.kind === 'mention' && c.username === username)) return null;
       return { kind: 'mention', username };
     }

@@ -1,13 +1,26 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  checkOidcSession,
   type OidcEnv,
   oidcConfig,
+  parseOidcProfile,
   safeReturnPath,
   sealStoredTokens,
   unsealStoredTokens,
 } from './oidc';
 
 const SESSION_SECRET = 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc';
+
+const discoveryDocument = {
+  issuer: 'https://auth-staging.pangda.app',
+  authorization_endpoint: 'https://auth-staging.pangda.app/oauth/authorize',
+  token_endpoint: 'https://auth-staging.pangda.app/oauth/token',
+  userinfo_endpoint: 'https://auth-staging.pangda.app/oauth/userinfo',
+  jwks_uri: 'https://auth-staging.pangda.app/.well-known/jwks.json',
+  revocation_endpoint: 'https://auth-staging.pangda.app/oauth/revoke',
+  introspection_endpoint: 'https://auth-staging.pangda.app/oauth/introspect',
+  end_session_endpoint: 'https://auth-staging.pangda.app/oauth/end_session',
+};
 
 function env(overrides: Partial<OidcEnv> = {}): OidcEnv {
   return {
@@ -19,6 +32,20 @@ function env(overrides: Partial<OidcEnv> = {}): OidcEnv {
     OIDC_SESSION_SECRET: SESSION_SECRET,
     ...overrides,
   };
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+function stubIntrospection(body: unknown, status = 200) {
+  const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    if (url.endsWith('/.well-known/openid-configuration')) {
+      return Response.json(discoveryDocument);
+    }
+    return Response.json(body, { status });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
 }
 
 describe('safeReturnPath', () => {
@@ -68,5 +95,72 @@ describe('oidcConfig', () => {
     expect(() => oidcConfig(env({ OIDC_ISSUER: 'https://login.example.com' }))).toThrow(
       'OIDC_NOT_CONFIGURED',
     );
+  });
+});
+
+describe('checkOidcSession', () => {
+  it('recognizes an active refresh-token family owned by this client and subject', async () => {
+    const fetchMock = stubIntrospection({
+      active: true,
+      sub: 'user-id',
+      client_id: 'aaeasy',
+      aud: 'https://aaeasy.pangda.app',
+      token_type: 'refresh_token',
+    });
+
+    await expect(checkOidcSession(env(), 'refresh-token', 'user-id')).resolves.toBe('active');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, introspectionInit] = fetchMock.mock.calls[1] ?? [];
+    expect(introspectionInit?.headers).toMatchObject({
+      Authorization: `Basic ${btoa('aaeasy:client-secret')}`,
+    });
+    expect(new URLSearchParams(String(introspectionInit?.body)).get('token')).toBe('refresh-token');
+  });
+
+  it.each([
+    [{ active: false }, 'inactive'],
+    [
+      {
+        active: true,
+        sub: 'another-user',
+        client_id: 'aaeasy',
+        aud: 'https://aaeasy.pangda.app',
+        token_type: 'refresh_token',
+      },
+      'inactive',
+    ],
+  ] as const)('treats a revoked or mismatched token as %s', async (body, expected) => {
+    stubIntrospection(body);
+    await expect(checkOidcSession(env(), 'refresh-token', 'user-id')).resolves.toBe(expected);
+  });
+
+  it('supports rolling deployment from a KeyForge version that rejects application clients', async () => {
+    stubIntrospection({ error: 'invalid_client' }, 403);
+    await expect(checkOidcSession(env(), 'refresh-token', 'user-id')).resolves.toBe('unsupported');
+  });
+
+  it('does not log users out when KeyForge is temporarily unreachable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network unavailable')));
+    await expect(checkOidcSession(env(), 'refresh-token', 'user-id')).resolves.toBe('unavailable');
+  });
+});
+
+describe('parseOidcProfile', () => {
+  it('uses the KeyForge preferred_username claim as the account alias', () => {
+    expect(
+      parseOidcProfile({
+        sub: 'user-id',
+        preferred_username: 'Pangda42',
+        email: 'user@pangda.app',
+      }),
+    ).toMatchObject({ sub: 'user-id', preferred_username: 'Pangda42' });
+  });
+
+  it.each([
+    { sub: 'user-id' },
+    { sub: 'user-id', preferred_username: 'not-valid' },
+    { sub: 'user-id', preferred_username: 'a'.repeat(65) },
+  ])('rejects a UserInfo response without a valid KeyForge alias', (profile) => {
+    expect(() => parseOidcProfile(profile)).toThrow('OIDC_USERINFO_INVALID');
   });
 });

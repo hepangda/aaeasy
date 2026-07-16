@@ -45,7 +45,7 @@
   "r2_buckets": [
     {
       "binding": "RECEIPTS",
-      "bucket_name": "aaeasy-receipts-dev",
+      "bucket_name": "aaeasy-receipts",
     },
   ],
   "browser": {

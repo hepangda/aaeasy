@@ -114,7 +114,7 @@ http://localhost:5173/api/auth/callback
 http://localhost:5173/
 ```
 
-KeyForge 只在创建 client 时返回一次明文 secret。staging secret 写入本机 `.dev.vars`，production secret 写入 Worker secret，不能提交到仓库。KeyForge 的 `sub` 必须与现有 AAEasy `users.id` 相同；`admins` group 是 AAEasy 超级管理员权限的唯一来源。
+KeyForge 只在创建 client 时返回一次明文 secret。staging secret 写入本机 `.dev.vars`，production secret 写入 Worker secret，不能提交到仓库。KeyForge 的 `sub` 必须与现有 AAEasy `users.id` 相同；KeyForge alias 通过标准 OIDC `preferred_username` claim 同步到 AAEasy `users.username`；`admins` group 是 AAEasy 超级管理员权限的唯一来源。alias 在 KeyForge 变更后，会在 AAEasy 下次会话重新校验时同步。
 
 ## 6. 配置生产变量
 

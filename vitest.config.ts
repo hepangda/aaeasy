@@ -11,6 +11,7 @@ export default defineConfig({
     environment: 'node',
     include: [
       'src/**/*.{test,spec}.ts',
+      'packages/contracts/src/**/*.{test,spec}.ts',
       'packages/db/src/**/*.{test,spec}.ts',
       'worker/src/**/*.{test,spec}.ts',
     ],

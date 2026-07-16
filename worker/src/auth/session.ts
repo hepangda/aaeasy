@@ -1,7 +1,7 @@
 import type { SessionUserDto } from '@aaeasy/contracts';
 import { sessions, shareLinks, shareSessions, users } from '@aaeasy/db/schema';
 import { createId } from '@paralleldrive/cuid2';
-import { eq } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import type { Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import type { AppEnv } from '../app-env';
@@ -9,6 +9,7 @@ import { generateToken, hashIp, sha256 } from '../lib/crypto';
 import { ApiError } from '../lib/errors';
 import { getClientIp, isSecureRequest } from '../lib/request';
 import {
+  checkOidcSession,
   fetchOidcProfile,
   oidcAccessTokenNeedsRefresh,
   OidcSessionInvalidError,
@@ -57,19 +58,6 @@ async function clientHints(c: Context<AppEnv>) {
   };
 }
 
-function usernameBase(email: string | undefined): string {
-  const localPart = email?.split('@')[0]?.toLowerCase() ?? 'user';
-  const normalized = localPart
-    .replace(/[^a-z0-9_.-]+/gu, '-')
-    .replace(/^[._-]+|[._-]+$/gu, '')
-    .slice(0, 21);
-  return normalized.length >= 3 ? normalized : 'user';
-}
-
-async function usernameForNewUser(profile: OidcProfile): Promise<string> {
-  return `${usernameBase(profile.email)}-${(await sha256(profile.sub)).slice(0, 10)}`;
-}
-
 function profileDisplayName(profile: OidcProfile, fallback?: string): string {
   return (profile.name ?? profile.email ?? fallback ?? profile.sub).trim().slice(0, 64);
 }
@@ -79,11 +67,24 @@ async function syncOidcUser(
   profile: OidcProfile,
 ): Promise<{ user: Omit<SessionUserDto, 'isSuperAdmin'>; existed: boolean }> {
   const [existing] = await db.select().from(users).where(eq(users.id, profile.sub)).limit(1);
+  const username = profile.preferred_username;
+  const updatedAt = new Date();
+
+  // KeyForge owns aliases case-insensitively. Release a stale local alias
+  // before assigning it to the authoritative OIDC subject.
+  await db
+    .update(users)
+    .set({ username: null, updatedAt })
+    .where(
+      and(ne(users.id, profile.sub), sql`lower(${users.username}) = ${username.toLowerCase()}`),
+    );
+
   const identity = {
+    username,
     displayName: profileDisplayName(profile, existing?.displayName),
     email: profile.email ?? null,
     picture: profile.picture ?? null,
-    updatedAt: new Date(),
+    updatedAt,
   };
   if (existing) {
     await db.update(users).set(identity).where(eq(users.id, profile.sub));
@@ -91,21 +92,18 @@ async function syncOidcUser(
       existed: true,
       user: {
         id: existing.id,
-        username: existing.username,
         ...identity,
       },
     };
   }
 
-  const username = await usernameForNewUser(profile);
   await db.insert(users).values({
     id: profile.sub,
-    username,
     ...identity,
   });
   return {
     existed: false,
-    user: { id: profile.sub, username, ...identity },
+    user: { id: profile.sub, ...identity },
   };
 }
 
@@ -172,6 +170,7 @@ function validationDue(validatedAt: Date): boolean {
 async function validateCurrentSession(
   c: Context<AppEnv>,
   sessionId: string,
+  forceOidcValidation = false,
 ): Promise<SessionContext | null> {
   const prepared = await c.var.db.transaction(async (tx) => {
     const [row] = await tx
@@ -185,7 +184,8 @@ async function validateCurrentSession(
       if (row) await tx.delete(sessions).where(eq(sessions.id, row.session.id));
       return { kind: 'invalid' as const };
     }
-    if (!validationDue(row.session.oidcValidatedAt)) {
+    const oidcValidationDue = validationDue(row.session.oidcValidatedAt);
+    if (!oidcValidationDue && !forceOidcValidation) {
       return {
         kind: 'current' as const,
         session: sessionContext({
@@ -207,6 +207,25 @@ async function validateCurrentSession(
     }
 
     try {
+      const upstreamStatus = await checkOidcSession(c.env, tokens.refreshToken, row.session.userId);
+      if (upstreamStatus === 'inactive') throw new OidcSessionInvalidError();
+      if (!oidcValidationDue) {
+        if (upstreamStatus === 'active') {
+          await tx
+            .update(sessions)
+            .set({ oidcValidatedAt: new Date() })
+            .where(eq(sessions.id, row.session.id));
+        }
+        return {
+          kind: 'current' as const,
+          session: sessionContext({
+            sessionId: row.session.id,
+            userAgent: row.session.userAgent,
+            isSuperAdmin: row.session.isSuperAdmin,
+            user: row.user,
+          }),
+        };
+      }
       if (oidcAccessTokenNeedsRefresh(tokens)) {
         tokens = await refreshOidcTokens(c.env, tokens);
         await tx
@@ -277,7 +296,10 @@ async function validateCurrentSession(
   });
 }
 
-export async function getCurrentSession(c: Context<AppEnv>): Promise<SessionContext | null> {
+export async function getCurrentSession(
+  c: Context<AppEnv>,
+  options: { forceOidcValidation?: boolean } = {},
+): Promise<SessionContext | null> {
   const token = getCookie(c, SESSION_COOKIE);
   if (!token) return null;
   const [row] = await c.var.db
@@ -295,8 +317,8 @@ export async function getCurrentSession(c: Context<AppEnv>): Promise<SessionCont
     deleteCookie(c, SESSION_COOKIE, { path: '/' });
     return null;
   }
-  if (validationDue(row.session.oidcValidatedAt)) {
-    const validated = await validateCurrentSession(c, row.session.id);
+  if (options.forceOidcValidation || validationDue(row.session.oidcValidatedAt)) {
+    const validated = await validateCurrentSession(c, row.session.id, options.forceOidcValidation);
     if (!validated) deleteCookie(c, SESSION_COOKIE, { path: '/' });
     return validated;
   }

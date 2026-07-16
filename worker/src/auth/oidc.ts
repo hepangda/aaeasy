@@ -1,3 +1,8 @@
+import {
+  KEYFORGE_ALIAS_MAX_LENGTH,
+  KEYFORGE_ALIAS_MIN_LENGTH,
+  KEYFORGE_ALIAS_PATTERN,
+} from '@aaeasy/contracts/identity';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { ApiError } from '../lib/errors';
@@ -16,8 +21,20 @@ const discoverySchema = z.object({
   userinfo_endpoint: z.url(),
   jwks_uri: z.url(),
   revocation_endpoint: z.url(),
+  introspection_endpoint: z.url(),
   end_session_endpoint: z.url(),
 });
+
+const introspectionResponseSchema = z.discriminatedUnion('active', [
+  z.object({ active: z.literal(false) }),
+  z.object({
+    active: z.literal(true),
+    sub: z.string().min(1),
+    client_id: z.string().min(1),
+    aud: z.string().min(1),
+    token_type: z.literal('refresh_token'),
+  }),
+]);
 
 const tokenResponseSchema = z.object({
   access_token: z.string().min(1),
@@ -30,6 +47,11 @@ const tokenResponseSchema = z.object({
 
 const userInfoSchema = z.object({
   sub: z.string().min(1),
+  preferred_username: z
+    .string()
+    .min(KEYFORGE_ALIAS_MIN_LENGTH)
+    .max(KEYFORGE_ALIAS_MAX_LENGTH)
+    .regex(KEYFORGE_ALIAS_PATTERN),
   email: z.string().email().optional(),
   email_verified: z.boolean().optional(),
   name: z.string().min(1).optional(),
@@ -231,6 +253,7 @@ function assertSameIssuerOrigin(metadata: Discovery, issuer: string): void {
     metadata.userinfo_endpoint,
     metadata.jwks_uri,
     metadata.revocation_endpoint,
+    metadata.introspection_endpoint,
     metadata.end_session_endpoint,
   ]) {
     if (new URL(endpoint).origin !== expectedOrigin) {
@@ -389,7 +412,11 @@ export async function fetchOidcProfile(env: OidcEnv, accessToken: string): Promi
   }
   if (response.status === 401 || response.status === 403) throw new OidcSessionInvalidError();
   if (!response.ok) throw new ApiError('OIDC_UNAVAILABLE', 503);
-  const parsed = userInfoSchema.safeParse(await response.json().catch(() => null));
+  return parseOidcProfile(await response.json().catch(() => null));
+}
+
+export function parseOidcProfile(value: unknown): OidcProfile {
+  const parsed = userInfoSchema.safeParse(value);
   if (!parsed.success) throw new ApiError('OIDC_USERINFO_INVALID', 502);
   return parsed.data;
 }
@@ -448,6 +475,60 @@ export async function refreshOidcTokens(
     new URLSearchParams({ grant_type: 'refresh_token', refresh_token: tokens.refreshToken }),
     true,
   );
+}
+
+export type OidcSessionCheck = 'active' | 'inactive' | 'unsupported' | 'unavailable';
+
+/**
+ * Checks the refresh-token family because KeyForge revokes it immediately when
+ * the originating browser session signs out. Access tokens are self-contained
+ * JWTs and can otherwise remain valid for several minutes after that logout.
+ */
+export async function checkOidcSession(
+  env: OidcEnv,
+  refreshToken: string,
+  expectedSubject: string,
+): Promise<OidcSessionCheck> {
+  const config = oidcConfig(env);
+  let metadata: Discovery;
+  try {
+    metadata = await discoverOidc(env);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'OIDC_UNAVAILABLE') return 'unavailable';
+    throw error;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(metadata.introspection_endpoint, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: clientAuthorization(config),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ token: refreshToken }),
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch {
+    return 'unavailable';
+  }
+
+  // Older KeyForge deployments restricted introspection to resource services.
+  // Keep a rolling deployment fail-open while the authorization server is
+  // upgraded; other authentication failures still surface as configuration errors.
+  if (response.status === 403) return 'unsupported';
+  if (response.status === 429 || response.status >= 500) return 'unavailable';
+  if (!response.ok) throw new ApiError('OIDC_INTROSPECTION_FAILED', 502);
+
+  const parsed = introspectionResponseSchema.safeParse(await response.json().catch(() => null));
+  if (!parsed.success) throw new ApiError('OIDC_INTROSPECTION_RESPONSE_INVALID', 502);
+  if (!parsed.data.active) return 'inactive';
+  return parsed.data.sub === expectedSubject &&
+    parsed.data.client_id === config.clientId &&
+    parsed.data.aud === config.resource
+    ? 'active'
+    : 'inactive';
 }
 
 export function buildOidcLogoutUrl(env: OidcEnv, idToken?: string): string {

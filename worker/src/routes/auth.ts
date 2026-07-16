@@ -25,7 +25,8 @@ const FLOW_COOKIE_MAX_AGE_SECONDS = 10 * 60;
 export const authRoutes = new Hono<AppEnv>();
 
 authRoutes.get('/session', async (c) => {
-  const session = await getCurrentSession(c);
+  c.header('Cache-Control', 'no-store');
+  const session = await getCurrentSession(c, { forceOidcValidation: true });
   return c.json({ user: session?.user ?? null });
 });
 

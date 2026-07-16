@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { currencyCodeSchema } from './money';
 
 const splitRuleSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('EQUAL'), memberIds: z.array(z.string()).min(1) }),
@@ -46,7 +47,7 @@ export const expenseInputSchema = z.object({
   occurredAt: z.string().datetime(),
   title: z.string().trim().min(1).max(120),
   note: z.string().trim().max(2000).nullable().optional(),
-  currency: z.literal('CNY'),
+  currency: currencyCodeSchema,
   amount: z.string().trim().optional(),
   payerMemberId: z.string().min(1),
   fxRateOverride: z.string().trim().optional(),

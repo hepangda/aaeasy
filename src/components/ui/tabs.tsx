@@ -23,16 +23,20 @@ export function Tabs({
   tabs,
   defaultTab,
   hideTabListOnMobile = false,
+  hashAliases = {},
 }: {
   tabs: TabDefinition[];
   defaultTab?: string;
   hideTabListOnMobile?: boolean;
+  /** Legacy URL hashes that should resolve to a current tab id. */
+  hashAliases?: Record<string, string>;
 }) {
   const idPrefix = useId();
   const fallback = defaultTab ?? tabs[0]?.id ?? '';
   const location = useLocation();
   const navigate = useNavigate();
-  const hashTab = location.hash.replace(/^#/, '');
+  const rawHashTab = location.hash.replace(/^#/, '');
+  const hashTab = hashAliases[rawHashTab] ?? rawHashTab;
   const active = tabs.some((tab) => tab.id === hashTab) ? hashTab : fallback;
   const [visited, setVisited] = useState<Set<string>>(() => new Set([active]));
   const previousActive = useRef(active);

@@ -1,7 +1,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from '@/compat/navigation';
 import { useTranslations } from 'use-intl';
-import { ArrowRight, Check, Copy, Plus, Trash2, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, Copy, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumericInput } from '@/components/ui/numeric-input';
@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { addSettlementEntryAction, deleteSettlementEntryAction } from '@/spa/actions/settlements';
 import { showI18nError } from '@/lib/ui/toast';
+import { formatMinor, minorUnits } from '@/lib/money';
 
 export interface MemberLite {
   id: string;
@@ -107,7 +108,7 @@ export function TransfersPanel({
   }
 
   function execute(s: SuggestedTransfer) {
-    if (!canEdit || pending || !manualSubmissionReady) return;
+    if (!canEdit || pending) return;
     startTransition(async () => {
       const res = await addSettlementEntryAction({
         groupId,
@@ -177,20 +178,15 @@ export function TransfersPanel({
   return (
     <div className="flex flex-col gap-6">
       {/* ─── Suggested clearing instructions ─────────────────────── */}
-      <section className="flex flex-col gap-2">
-        <header className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium">{t('settlements.suggested')}</h3>
-          {suggested.length > 0 && (
+      {suggested.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <header className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-medium">{t('settlements.suggested')}</h3>
             <Button type="button" variant="outline" size="sm" onClick={copyAll}>
-              <Copy /> {copied ? t('settlements.copied') : t('settlements.copy_all')}
+              <Copy data-icon="inline-start" />
+              {copied ? t('settlements.copied') : t('settlements.copy_all')}
             </Button>
-          )}
-        </header>
-        {suggested.length === 0 ? (
-          <p className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-center text-sm">
-            {t('summary.transfers_empty')}
-          </p>
-        ) : (
+          </header>
           <ul className="divide-y rounded-xl border">
             {suggested.map((s, i) => {
               const involves =
@@ -218,7 +214,8 @@ export function TransfersPanel({
                         disabled={pending}
                         className="border-positive/50 text-positive-ink hover:bg-positive/10 hover:text-positive-ink"
                       >
-                        <Check /> {t('settlements.execute')}
+                        <Check data-icon="inline-start" />
+                        {t('settlements.execute')}
                       </Button>
                     )}
                   </span>
@@ -226,8 +223,8 @@ export function TransfersPanel({
               );
             })}
           </ul>
-        )}
-      </section>
+        </section>
+      ) : null}
 
       {/* ─── Executed entries + manual add ──────────────────────────── */}
       <section className="flex flex-col gap-2">
@@ -235,7 +232,8 @@ export function TransfersPanel({
           <h3 className="text-sm font-medium">{t('settlements.executed')}</h3>
           {canAddManual && !manualOpen && (
             <Button type="button" size="sm" variant="outline" onClick={() => setManualOpen(true)}>
-              <Plus /> {t('settlements.add_entry')}
+              <Plus data-icon="inline-start" />
+              {t('settlements.add_entry')}
             </Button>
           )}
         </header>
@@ -280,8 +278,9 @@ export function TransfersPanel({
                 id="se-amount"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
+                placeholder={formatMinor(0n, defaultCurrency)}
                 required
+                precision={minorUnits(defaultCurrency)}
                 keypadTitle={t('expenses.amount')}
               />
             </div>
@@ -324,49 +323,57 @@ export function TransfersPanel({
             {t('settlements.no_entries')}
           </p>
         ) : (
-          <ul className="divide-y rounded-xl border">
-            {executed.map((e) => {
-              const involves =
-                !boundMemberId ||
-                e.fromMemberId === boundMemberId ||
-                e.toMemberId === boundMemberId;
-              return (
-                <li
-                  key={e.id}
-                  className="flex flex-col items-stretch gap-2.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="min-w-0 truncate font-medium">{e.fromName}</span>
-                      <ArrowRight className="text-muted-foreground size-4" />
-                      <span className="min-w-0 truncate font-medium">{e.toName}</span>
+          <details className="group/history">
+            <summary className="text-muted-foreground hover:bg-muted/45 flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl border px-4 text-sm font-medium transition-colors [&::-webkit-details-marker]:hidden">
+              {t('settlements.recorded_count', { count: executed.length })}
+              <ChevronDown className="size-4 transition-transform group-open/history:rotate-180" />
+            </summary>
+            <ul className="mt-2 divide-y rounded-xl border">
+              {executed.map((e) => {
+                const involves =
+                  !boundMemberId ||
+                  e.fromMemberId === boundMemberId ||
+                  e.toMemberId === boundMemberId;
+                return (
+                  <li
+                    key={e.id}
+                    className="flex flex-col items-stretch gap-2.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 truncate font-medium">{e.fromName}</span>
+                        <ArrowRight className="text-muted-foreground size-4" />
+                        <span className="min-w-0 truncate font-medium">{e.toName}</span>
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {e.occurredAt}
+                        {e.createdByName ? ` · ${e.createdByName}` : ''}
+                        {e.note ? ` · ${e.note}` : ''}
+                      </span>
+                    </div>
+                    <span className="flex items-center justify-between gap-2 sm:justify-end">
+                      <span className="font-mono whitespace-nowrap tabular-nums">
+                        {e.amountText}
+                      </span>
+                      {canEdit && involves && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          onClick={() => remove(e.id)}
+                          disabled={pending}
+                          aria-label={t('common.delete')}
+                        >
+                          <Trash2 className="text-destructive-ink" />
+                        </Button>
+                      )}
                     </span>
-                    <span className="text-muted-foreground text-xs">
-                      {e.occurredAt}
-                      {e.createdByName ? ` · ${e.createdByName}` : ''}
-                      {e.note ? ` · ${e.note}` : ''}
-                    </span>
-                  </div>
-                  <span className="flex items-center justify-between gap-2 sm:justify-end">
-                    <span className="font-mono whitespace-nowrap tabular-nums">{e.amountText}</span>
-                    {canEdit && involves && (
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="size-8"
-                        onClick={() => remove(e.id)}
-                        disabled={pending}
-                        aria-label={t('common.delete')}
-                      >
-                        <Trash2 className="text-destructive-ink" />
-                      </Button>
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
         )}
       </section>
 

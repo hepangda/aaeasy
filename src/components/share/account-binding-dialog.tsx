@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import type { GroupRole } from '@aaeasy/contracts';
+import { KEYFORGE_ALIAS_MAX_LENGTH, KEYFORGE_ALIAS_MIN_LENGTH } from '@aaeasy/contracts/identity';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -341,12 +342,12 @@ function InviteSection({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searching, setSearching] = useState(false);
 
-  // Debounced suggestions: only fire when input length >= 3 chars
+  // Debounced suggestions support the full KeyForge alias range.
   // (server-side guard mirrors this). Cleared on input change before the
   // debounce timeout to avoid showing stale results.
   useEffect(() => {
     const trimmed = username.trim().replace(/^@/, '');
-    if (trimmed.length < 3) return;
+    if (trimmed.length < KEYFORGE_ALIAS_MIN_LENGTH) return;
     let cancelled = false;
     const handle = setTimeout(async () => {
       if (cancelled) return;
@@ -372,7 +373,9 @@ function InviteSection({
   }, [username]);
 
   const showSuggestionsList =
-    showSuggestions && username.trim().replace(/^@/, '').length >= 3 && suggestions.length > 0;
+    showSuggestions &&
+    username.trim().replace(/^@/, '').length >= KEYFORGE_ALIAS_MIN_LENGTH &&
+    suggestions.length > 0;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -408,6 +411,7 @@ function InviteSection({
             id={`bind-username-${memberId}`}
             autoComplete="off"
             spellCheck={false}
+            maxLength={KEYFORGE_ALIAS_MAX_LENGTH + 1}
             value={username}
             onChange={(e) => {
               setUsername(e.target.value);
@@ -436,7 +440,9 @@ function InviteSection({
                   <button
                     type="button"
                     role="option"
-                    aria-selected={username.replace(/^@/, '') === s.username}
+                    aria-selected={
+                      username.replace(/^@/, '').toLowerCase() === s.username.toLowerCase()
+                    }
                     onClick={() => {
                       setUsername(s.username);
                       setSuggestions([]);

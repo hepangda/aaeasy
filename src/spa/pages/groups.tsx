@@ -65,6 +65,7 @@ export function GroupsPage() {
           <ol className="border-border border-y">
             {orderedGroups.map((group) => {
               const archived = group.status === 'ARCHIVED';
+              const showRole = group.role !== 'OWNER';
               return (
                 <li key={group.id} className="border-border border-b last:border-b-0">
                   <Link
@@ -79,25 +80,21 @@ export function GroupsPage() {
                     />
 
                     <div className="min-w-0">
-                      <div className="mb-3 flex flex-wrap items-center gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${
-                            archived
-                              ? 'bg-signal/25 text-signal-foreground dark:bg-signal/18 dark:text-signal'
-                              : 'bg-primary/10 text-primary-ink dark:bg-primary/20'
-                          }`}
-                        >
+                      {archived || showRole ? (
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
                           {archived ? (
-                            <Archive className="size-3" />
-                          ) : (
-                            <span className="size-1.5 rounded-full bg-current" />
-                          )}
-                          {t(archived ? 'status_archived' : 'status_active')}
-                        </span>
-                        <span className="border-border inline-flex rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
-                          {roleT(group.role)}
-                        </span>
-                      </div>
+                            <span className="bg-signal/25 text-signal-foreground dark:bg-signal/18 dark:text-signal inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
+                              <Archive className="size-3" />
+                              {t('status_archived')}
+                            </span>
+                          ) : null}
+                          {showRole ? (
+                            <span className="border-border inline-flex rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
+                              {roleT(group.role)}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
 
                       <h2 className="truncate text-2xl leading-tight font-semibold tracking-[-0.035em] sm:text-3xl">
                         {group.name}
@@ -121,8 +118,8 @@ export function GroupsPage() {
                       <span className="text-muted-foreground font-mono text-sm font-semibold tracking-[0.12em] uppercase">
                         {group.defaultCurrency}
                       </span>
-                      <span className="text-primary-ink inline-flex items-center gap-1 text-sm font-semibold">
-                        {t('open')}
+                      <span className="text-primary-ink inline-flex items-center">
+                        <span className="sr-only">{t('open')}</span>
                         <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                       </span>
                     </div>

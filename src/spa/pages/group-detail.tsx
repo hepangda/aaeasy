@@ -6,11 +6,11 @@ import { DraftFillPanel, type DraftRow } from '@/components/expense/draft-fill-p
 import { GroupLiveRefresher } from '@/components/group/group-live-refresher';
 import { SettingsPanel } from '@/components/group/settings-panel';
 import type { OwnerCandidate } from '@/components/group/transfer-ownership-button';
-import { BalanceTrail } from '@/components/ledger/balance-trail';
 import { ExpenseReceiptFeed } from '@/components/ledger/expense-feed';
 import { LedgerPageHeader } from '@/components/ledger/ledger-page-header';
 import { LedgerSummaryTable } from '@/components/ledger/ledger-summary-table';
 import { ExportMenu } from '@/components/settle/export-menu';
+import { SettlementStatus } from '@/components/settle/settlement-status';
 import { SettleButton } from '@/components/settle/settle-button';
 import { TransfersPanel } from '@/components/settle/transfers-panel';
 import { GroupShareDialog } from '@/components/share/group-share-dialog';
@@ -163,8 +163,9 @@ export function GroupDetailPage() {
 
       <div>
         <Tabs
-          defaultTab={isArchived ? 'transfers' : 'expenses'}
+          defaultTab={isArchived ? 'settlement' : 'expenses'}
           hideTabListOnMobile
+          hashAliases={{ summary: 'settlement', transfers: 'settlement' }}
           tabs={[
             {
               id: 'expenses',
@@ -185,7 +186,11 @@ export function GroupDetailPage() {
                     boundMemberId={boundMemberId}
                     action={
                       canWrite ? (
-                        <Button asChild size="sm">
+                        <Button
+                          asChild
+                          size="sm"
+                          className={access.kind === 'user' ? 'hidden sm:inline-flex' : undefined}
+                        >
                           <Link href={`/groups/${groupId}/expenses/new`}>
                             <Plus /> {t('expenses.add')}
                           </Link>
@@ -197,59 +202,52 @@ export function GroupDetailPage() {
               ),
             },
             {
-              id: 'summary',
-              label: t('summary.title'),
+              id: 'settlement',
+              label: t('settlements.title'),
+              badge: transfers.length || undefined,
               content: (
                 <section className="flex flex-col gap-4">
-                  <BalanceTrail
-                    members={members}
-                    summary={summary}
-                    transfers={transfers}
-                    currency={group.defaultCurrency}
-                  />
+                  <SettlementStatus pendingTransfers={transfers.length} />
+                  <div className="bg-card shadow-soft rounded-2xl border p-4 sm:p-5">
+                    <TransfersPanel
+                      groupId={groupId}
+                      members={members.map((member) => ({
+                        id: member.id,
+                        displayName: member.displayName,
+                      }))}
+                      defaultCurrency={group.defaultCurrency}
+                      canEdit={canMarkPaid}
+                      boundMemberId={boundMemberId}
+                      suggested={transfers.map((transfer) => ({
+                        fromMemberId: transfer.from,
+                        toMemberId: transfer.to,
+                        fromName: memberById.get(transfer.from)?.displayName ?? '?',
+                        toName: memberById.get(transfer.to)?.displayName ?? '?',
+                        amountText: formatMoney(
+                          transfer.amountMinor,
+                          group.defaultCurrency,
+                          locale,
+                        ),
+                        amountMajor: formatMinor(transfer.amountMinor, group.defaultCurrency),
+                      }))}
+                      executed={ledger.settlementEntries.map((entry) => ({
+                        id: entry.id,
+                        fromMemberId: entry.fromMemberId,
+                        toMemberId: entry.toMemberId,
+                        fromName: memberById.get(entry.fromMemberId)?.displayName ?? '?',
+                        toName: memberById.get(entry.toMemberId)?.displayName ?? '?',
+                        amountText: formatMoney(entry.amountMinor, group.defaultCurrency, locale),
+                        occurredAt: fmt.dateTime(entry.occurredAt, 'short'),
+                        note: entry.note,
+                        createdByName: entry.createdByName,
+                      }))}
+                    />
+                  </div>
                   <LedgerSummaryTable
                     summary={summary}
                     members={members}
                     currency={group.defaultCurrency}
                     hasSettlementEntries={ledger.settlementEntries.length > 0}
-                  />
-                </section>
-              ),
-            },
-            {
-              id: 'transfers',
-              label: t('summary.transfers_title'),
-              badge: transfers.length || undefined,
-              content: (
-                <section className="bg-card shadow-soft rounded-2xl border p-4 sm:p-5">
-                  <TransfersPanel
-                    groupId={groupId}
-                    members={members.map((member) => ({
-                      id: member.id,
-                      displayName: member.displayName,
-                    }))}
-                    defaultCurrency={group.defaultCurrency}
-                    canEdit={canMarkPaid}
-                    boundMemberId={boundMemberId}
-                    suggested={transfers.map((transfer) => ({
-                      fromMemberId: transfer.from,
-                      toMemberId: transfer.to,
-                      fromName: memberById.get(transfer.from)?.displayName ?? '?',
-                      toName: memberById.get(transfer.to)?.displayName ?? '?',
-                      amountText: formatMoney(transfer.amountMinor, group.defaultCurrency, locale),
-                      amountMajor: formatMinor(transfer.amountMinor, group.defaultCurrency),
-                    }))}
-                    executed={ledger.settlementEntries.map((entry) => ({
-                      id: entry.id,
-                      fromMemberId: entry.fromMemberId,
-                      toMemberId: entry.toMemberId,
-                      fromName: memberById.get(entry.fromMemberId)?.displayName ?? '?',
-                      toName: memberById.get(entry.toMemberId)?.displayName ?? '?',
-                      amountText: formatMoney(entry.amountMinor, group.defaultCurrency, locale),
-                      occurredAt: fmt.dateTime(entry.occurredAt, 'short'),
-                      note: entry.note,
-                      createdByName: entry.createdByName,
-                    }))}
                   />
                 </section>
               ),

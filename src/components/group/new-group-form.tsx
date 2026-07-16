@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChipInput, type MemberChip } from '@/components/ui/chip-input';
+import { CurrencySelect } from '@/components/money/currency-select';
 import { createGroupAction, type ActionState } from '@/spa/actions/groups';
 import { showI18nError } from '@/lib/ui/toast';
 
@@ -13,6 +14,7 @@ export function NewGroupForm() {
   const t = useTranslations();
   const [state, action, pending] = useActionState(createGroupAction, initial);
   const [chips, setChips] = useState<MemberChip[]>([]);
+  const [currency, setCurrency] = useState('CNY');
 
   useEffect(() => {
     if (state.error) showI18nError(t, state.error);
@@ -20,21 +22,27 @@ export function NewGroupForm() {
 
   return (
     <form action={action} className="flex w-full max-w-lg flex-col gap-5">
-      <div className="grid gap-2">
-        <Label htmlFor="name">{t('groups.name')}</Label>
-        <Input
-          id="name"
-          name="name"
-          required
-          maxLength={64}
-          placeholder={t('groups.name_placeholder')}
-        />
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
+        <div className="grid gap-2">
+          <Label htmlFor="name">{t('groups.name')}</Label>
+          <Input
+            id="name"
+            name="name"
+            required
+            maxLength={64}
+            placeholder={t('groups.name_placeholder')}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="defaultCurrency">{t('groups.default_currency')}</Label>
+          <CurrencySelect
+            id="defaultCurrency"
+            name="defaultCurrency"
+            value={currency}
+            onChange={(event) => setCurrency(event.target.value)}
+          />
+        </div>
       </div>
-
-      <input type="hidden" name="defaultCurrency" value="CNY" />
-      <p className="text-muted-foreground text-sm">
-        {t('groups.default_currency')} · <span className="text-foreground font-mono">CNY</span>
-      </p>
 
       <div className="grid gap-2">
         <Label htmlFor="members">{t('groups.initial_members')}</Label>

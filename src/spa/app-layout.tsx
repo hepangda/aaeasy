@@ -4,7 +4,6 @@ import {
   BookOpenText,
   Plus,
   ReceiptText,
-  Scale,
   UserRound,
   UsersRound,
   type LucideIcon,
@@ -16,7 +15,7 @@ import { HeaderActionsMenu } from '@/components/layout/header-actions-menu';
 import { ServiceWorkerRegister } from '@/components/layout/service-worker-register';
 import { cn } from '@/lib/utils';
 import type { GroupListResponse } from './types';
-import { useGroupsQuery, useSessionQuery } from './queries';
+import { useGroupQuery, useGroupsQuery, useLedgerQuery, useSessionQuery } from './queries';
 import { ErrorPage, LoadingPage } from './page-state';
 
 type GroupListItem = GroupListResponse['groups'][number];
@@ -205,11 +204,13 @@ function MobileNavItem({
   label,
   Icon,
   active,
+  prominent = false,
 }: {
   href: string;
   label: string;
   Icon: LucideIcon;
   active: boolean;
+  prominent?: boolean;
 }) {
   return (
     <Link
@@ -217,7 +218,11 @@ function MobileNavItem({
       aria-current={active ? 'page' : undefined}
       className={cn(
         'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[11px] font-semibold transition-colors',
-        active ? 'text-primary-ink' : 'text-muted-foreground hover:text-foreground',
+        prominent
+          ? 'text-primary-ink'
+          : active
+            ? 'text-primary-ink'
+            : 'text-muted-foreground hover:text-foreground',
       )}
     >
       {active ? (
@@ -226,7 +231,13 @@ function MobileNavItem({
           className="bg-primary absolute inset-x-5 top-0 h-0.5 rounded-full"
         />
       ) : null}
-      <Icon className="size-4.5" aria-hidden="true" />
+      {prominent ? (
+        <span className="bg-primary text-primary-foreground -mt-2 grid size-9 place-items-center rounded-xl shadow-sm">
+          <Icon className="size-4.5" aria-hidden="true" />
+        </span>
+      ) : (
+        <Icon className="size-4.5" aria-hidden="true" />
+      )}
       <span className="max-w-full truncate">{label}</span>
     </Link>
   );
@@ -252,20 +263,21 @@ function MobileBottomNav({ pathname, hash }: { pathname: string; hash: string })
               active={!hash || hash === '#expenses'}
             />
             <MobileNavItem
-              href={`/groups/${groupId}#summary`}
-              label={t('summary.title')}
-              Icon={Scale}
-              active={hash === '#summary'}
+              href={`/groups/${groupId}/expenses/new`}
+              label={t('expenses.add')}
+              Icon={Plus}
+              active={false}
+              prominent
             />
             <MobileNavItem
-              href={`/groups/${groupId}#transfers`}
-              label={t('summary.transfers_title')}
+              href={`/groups/${groupId}#settlement`}
+              label={t('settlements.title')}
               Icon={ArrowRightLeft}
-              active={hash === '#transfers'}
+              active={['#settlement', '#summary', '#transfers'].includes(hash)}
             />
             <MobileNavItem
               href={`/groups/${groupId}#settings`}
-              label={t('groups.settings')}
+              label={t('groups.settings_short')}
               Icon={UsersRound}
               active={hash === '#settings'}
             />
@@ -298,10 +310,17 @@ function MobileBottomNav({ pathname, hash }: { pathname: string; hash: string })
 }
 
 export function AppLayout() {
+  const location = useLocation();
+  const groupRoute = location.pathname.match(/^\/groups\/([^/]+)/u);
+  const routeGroupId = groupRoute?.[1] === 'new' ? '' : (groupRoute?.[1] ?? '');
+  const isGroupOverview = Boolean(routeGroupId) && /^\/groups\/[^/]+\/?$/u.test(location.pathname);
   const session = useSessionQuery();
   const user = session.data?.user;
   const groups = useGroupsQuery(Boolean(user));
-  const location = useLocation();
+  // Start route data while the global session is still resolving. The page
+  // reuses these query keys, avoiding a session -> page-data request waterfall.
+  useGroupQuery(routeGroupId);
+  useLedgerQuery(routeGroupId, isGroupOverview);
   const isExpenseComposer = /^\/groups\/[^/]+\/expenses\/(?:new|[^/]+\/edit)$/.test(
     location.pathname,
   );

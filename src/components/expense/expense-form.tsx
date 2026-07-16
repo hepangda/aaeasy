@@ -10,6 +10,7 @@ import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { CurrencySelect } from '@/components/money/currency-select';
 import {
   createExpenseAction,
   updateExpenseAction,
@@ -23,6 +24,7 @@ import { computeSplit } from '@/lib/split';
 import {
   decimalToMinor,
   formatMinor,
+  isCurrencyCode,
   minorToDecimal,
   minorUnits,
   parseAmountToMinor,
@@ -285,6 +287,8 @@ export function ExpenseForm({
   const [isDraftMode, setIsDraftMode] = useState<boolean>(
     lockedNonDraft ? false : (defaults?.isDraft ?? false),
   );
+  const currencyPrecision = minorUnits(currency);
+  const amountPlaceholder = formatMinor(0n, currency);
   // Parse the total amount in real time. `null` = invalid input.
   const totalMinor = useMemo<bigint | null>(() => {
     if (!amountText.trim()) return null;
@@ -715,10 +719,9 @@ export function ExpenseForm({
           if (typeof value === 'string') setFieldValue('occurredAt', value);
           return;
         case 'currency':
-          // Currency is locked to the group default; only honor matching
-          // suggestions so we don't desync the hidden input.
-          if (typeof value === 'string' && value === groupCurrency) {
-            setCurrency(value);
+          if (typeof value === 'string') {
+            const nextCurrency = value.trim().toUpperCase();
+            if (isCurrencyCode(nextCurrency)) setCurrency(nextCurrency);
           }
           return;
         case 'amount':
@@ -1006,7 +1009,6 @@ export function ExpenseForm({
           Mobile: amount + currency share one row, then payer + attach
           stack below. Desktop keeps the original four-column row. */}
       <section className="from-secondary/55 via-secondary/30 mt-5 flex flex-col gap-4 border-y bg-linear-to-br to-transparent px-5 py-6 sm:mt-7 sm:grid sm:grid-cols-[1.35fr_auto_1fr_auto] sm:items-end sm:px-8 sm:py-8">
-        <input type="hidden" name="currency" value={currency} />
         {!isDraftMode && (
           <div className="grid gap-2 sm:contents">
             <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
@@ -1016,28 +1018,39 @@ export function ExpenseForm({
                   id="amount"
                   name="amount"
                   required
-                  placeholder="0.00"
+                  placeholder={amountPlaceholder}
                   value={amountText}
                   onChange={(e) => setAmountText(e.target.value)}
+                  precision={currencyPrecision}
                   keypadTitle={t('expenses.amount')}
                   className="h-14 rounded-2xl border-0 bg-transparent px-0 font-mono text-3xl font-semibold tracking-[-0.04em] shadow-none ring-0 focus-visible:ring-0 sm:h-16 sm:text-4xl"
                 />
               </div>
               <div className="grid gap-2">
-                <span className="text-sm font-medium">{t('expenses.currency')}</span>
-                <span className="text-muted-foreground flex h-11 w-20 items-center font-mono text-sm">
-                  {currency}
-                </span>
+                <Label htmlFor="currency">{t('expenses.currency')}</Label>
+                <CurrencySelect
+                  id="currency"
+                  name="currency"
+                  value={currency}
+                  preferredCurrency={groupCurrency}
+                  onChange={(event) => setCurrency(event.target.value)}
+                  className="w-36 font-mono sm:w-40"
+                />
               </div>
             </div>
           </div>
         )}
         {isDraftMode && (
           <div className="grid gap-2">
-            <span className="text-sm font-medium">{t('expenses.currency')}</span>
-            <span className="text-muted-foreground flex h-11 w-20 items-center font-mono text-sm">
-              {currency}
-            </span>
+            <Label htmlFor="currency">{t('expenses.currency')}</Label>
+            <CurrencySelect
+              id="currency"
+              name="currency"
+              value={currency}
+              preferredCurrency={groupCurrency}
+              onChange={(event) => setCurrency(event.target.value)}
+              className="w-40 font-mono"
+            />
           </div>
         )}
         <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
@@ -1126,7 +1139,6 @@ export function ExpenseForm({
             defaultValue={defaults?.fxRateOverride ?? ''}
             precision={6}
             keypadTitle={t('expenses.fx_rate_override')}
-            disabled
           />
         </div>
       )}
@@ -1289,6 +1301,7 @@ export function ExpenseForm({
                             <ExtraInput
                               value={r.extraText}
                               onChange={(v) => updateRow(r.memberId, { extraText: v })}
+                              precision={currencyPrecision}
                               clearLabel={t('expenses.clear')}
                               label={t('expenses.member_field', {
                                 name: m.displayName,
@@ -1407,6 +1420,7 @@ export function ExpenseForm({
                           <ExtraInput
                             value={r.extraText}
                             onChange={(v) => updateRow(r.memberId, { extraText: v })}
+                            precision={currencyPrecision}
                             clearLabel={t('expenses.clear')}
                             label={t('expenses.member_field', {
                               name: m.displayName,
@@ -1472,10 +1486,7 @@ export function ExpenseForm({
       </div>
 
       <div className="bg-card/92 fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:sticky lg:inset-x-auto lg:z-10 lg:px-8 lg:py-4">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3">
-          <p className="text-muted-foreground hidden text-xs sm:block">
-            {isDraftMode ? t('expenses.draft_mode_hint') : t('expenses.ai_hint')}
-          </p>
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-end">
           <Button
             type="submit"
             disabled={submitDisabled}
@@ -1557,11 +1568,13 @@ function SharesStepper({
 function ExtraInput({
   value,
   onChange,
+  precision,
   clearLabel,
   label,
 }: {
   value: string;
   onChange: (v: string) => void;
+  precision: number;
   clearLabel: string;
   label: string;
 }) {
@@ -1572,6 +1585,7 @@ function ExtraInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder="0"
         allowNegative
+        precision={precision}
         keypadTitle={label}
         aria-label={label}
         className="h-9 w-full pr-7 pl-2 text-right font-mono tabular-nums"
