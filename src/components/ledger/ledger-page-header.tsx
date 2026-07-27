@@ -41,7 +41,7 @@ function LedgerActionsMenu({ children }: { children: ReactNode }) {
         type="button"
         variant="outline"
         size="icon"
-        className="size-11 rounded-xl"
+        className="size-10 rounded-md"
         aria-label={t('actions')}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
@@ -52,7 +52,7 @@ function LedgerActionsMenu({ children }: { children: ReactNode }) {
         <div
           role="dialog"
           aria-label={t('actions')}
-          className="bg-popover shadow-lifted absolute top-[calc(100%+0.5rem)] right-0 z-30 flex min-w-56 flex-col gap-2 rounded-xl border p-3 [&_button]:w-full [&>div]:w-full"
+          className="bg-popover shadow-lifted absolute top-[calc(100%+0.5rem)] right-0 z-30 flex min-w-56 flex-col gap-2 rounded-lg border p-2.5 [&_button]:w-full [&>div]:w-full"
         >
           {children}
         </div>
@@ -79,7 +79,7 @@ export function LedgerPageHeader({
   const t = useTranslations();
 
   return (
-    <header className="flex flex-col gap-3 sm:gap-5">
+    <header className="flex flex-col gap-3 sm:gap-4">
       <nav
         className="text-muted-foreground hidden min-w-0 items-center gap-2 text-xs sm:flex"
         aria-label={t('groups.my_groups')}
@@ -94,11 +94,11 @@ export function LedgerPageHeader({
       <div className="flex items-end justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-2.5 sm:gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-            <h1 className="text-foreground truncate text-2xl leading-none font-semibold tracking-[-0.035em] sm:text-4xl">
+            <h1 className="font-display text-foreground truncate text-2xl leading-none font-bold tracking-[-0.045em] sm:text-4xl">
               {name}
             </h1>
             {archived ? (
-              <span className="bg-secondary text-secondary-foreground rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] uppercase">
+              <span className="bg-secondary text-secondary-foreground rounded border px-2 py-1 font-mono text-[9px] font-semibold tracking-[0.14em] uppercase">
                 {t('expenses.locked_badge')}
               </span>
             ) : null}
@@ -115,7 +115,7 @@ export function LedgerPageHeader({
           <div className="flex shrink-0 items-center gap-2">
             {overflowActions ? <LedgerActionsMenu>{overflowActions}</LedgerActionsMenu> : null}
             {primaryAction ? (
-              <div className="[&>a]:h-11 [&>a]:rounded-xl [&>a]:px-5">{primaryAction}</div>
+              <div className="[&>a]:h-10 [&>a]:rounded-md [&>a]:px-4">{primaryAction}</div>
             ) : null}
           </div>
         ) : null}

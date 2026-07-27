@@ -187,7 +187,7 @@ export function TransfersPanel({
               {copied ? t('settlements.copied') : t('settlements.copy_all')}
             </Button>
           </header>
-          <ul className="divide-y rounded-xl border">
+          <ul className="divide-y rounded-lg border">
             {suggested.map((s, i) => {
               const involves =
                 !boundMemberId ||
@@ -241,7 +241,7 @@ export function TransfersPanel({
         {manualOpen && canAddManual && (
           <form
             onSubmit={submitManual}
-            className="bg-muted/30 grid gap-3 rounded-xl border p-4 sm:grid-cols-[1fr_auto_1fr_120px_auto]"
+            className="bg-muted/40 grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto_1fr_120px_auto]"
           >
             <div className="grid gap-1.5">
               <Label htmlFor="se-from" className="text-xs">
@@ -324,11 +324,11 @@ export function TransfersPanel({
           </p>
         ) : (
           <details className="group/history">
-            <summary className="text-muted-foreground hover:bg-muted/45 flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl border px-4 text-sm font-medium transition-colors [&::-webkit-details-marker]:hidden">
+            <summary className="text-muted-foreground hover:bg-muted/45 flex min-h-10 cursor-pointer list-none items-center justify-between rounded-lg border px-4 text-sm font-medium transition-colors [&::-webkit-details-marker]:hidden">
               {t('settlements.recorded_count', { count: executed.length })}
               <ChevronDown className="size-4 transition-transform group-open/history:rotate-180" />
             </summary>
-            <ul className="mt-2 divide-y rounded-xl border">
+            <ul className="mt-2 divide-y rounded-lg border">
               {executed.map((e) => {
                 const involves =
                   !boundMemberId ||
@@ -377,7 +377,7 @@ export function TransfersPanel({
         )}
       </section>
 
-      <p className="bg-muted/45 text-muted-foreground rounded-xl px-3 py-2.5 text-xs leading-5">
+      <p className="bg-muted/45 text-muted-foreground rounded-lg border px-3 py-2.5 text-xs leading-5">
         {t('settlements.record_disclaimer')}
       </p>
     </div>

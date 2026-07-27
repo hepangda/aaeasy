@@ -3,7 +3,6 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import type { AppEnv } from '../app-env';
 import { claimPendingShareLink } from '../auth/claim';
 import {
-  buildOidcLogoutUrl,
   completeAuthorization,
   createAuthorizationRequest,
   oidcConfig,
@@ -85,6 +84,6 @@ authRoutes.post('/auth/logout', async (c) => {
   }
   return c.json({
     ok: true,
-    redirectTo: buildOidcLogoutUrl(c.env, tokens?.idToken),
+    redirectTo: '/',
   });
 });

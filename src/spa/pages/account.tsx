@@ -22,9 +22,9 @@ export function AccountPage() {
 
   return (
     <section className="flex w-full flex-1">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-7 sm:px-6 sm:py-11 lg:px-8">
-        <header className="border-border flex flex-col gap-3 border-b pb-7 sm:pb-9">
-          <h1 className="font-display text-3xl leading-none font-semibold tracking-[-0.045em] sm:text-5xl">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 px-4 py-7 sm:px-6 sm:py-10 lg:px-8">
+        <header className="border-border flex flex-col gap-3 border-b pb-6 sm:pb-8">
+          <h1 className="font-display text-3xl leading-none font-bold tracking-[-0.05em] sm:text-4xl">
             {t('account.title')}
           </h1>
           <p className="text-muted-foreground text-sm">{t('account.identity_managed_by')}</p>
@@ -32,7 +32,7 @@ export function AccountPage() {
 
         <section
           aria-labelledby="account-identity-title"
-          className="bg-card shadow-soft flex flex-col gap-6 rounded-2xl border p-4 sm:p-6"
+          className="bg-card shadow-soft flex flex-col gap-6 rounded-xl border p-4 sm:p-6"
         >
           <div className="flex flex-col gap-1.5">
             <h2 id="account-identity-title" className="text-base font-semibold">
@@ -49,7 +49,7 @@ export function AccountPage() {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <span className="bg-primary text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full text-lg font-bold shadow-sm">
+              <span className="bg-primary text-primary-foreground grid size-12 shrink-0 place-items-center rounded-lg text-base font-bold">
                 {initial}
               </span>
             )}
@@ -85,7 +85,7 @@ export function AccountPage() {
         {account.data.user.isSuperAdmin ? (
           <section
             aria-labelledby="admin-all-ledgers-title"
-            className="bg-card shadow-soft flex flex-col gap-4 rounded-2xl border p-4 sm:p-6"
+            className="bg-card shadow-soft flex flex-col gap-4 rounded-xl border p-4 sm:p-6"
           >
             <div>
               <h2 id="admin-all-ledgers-title" className="text-base font-semibold">
@@ -137,7 +137,7 @@ export function AccountPage() {
 
         <section
           aria-labelledby="account-danger-zone"
-          className="border-destructive/30 flex flex-col gap-4 rounded-2xl border p-4 sm:p-6"
+          className="border-destructive/30 flex flex-col gap-4 rounded-xl border p-4 sm:p-6"
         >
           <div className="flex flex-col gap-1.5">
             <h2 id="account-danger-zone" className="text-destructive-ink text-base font-semibold">

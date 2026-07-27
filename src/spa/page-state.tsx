@@ -52,13 +52,13 @@ export function ErrorPage({ error }: { error?: unknown }) {
   return (
     <section className="bg-background text-foreground flex min-h-[28rem] w-full flex-1 items-center px-4 py-12 sm:px-6 sm:py-16">
       <div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
-        <span className="bg-secondary text-secondary-foreground grid size-12 place-items-center rounded-xl">
+        <span className="border-primary/15 bg-secondary text-secondary-foreground grid size-11 place-items-center rounded-lg border">
           <CircleAlert className="size-5" aria-hidden="true" />
         </span>
         <p className="text-muted-foreground mt-5 font-mono text-xs font-semibold tracking-[0.12em]">
           {content.code === '!' ? 'AAEasy' : content.code}
         </p>
-        <h1 className="mt-3 text-3xl leading-tight font-semibold tracking-[-0.04em]">
+        <h1 className="font-display mt-3 text-3xl leading-tight font-bold tracking-[-0.045em]">
           {content.title}
         </h1>
         <p className="text-muted-foreground mt-3 text-sm leading-6">{content.description}</p>

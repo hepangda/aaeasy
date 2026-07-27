@@ -1,12 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
   <title id="title">AAEasy</title>
-  <rect width="512" height="512" rx="112" fill="#eef3f7"/>
-  <circle cx="92" cy="98" r="72" fill="#f4c84a" opacity=".34"/>
-  <circle cx="428" cy="410" r="92" fill="#89caae" opacity=".28"/>
-  <g transform="rotate(-4 256 256)">
-    <path d="M142 78h164l74 73v236c0 34-27 61-61 61H142c-38 0-69-31-69-69V147c0-38 31-69 69-69Z" fill="#315fe3"/>
-    <path d="M306 78v48c0 14 11 25 25 25h49Z" fill="#fff" opacity=".28"/>
-    <path d="M157 137v250" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="18" opacity=".2"/>
-    <path d="m197 221 112-18M197 305l78-13" fill="none" stroke="#f4c84a" stroke-linecap="round" stroke-width="34"/>
-  </g>
+  <rect width="512" height="512" rx="104" fill="#111a2e"/>
+  <path d="M126 64h210l100 100v252c0 44-36 80-80 80H126c-44 0-80-36-80-80V144c0-44 36-80 80-80Z" fill="#3b5cff"/>
+  <path d="M336 64v70c0 17 13 30 30 30h70Z" fill="#fff" opacity=".24"/>
+  <path d="M146 214h180M146 294h140" fill="none" stroke="#fff" stroke-linecap="square" stroke-width="28"/>
+  <path d="M146 376h70" fill="none" stroke="#55d7d2" stroke-linecap="square" stroke-width="34"/>
 </svg>

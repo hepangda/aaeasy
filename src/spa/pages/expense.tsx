@@ -56,7 +56,7 @@ export function NewExpensePage() {
         </Link>
       </Button>
       <header className="flex flex-col gap-2">
-        <h1 className="font-display text-3xl leading-none font-semibold tracking-[-0.05em] sm:text-4xl">
+        <h1 className="font-display text-3xl leading-none font-bold tracking-[-0.055em] sm:text-4xl">
           {t('expenses.add')}
         </h1>
         <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">
@@ -151,7 +151,7 @@ export function EditExpensePage() {
         </Link>
       </Button>
       <header className="flex flex-col gap-2">
-        <h1 className="font-display text-3xl leading-none font-semibold tracking-[-0.05em] sm:text-4xl">
+        <h1 className="font-display text-3xl leading-none font-bold tracking-[-0.055em] sm:text-4xl">
           {t('expenses.edit')}
         </h1>
         <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">

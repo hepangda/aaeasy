@@ -25,12 +25,12 @@ export function LedgerSummaryTable({
   const memberById = new Map(members.map((member) => [member.id, member]));
 
   return (
-    <section className="bg-card shadow-soft overflow-hidden rounded-2xl border">
+    <section className="bg-card shadow-soft overflow-hidden rounded-xl border">
       <header className="border-b px-4 py-4 sm:px-5">
-        <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.15em] uppercase">
+        <p className="text-muted-foreground font-mono text-[9px] font-semibold tracking-[0.15em] uppercase">
           {currency}
         </p>
-        <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em]">{t('summary.title')}</h2>
+        <h2 className="mt-1 text-base font-semibold tracking-[-0.02em]">{t('summary.title')}</h2>
       </header>
       <ul className="divide-y sm:hidden">
         {summary.map((row) => {
@@ -67,7 +67,7 @@ export function LedgerSummaryTable({
       </ul>
       <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[42rem] text-sm">
-          <thead className="bg-muted/35 text-muted-foreground text-xs">
+          <thead className="bg-muted/55 text-muted-foreground font-mono text-[10px] tracking-[0.04em] uppercase">
             <tr>
               <th className="px-4 py-3 text-left font-medium sm:px-5">{t('summary.member')}</th>
               <th className="px-3 py-3 text-right font-medium">{t('summary.paid')}</th>

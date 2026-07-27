@@ -118,7 +118,7 @@ export function GroupDetailPage() {
       : [];
 
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-9 lg:px-8 lg:py-10">
+    <section className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-9">
       <GroupLiveRefresher groupId={groupId} />
       <LedgerPageHeader
         name={group.name}
@@ -151,12 +151,12 @@ export function GroupDetailPage() {
       />
 
       {isSuperAdminBypass ? (
-        <p className="border-destructive/40 bg-destructive/10 text-destructive-ink rounded-md border px-4 py-3 text-sm font-medium">
+        <p className="border-destructive/40 bg-destructive/10 text-destructive-ink rounded-lg border px-4 py-3 text-sm font-medium">
           {t('admin.bypass_banner')}
         </p>
       ) : null}
       {isArchived ? (
-        <p className="bg-secondary text-secondary-foreground rounded-md border px-4 py-3 text-sm">
+        <p className="bg-secondary text-secondary-foreground rounded-lg border px-4 py-3 text-sm">
           {t('groups.archived_banner')}
         </p>
       ) : null}
@@ -208,7 +208,7 @@ export function GroupDetailPage() {
               content: (
                 <section className="flex flex-col gap-4">
                   <SettlementStatus pendingTransfers={transfers.length} />
-                  <div className="bg-card shadow-soft rounded-2xl border p-4 sm:p-5">
+                  <div className="bg-card shadow-soft rounded-xl border p-4 sm:p-5">
                     <TransfersPanel
                       groupId={groupId}
                       members={members.map((member) => ({
@@ -256,7 +256,7 @@ export function GroupDetailPage() {
               id: 'settings',
               label: t('groups.settings'),
               content: (
-                <section className="bg-card shadow-soft rounded-2xl border p-4 sm:p-5">
+                <section className="bg-card shadow-soft rounded-xl border p-4 sm:p-5">
                   <SettingsPanel
                     groupId={groupId}
                     members={members}

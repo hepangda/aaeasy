@@ -223,26 +223,26 @@ export function Dialog({
         tabIndex={-1}
         className={cn(
           'bg-background shadow-lifted relative flex w-full max-w-lg flex-col gap-4 border p-5',
-          'max-h-[90dvh] overflow-y-auto rounded-t-[1.5rem] rounded-b-none border-b-0',
-          'sm:max-h-[calc(100dvh-2rem)] sm:rounded-[1.5rem] sm:border-b',
+          'max-h-[90dvh] overflow-y-auto rounded-t-xl rounded-b-none border-b-0',
+          'sm:max-h-[calc(100dvh-2rem)] sm:rounded-xl sm:border-b',
           className,
         )}
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
       >
         {title && (
           <header className="flex items-center justify-between gap-2">
-            <h2 id={titleId} className="text-base font-semibold">
+            <h2 id={titleId} className="text-base font-semibold tracking-[-0.02em]">
               {title}
             </h2>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="-mr-1 size-7"
+              className="-mr-1 size-8"
               onClick={requestClose}
               aria-label={t('close')}
             >
-              <X className="size-4" />
+              <X aria-hidden="true" />
             </Button>
           </header>
         )}

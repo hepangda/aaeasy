@@ -31,7 +31,7 @@ function SkipToMainContent() {
         event.preventDefault();
         document.getElementById(MAIN_CONTENT_ID)?.focus();
       }}
-      className="bg-foreground text-background fixed top-3 left-3 z-[60] -translate-y-20 rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition-transform focus:translate-y-0 focus:outline-hidden"
+      className="bg-foreground text-background fixed top-3 left-3 z-[60] -translate-y-20 rounded-md px-4 py-2 text-sm font-semibold shadow-md transition-transform focus:translate-y-0 focus:outline-hidden"
     >
       {t('skip_to_content')}
     </a>
@@ -44,7 +44,7 @@ function BrandHomeLink({ compact = false }: { compact?: boolean }) {
     <Link
       href="/"
       aria-label={t('name')}
-      className="focus-visible:ring-ring/25 rounded-lg focus-visible:ring-4 focus-visible:outline-hidden"
+      className="focus-visible:ring-ring/25 rounded-md focus-visible:ring-3 focus-visible:outline-hidden"
     >
       <BrandMark iconClassName={compact ? 'size-8' : undefined} />
     </Link>
@@ -53,8 +53,8 @@ function BrandHomeLink({ compact = false }: { compact?: boolean }) {
 
 function AnonymousHeader() {
   return (
-    <header className="border-border/70 bg-background/88 sticky top-0 z-40 border-b backdrop-blur-xl">
-      <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+    <header className="border-border bg-background/94 sticky top-0 z-40 border-b backdrop-blur-lg">
+      <div className="mx-auto flex min-h-14 w-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
         <BrandHomeLink compact />
         <HeaderActionsMenu />
       </div>
@@ -78,13 +78,13 @@ function SidebarNavLink({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors',
+        'flex min-h-10 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-semibold transition-colors',
         active
-          ? 'bg-secondary text-secondary-foreground'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+          ? 'bg-primary text-primary-foreground'
+          : 'text-sidebar-foreground/62 hover:bg-sidebar-foreground/8 hover:text-sidebar-foreground',
       )}
     >
-      <Icon className="size-4.5" aria-hidden="true" />
+      <Icon className="size-4" aria-hidden="true" />
       <span className="truncate">{label}</span>
     </Link>
   );
@@ -104,12 +104,12 @@ function DesktopSidebar({
   const currentGroups = groups.filter((group) => group.status !== 'ARCHIVED');
 
   return (
-    <aside className="border-border/70 bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-40 hidden w-[17rem] flex-col border-r px-4 py-5 lg:flex">
+    <aside className="border-sidebar-foreground/10 bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col border-r px-3 py-4 lg:flex">
       <div className="px-1">
         <BrandHomeLink />
       </div>
 
-      <nav aria-label={t('groups.my_groups')} className="mt-10 flex flex-col gap-1">
+      <nav aria-label={t('groups.my_groups')} className="mt-8 flex flex-col gap-1">
         <SidebarNavLink
           href="/groups"
           label={t('groups.my_groups')}
@@ -125,8 +125,8 @@ function DesktopSidebar({
       </nav>
 
       {currentGroups.length > 0 ? (
-        <div className="mt-8 min-h-0 flex-1 overflow-y-auto px-1">
-          <p className="text-muted-foreground mb-3 px-2 text-[11px] font-bold tracking-[0.12em] uppercase">
+        <div className="mt-7 min-h-0 flex-1 overflow-y-auto px-1">
+          <p className="text-sidebar-foreground/42 mb-2.5 px-2 text-[10px] font-semibold tracking-[0.16em] uppercase">
             {t('groups.current_ledgers')}
           </p>
           <ul className="flex flex-col gap-1">
@@ -139,18 +139,18 @@ function DesktopSidebar({
                     href={href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex min-h-10 items-center gap-3 rounded-lg px-2.5 text-sm transition-colors',
+                      'flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors',
                       active
-                        ? 'bg-muted text-foreground font-semibold'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                        ? 'bg-sidebar-foreground/10 text-sidebar-foreground font-semibold'
+                        : 'text-sidebar-foreground/55 hover:bg-sidebar-foreground/7 hover:text-sidebar-foreground',
                     )}
                   >
                     <span
                       aria-hidden="true"
-                      className="bg-primary/60 size-2 shrink-0 rounded-full"
+                      className="bg-primary size-1.5 shrink-0 rounded-[2px]"
                     />
                     <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                    <span className="text-muted-foreground/70 text-[11px] tabular-nums">
+                    <span className="text-sidebar-foreground/38 font-mono text-[10px] tabular-nums">
                       {group.memberCount}
                     </span>
                   </Link>
@@ -163,26 +163,26 @@ function DesktopSidebar({
         <div className="flex-1" />
       )}
 
-      <div className="border-border/70 mt-6 flex items-center gap-2 border-t pt-4">
+      <div className="border-sidebar-foreground/10 mt-5 flex items-center gap-1.5 border-t pt-3">
         <Link
           href="/account"
           aria-current={pathname.startsWith('/account') ? 'page' : undefined}
           className={cn(
-            'hover:bg-accent flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2 transition-colors',
-            pathname.startsWith('/account') ? 'bg-muted' : undefined,
+            'hover:bg-sidebar-foreground/7 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-2 transition-colors',
+            pathname.startsWith('/account') ? 'bg-sidebar-foreground/10' : undefined,
           )}
         >
-          <span className="bg-primary text-primary-foreground grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold shadow-sm">
+          <span className="bg-primary text-primary-foreground grid size-8 shrink-0 place-items-center rounded-md text-xs font-bold">
             {initial}
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold">{displayName}</span>
-            <span className="text-muted-foreground block truncate text-[11px]">
+            <span className="text-sidebar-foreground/42 block truncate text-[10px]">
               {t('common.account')}
             </span>
           </span>
         </Link>
-        <HeaderActionsMenu userDisplayName={displayName} />
+        <HeaderActionsMenu userDisplayName={displayName} inverted />
       </div>
     </aside>
   );
@@ -190,8 +190,8 @@ function DesktopSidebar({
 
 function MobileHeader({ displayName }: { displayName: string }) {
   return (
-    <header className="border-border/65 bg-background/88 sticky top-0 z-40 border-b backdrop-blur-xl lg:hidden">
-      <div className="flex min-h-16 items-center justify-between gap-3 px-4">
+    <header className="border-border bg-background/94 sticky top-0 z-40 border-b backdrop-blur-lg lg:hidden">
+      <div className="flex min-h-14 items-center justify-between gap-3 px-4">
         <BrandHomeLink compact />
         <HeaderActionsMenu userDisplayName={displayName} />
       </div>
@@ -226,17 +226,14 @@ function MobileNavItem({
       )}
     >
       {active ? (
-        <span
-          aria-hidden="true"
-          className="bg-primary absolute inset-x-5 top-0 h-0.5 rounded-full"
-        />
+        <span aria-hidden="true" className="bg-primary absolute inset-x-5 top-0 h-0.5" />
       ) : null}
       {prominent ? (
-        <span className="bg-primary text-primary-foreground -mt-2 grid size-9 place-items-center rounded-xl shadow-sm">
-          <Icon className="size-4.5" aria-hidden="true" />
+        <span className="bg-primary text-primary-foreground -mt-2 grid size-9 place-items-center rounded-md">
+          <Icon className="size-4" aria-hidden="true" />
         </span>
       ) : (
-        <Icon className="size-4.5" aria-hidden="true" />
+        <Icon className="size-4" aria-hidden="true" />
       )}
       <span className="max-w-full truncate">{label}</span>
     </Link>
@@ -251,7 +248,7 @@ function MobileBottomNav({ pathname, hash }: { pathname: string; hash: string })
   return (
     <nav
       aria-label={t('common.actions')}
-      className="border-border/70 bg-background/95 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+      className="border-border bg-background/96 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-lg lg:hidden"
     >
       <div className="mx-auto flex min-h-16 max-w-lg items-stretch gap-1 px-2 py-1">
         {groupId ? (
@@ -358,7 +355,7 @@ export function AppLayout() {
         <main
           id={MAIN_CONTENT_ID}
           tabIndex={-1}
-          className="flex min-h-[calc(100dvh-4rem)] flex-1 flex-col focus-visible:outline-hidden"
+          className="flex min-h-[calc(100dvh-3.5rem)] flex-1 flex-col focus-visible:outline-hidden"
         >
           <Outlet />
         </main>
@@ -373,7 +370,7 @@ export function AppLayout() {
           pathname={location.pathname}
         />
         <MobileHeader displayName={user.displayName} />
-        <div className="lg:pl-[17rem]">
+        <div className="lg:pl-[15.5rem]">
           <main
             id={MAIN_CONTENT_ID}
             tabIndex={-1}

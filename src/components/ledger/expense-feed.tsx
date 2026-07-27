@@ -94,21 +94,21 @@ function ExpenseFeedItem({
   });
 
   return (
-    <li className="group hover:bg-muted/25 grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-4 transition-colors sm:px-5 sm:py-5">
+    <li className="group hover:bg-accent/35 grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-4 transition-colors sm:px-5 sm:py-4.5">
       <div className="flex min-w-0 gap-3">
-        <span className="bg-primary/7 text-primary-ink border-primary/10 mt-0.5 grid size-10 shrink-0 place-items-center rounded-xl border">
+        <span className="bg-primary/7 text-primary-ink border-primary/12 mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border">
           <ReceiptText className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-sm font-semibold sm:text-base">{expense.title}</h3>
             {expense.isDraft ? (
-              <span className="bg-signal/20 text-signal-foreground dark:text-signal inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-[0.12em] uppercase">
+              <span className="bg-signal/20 text-signal-foreground dark:text-signal inline-flex rounded px-2 py-0.5 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase">
                 {t('expenses.draft_badge')}
               </span>
             ) : null}
             {expense.tags.map((tag) => (
-              <span key={tag} className="bg-accent rounded-full px-2 py-0.5 text-[10px]">
+              <span key={tag} className="bg-accent rounded px-2 py-0.5 text-[10px]">
                 {tag}
               </span>
             ))}
@@ -216,11 +216,11 @@ export function ExpenseReceiptFeed({
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-card shadow-soft overflow-hidden rounded-2xl border">
+      <section className="bg-card shadow-soft overflow-hidden rounded-xl border">
         <header className="flex items-center justify-between border-b px-4 py-4 sm:px-5">
           <div className="flex min-w-0 items-center gap-2.5">
-            <h2 className="text-lg font-semibold tracking-[-0.02em]">{t('expenses.title')}</h2>
-            <span className="bg-muted text-muted-foreground rounded-full px-2.5 py-1 text-xs font-medium tabular-nums">
+            <h2 className="text-base font-semibold tracking-[-0.02em]">{t('expenses.title')}</h2>
+            <span className="bg-muted text-muted-foreground rounded px-2 py-1 font-mono text-[10px] font-medium tabular-nums">
               {totalItems}
             </span>
           </div>
@@ -229,7 +229,7 @@ export function ExpenseReceiptFeed({
 
         {expenses.length === 0 ? (
           <div className="flex min-h-48 flex-col items-center justify-center px-6 text-center">
-            <span className="bg-muted text-muted-foreground grid size-11 place-items-center rounded-full">
+            <span className="bg-muted text-muted-foreground grid size-10 place-items-center rounded-lg border">
               <ReceiptText className="size-5" />
             </span>
             <p className="text-muted-foreground mt-3 max-w-sm text-sm">{t('expenses.empty')}</p>
@@ -239,7 +239,7 @@ export function ExpenseReceiptFeed({
             <section key={dateGroup.key} aria-labelledby={`expense-date-${dateGroup.key}`}>
               <h3
                 id={`expense-date-${dateGroup.key}`}
-                className="bg-muted/45 text-muted-foreground border-b px-4 py-2 text-[10px] font-semibold tracking-[0.12em] uppercase sm:px-5"
+                className="bg-muted/55 text-muted-foreground border-b px-4 py-2 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase sm:px-5"
               >
                 {dateGroup.label}
               </h3>

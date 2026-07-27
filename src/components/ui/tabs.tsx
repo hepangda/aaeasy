@@ -97,11 +97,11 @@ export function Tabs({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div
         role="tablist"
         className={cn(
-          'border-border/60 -mx-1 gap-1 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          'border-border -mx-1 gap-0 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           hideTabListOnMobile ? 'hidden sm:flex' : 'flex',
         )}
       >
@@ -123,21 +123,18 @@ export function Tabs({
                 moveFocus(tab.id, event.key);
               }}
               className={cn(
-                'relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
-                isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+                'relative flex min-h-10 items-center gap-1.5 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors',
+                isActive ? 'text-primary-ink' : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {tab.label}
               {tab.badge !== undefined && tab.badge !== null && (
-                <span className="bg-muted text-muted-foreground inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] tabular-nums">
+                <span className="bg-muted text-muted-foreground inline-flex min-w-5 items-center justify-center rounded px-1.5 font-mono text-[10px] tabular-nums">
                   {tab.badge}
                 </span>
               )}
               {isActive && (
-                <span
-                  aria-hidden
-                  className="bg-foreground absolute -bottom-px left-0 h-0.5 w-full"
-                />
+                <span aria-hidden className="bg-primary absolute -bottom-px left-0 h-0.5 w-full" />
               )}
             </button>
           );

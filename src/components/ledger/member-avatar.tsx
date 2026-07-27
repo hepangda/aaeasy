@@ -28,7 +28,7 @@ export function LedgerMemberAvatar({
     <span
       aria-hidden
       className={cn(
-        'dark:border-background/80 inline-grid shrink-0 place-items-center rounded-full border-2 border-white/80 font-semibold text-white shadow-sm',
+        'dark:border-background/80 inline-grid shrink-0 place-items-center rounded-full border-2 border-white/80 font-mono font-semibold text-white',
         size === 'sm' && 'size-7 text-[10px]',
         size === 'md' && 'size-9 text-xs',
         size === 'lg' && 'size-11 text-sm',
@@ -66,7 +66,7 @@ export function LedgerMemberStack({
         />
       ))}
       {remaining > 0 ? (
-        <span className="bg-muted text-muted-foreground dark:border-background -ml-2.5 inline-grid size-9 place-items-center rounded-full border-2 border-white text-[10px] font-semibold shadow-sm">
+        <span className="bg-muted text-muted-foreground dark:border-background -ml-2.5 inline-grid size-9 place-items-center rounded-full border-2 border-white font-mono text-[10px] font-semibold">
           +{remaining}
         </span>
       ) : null}

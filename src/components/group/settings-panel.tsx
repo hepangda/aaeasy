@@ -70,7 +70,7 @@ export function SettingsPanel({
       <div className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">{t('members.title')}</h2>
         {canManage && <AddMemberForm groupId={groupId} />}
-        <ul className="divide-y rounded-xl border">
+        <ul className="divide-y rounded-lg border">
           {membersPage.slice.map((m) => {
             const isLinked = !!m.linkedUserId;
             const displayName = isLinked

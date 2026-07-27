@@ -12,10 +12,10 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <section className="border-border bg-card flex flex-col gap-7 rounded-2xl border px-6 py-9 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-10">
+    <section className="border-border bg-card flex flex-col gap-7 rounded-xl border px-6 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-9">
       <div className="flex max-w-2xl items-start gap-4 sm:gap-5">
         {icon && (
-          <div className="bg-secondary text-secondary-foreground grid size-11 shrink-0 place-items-center rounded-xl [&_svg]:size-5">
+          <div className="border-primary/15 bg-secondary text-secondary-foreground grid size-10 shrink-0 place-items-center rounded-lg border [&_svg]:size-4.5">
             {icon}
           </div>
         )}

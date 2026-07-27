@@ -7,10 +7,10 @@ export function SettlementStatus({ pendingTransfers }: { pendingTransfers: numbe
   const settled = pendingTransfers === 0;
 
   return (
-    <section className="bg-ledger text-ledger-foreground shadow-lifted flex items-center gap-4 rounded-2xl px-5 py-5 sm:gap-5 sm:px-7 sm:py-6">
+    <section className="bg-ledger text-ledger-foreground shadow-lifted flex items-center gap-4 rounded-xl border border-white/10 px-5 py-5 sm:gap-5 sm:px-6 sm:py-5">
       <span
         className={cn(
-          'grid size-11 shrink-0 place-items-center rounded-full',
+          'grid size-10 shrink-0 place-items-center rounded-lg',
           settled ? 'bg-positive text-positive-foreground' : 'bg-signal text-signal-foreground',
         )}
       >
@@ -21,7 +21,7 @@ export function SettlementStatus({ pendingTransfers }: { pendingTransfers: numbe
         )}
       </span>
       <div className="min-w-0">
-        <h2 className="text-xl leading-tight font-semibold tracking-[-0.03em] sm:text-2xl">
+        <h2 className="text-lg leading-tight font-semibold tracking-[-0.03em] sm:text-xl">
           {settled
             ? t('summary.trail_title_even')
             : t('summary.trail_title_pending', { count: pendingTransfers })}

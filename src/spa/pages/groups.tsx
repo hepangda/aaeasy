@@ -27,9 +27,9 @@ export function GroupsPage() {
 
   return (
     <section className="bg-background text-foreground flex w-full flex-1">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-7 sm:gap-10 sm:px-6 sm:py-11 lg:px-8">
-        <header className="border-border flex flex-col gap-5 border-b pb-7 sm:flex-row sm:items-end sm:justify-between sm:pb-9">
-          <h1 className="font-display text-3xl leading-none font-semibold tracking-[-0.045em] sm:text-5xl">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-7 sm:gap-9 sm:px-6 sm:py-10 lg:px-8">
+        <header className="border-border flex flex-col gap-5 border-b pb-6 sm:flex-row sm:items-end sm:justify-between sm:pb-8">
+          <h1 className="font-display text-3xl leading-none font-bold tracking-[-0.05em] sm:text-4xl">
             {t('my_groups')}
           </h1>
           {groups.data.groups.length > 0 ? (
@@ -70,7 +70,7 @@ export function GroupsPage() {
                 <li key={group.id} className="border-border border-b last:border-b-0">
                   <Link
                     href={`/groups/${group.id}`}
-                    className="hover:bg-card/55 focus-visible:bg-card/70 focus-visible:outline-primary group dark:hover:bg-card/20 dark:focus-visible:bg-card/25 relative grid gap-5 overflow-hidden py-6 pr-1 pl-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6 sm:py-7"
+                    className="hover:bg-accent/45 focus-visible:bg-accent/55 focus-visible:outline-primary group relative grid gap-5 overflow-hidden py-5 pr-1 pl-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6 sm:py-6"
                   >
                     <span
                       aria-hidden
@@ -83,20 +83,20 @@ export function GroupsPage() {
                       {archived || showRole ? (
                         <div className="mb-3 flex flex-wrap items-center gap-2">
                           {archived ? (
-                            <span className="bg-signal/25 text-signal-foreground dark:bg-signal/18 dark:text-signal inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
+                            <span className="bg-signal/20 text-signal-foreground dark:text-signal inline-flex items-center gap-1.5 rounded px-2 py-1 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase">
                               <Archive className="size-3" />
                               {t('status_archived')}
                             </span>
                           ) : null}
                           {showRole ? (
-                            <span className="border-border inline-flex rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
+                            <span className="border-border inline-flex rounded border px-2 py-1 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase">
                               {roleT(group.role)}
                             </span>
                           ) : null}
                         </div>
                       ) : null}
 
-                      <h2 className="truncate text-2xl leading-tight font-semibold tracking-[-0.035em] sm:text-3xl">
+                      <h2 className="truncate text-xl leading-tight font-semibold tracking-[-0.035em] sm:text-2xl">
                         {group.name}
                       </h2>
 
@@ -143,7 +143,7 @@ export function NewGroupPage() {
   return (
     <section className="bg-background text-foreground flex w-full flex-1">
       <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-        <Button asChild variant="ghost" size="sm" className="mb-8 -ml-3 self-start">
+        <Button asChild variant="ghost" size="sm" className="mb-7 -ml-3 self-start">
           <Link href="/groups">
             <ArrowLeft /> {t('my_groups')}
           </Link>
@@ -151,12 +151,12 @@ export function NewGroupPage() {
 
         <div className="flex flex-1 flex-col gap-8">
           <header>
-            <h1 className="font-display text-3xl leading-[1.05] font-semibold tracking-[-0.045em] sm:text-5xl">
+            <h1 className="font-display text-3xl leading-[1.05] font-bold tracking-[-0.05em] sm:text-4xl">
               {t('new_group')}
             </h1>
           </header>
 
-          <div className="bg-card shadow-soft rounded-2xl border p-4 sm:p-7">
+          <div className="bg-card shadow-soft rounded-xl border p-4 sm:p-6">
             <NewGroupForm />
           </div>
         </div>

@@ -125,12 +125,12 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
   }
 
   return (
-    <section className="bg-card flex flex-col gap-3 rounded-2xl border p-4">
+    <section className="bg-card shadow-soft flex flex-col gap-3 rounded-xl border p-4">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="inline-flex items-center gap-1.5 text-base font-semibold">
           <Mail className="size-4" />
           {t('invitations.section_title')}
-          <span className="bg-muted text-muted-foreground ml-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs tabular-nums">
+          <span className="bg-muted text-muted-foreground ml-1 inline-flex min-w-5 items-center justify-center rounded px-1.5 font-mono text-[10px] tabular-nums">
             {invitations.length}
           </span>
         </h2>
@@ -167,7 +167,7 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
           )}
         </div>
       </header>
-      <ul className="divide-y rounded-xl border">
+      <ul className="divide-y rounded-lg border">
         {invitations.map((inv) => (
           <li key={inv.id} className="flex items-start gap-3 px-3 py-2.5 text-sm">
             <input

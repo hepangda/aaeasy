@@ -841,7 +841,7 @@ export function ExpenseForm({
     <form
       action={formAction}
       ref={formRef}
-      className="bg-card shadow-soft relative flex w-full flex-col overflow-hidden rounded-2xl border pb-24 sm:rounded-[1.75rem] lg:pb-0"
+      className="bg-card shadow-soft relative flex w-full flex-col overflow-hidden rounded-xl border pb-24 lg:pb-0"
     >
       <input type="hidden" name="groupId" value={groupId} />
       {/* Only submit a splitRule when we actually have a materialized split.
@@ -895,7 +895,7 @@ export function ExpenseForm({
           Keep both controls in the same row and same button style. The
           draft button is hidden when editing an already-materialized
           expense to avoid an accidental "demote-to-draft". */}
-      <div className="flex flex-wrap items-center gap-2 px-5 pt-5 sm:px-8 sm:pt-7">
+      <div className="flex flex-wrap items-center gap-2 px-5 pt-5 sm:px-8 sm:pt-6">
         <Button
           type="button"
           variant="outline"
@@ -927,7 +927,7 @@ export function ExpenseForm({
           form fields. The user always reviews before saving. */}
       {aiOpen && (
         <div className="flex flex-col gap-2 px-5 pt-3 sm:px-8">
-          <div className="bg-secondary/55 flex flex-col gap-3 rounded-2xl border p-4">
+          <div className="bg-secondary/55 flex flex-col gap-3 rounded-lg border p-4">
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 text-sm font-medium">
                 <Sparkles className="size-4" />{' '}
@@ -1008,7 +1008,7 @@ export function ExpenseForm({
       {/* ─── Row 2: Amount | Currency | Payer | Attach receipts ────
           Mobile: amount + currency share one row, then payer + attach
           stack below. Desktop keeps the original four-column row. */}
-      <section className="from-secondary/55 via-secondary/30 mt-5 flex flex-col gap-4 border-y bg-linear-to-br to-transparent px-5 py-6 sm:mt-7 sm:grid sm:grid-cols-[1.35fr_auto_1fr_auto] sm:items-end sm:px-8 sm:py-8">
+      <section className="bg-secondary/48 mt-5 flex flex-col gap-4 border-y px-5 py-6 sm:mt-6 sm:grid sm:grid-cols-[1.35fr_auto_1fr_auto] sm:items-end sm:px-8 sm:py-7">
         {!isDraftMode && (
           <div className="grid gap-2 sm:contents">
             <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
@@ -1023,7 +1023,7 @@ export function ExpenseForm({
                   onChange={(e) => setAmountText(e.target.value)}
                   precision={currencyPrecision}
                   keypadTitle={t('expenses.amount')}
-                  className="h-14 rounded-2xl border-0 bg-transparent px-0 font-mono text-3xl font-semibold tracking-[-0.04em] shadow-none ring-0 focus-visible:ring-0 sm:h-16 sm:text-4xl"
+                  className="h-14 rounded-none border-0 bg-transparent px-0 font-mono text-3xl font-semibold tracking-[-0.045em] shadow-none ring-0 focus-visible:ring-0 sm:h-15 sm:text-4xl"
                 />
               </div>
               <div className="grid gap-2">
@@ -1179,7 +1179,7 @@ export function ExpenseForm({
 
       {/* ─── Split rule (hidden in DRAFT mode) ──────────────── */}
       {!isDraftMode && (
-        <fieldset className="bg-background/55 mx-5 mb-6 grid gap-4 rounded-2xl border p-4 sm:mx-8 sm:p-5">
+        <fieldset className="bg-background/65 mx-5 mb-6 grid gap-4 rounded-lg border p-4 sm:mx-8 sm:p-5">
           <legend className="px-2 text-sm font-semibold">{t('expenses.split_rule')}</legend>
 
           <details
@@ -1187,14 +1187,14 @@ export function ExpenseForm({
             open={splitEditorOpen}
             onToggle={(event) => setSplitEditorOpen(event.currentTarget.open)}
           >
-            <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center gap-3 rounded-xl p-1 focus-visible:ring-2 focus-visible:outline-hidden [&::-webkit-details-marker]:hidden">
+            <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center gap-3 rounded-md p-1 focus-visible:ring-2 focus-visible:outline-hidden [&::-webkit-details-marker]:hidden">
               <span className="flex shrink-0 -space-x-1.5">
                 {activeSplitRows.slice(0, 4).map(({ row }) => {
                   const member = members.find((candidate) => candidate.id === row.memberId);
                   return (
                     <span
                       key={row.memberId}
-                      className="bg-secondary text-secondary-foreground ring-background grid size-7 place-items-center rounded-full text-[10px] font-bold ring-2"
+                      className="bg-secondary text-secondary-foreground ring-background grid size-7 place-items-center rounded-full font-mono text-[10px] font-bold ring-2"
                       aria-hidden
                     >
                       {member?.displayName.trim().slice(0, 1).toUpperCase() || '?'}
@@ -1203,7 +1203,7 @@ export function ExpenseForm({
                 })}
                 {activeSplitRows.length > 4 ? (
                   <span
-                    className="bg-muted text-muted-foreground ring-background grid size-7 place-items-center rounded-full text-[9px] font-bold ring-2"
+                    className="bg-muted text-muted-foreground ring-background grid size-7 place-items-center rounded-full font-mono text-[9px] font-bold ring-2"
                     aria-hidden
                   >
                     +{activeSplitRows.length - 4}
@@ -1239,7 +1239,7 @@ export function ExpenseForm({
               {/* ─── Desktop: tabular layout ───────────────────────── */}
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-sm">
-                  <thead className="text-muted-foreground text-xs">
+                  <thead className="text-muted-foreground font-mono text-[10px] tracking-[0.04em] uppercase">
                     <tr>
                       <th className="w-7 px-1 py-1 text-left"></th>
                       <th className="px-2 py-1 text-left font-medium">
@@ -1485,7 +1485,7 @@ export function ExpenseForm({
         />
       </div>
 
-      <div className="bg-card/92 fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:sticky lg:inset-x-auto lg:z-10 lg:px-8 lg:py-4">
+      <div className="bg-card/94 fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-lg lg:sticky lg:inset-x-auto lg:z-10 lg:px-8 lg:py-4">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-end">
           <Button
             type="submit"
