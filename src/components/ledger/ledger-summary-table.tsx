@@ -25,7 +25,7 @@ export function LedgerSummaryTable({
   const memberById = new Map(members.map((member) => [member.id, member]));
 
   return (
-    <section className="bg-card shadow-soft overflow-hidden rounded-xl border">
+    <section className="bg-card overflow-hidden rounded-xl border">
       <header className="border-b px-4 py-4 sm:px-5">
         <p className="text-muted-foreground font-mono text-[9px] font-semibold tracking-[0.15em] uppercase">
           {currency}

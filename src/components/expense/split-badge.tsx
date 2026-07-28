@@ -47,7 +47,7 @@ export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePi
         role="region"
         ariaLabel={t('show_split_details')}
       >
-        <div className="bg-popover rounded-md border p-2 shadow-md">
+        <div className="bg-popover shadow-lifted rounded-md border p-2">
           <ul className="flex flex-col gap-0.5 text-xs">
             {shares.map((s) => (
               <li

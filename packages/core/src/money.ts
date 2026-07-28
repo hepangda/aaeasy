@@ -63,7 +63,9 @@ function scaleFor(currency: string): Decimal {
  */
 export function parseAmountToMinor(input: string, currency: string): bigint {
   if (typeof input !== 'string') throw new Error('AMOUNT_NOT_STRING');
-  let s = input.trim();
+  // Accept the typographic minus (U+2212) that `formatMoney` emits, so a value
+  // copied out of the UI can be pasted straight back into an input.
+  let s = input.trim().replace(/−/g, '-');
   if (!s) throw new Error('AMOUNT_EMPTY');
 
   // Strip thousands separators / spaces / underscores while leaving exactly
@@ -112,9 +114,13 @@ export function minorToDecimal(minor: bigint, currency: string): Decimal {
 }
 
 /**
- * Format minor units for display, e.g. `formatMinor(123456n, 'CNY')` →
- * `"1234.56"`. No thousands separator and no symbol — the UI layer chooses
- * Intl formatting based on locale.
+ * Format minor units as a bare number, e.g. `formatMinor(123456n, 'CNY')` →
+ * `"1234.56"`. No thousands separator and no symbol.
+ *
+ * Emits an ASCII hyphen for negatives **on purpose**: this function doubles as
+ * the serializer for editable form values (split extras, amount placeholders),
+ * which are parsed back by `parseAmountToMinor`. For display-only money use
+ * `formatMoney`, which emits the typographic minus the design language wants.
  */
 export function formatMinor(minor: bigint, currency: string): string {
   const places = minorUnits(currency);
@@ -136,8 +142,20 @@ export function formatMinor(minor: bigint, currency: string): string {
  * locale-formatted (thousand separators, decimal mark).
  *
  * Falls back to a manual format on a malformed/unknown currency code.
+ *
+ * Negatives use the typographic minus U+2212 rather than an ASCII hyphen, so
+ * amounts line up in the monospace columns the design language mandates.
  */
 export function formatMoney(minor: bigint, currency: string, locale: string = 'en-US'): string {
+  return toDisplayMinus(formatMoneyRaw(minor, currency, locale));
+}
+
+/** Swap ASCII hyphen-minus for U+2212. Display only — never for parseable values. */
+function toDisplayMinus(text: string): string {
+  return text.replace(/-/g, '−');
+}
+
+function formatMoneyRaw(minor: bigint, currency: string, locale: string): string {
   try {
     const n = Number(minorToDecimal(minor, currency).toFixed(minorUnits(currency)));
     return new Intl.NumberFormat(locale, {

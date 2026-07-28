@@ -30,7 +30,7 @@ export function BottomSheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40"
+      className="bg-scrim fixed inset-0 z-50 flex flex-col justify-end"
       onPointerDown={(e) => {
         if (e.target !== e.currentTarget) return;
         e.preventDefault();
@@ -48,10 +48,10 @@ export function BottomSheet({
         aria-label={ariaLabel}
         tabIndex={-1}
         className={cn(
-          'bg-background shadow-lifted flex max-h-[90dvh] w-full flex-col overflow-y-auto rounded-t-xl border-t',
+          'bg-background shadow-lifted flex max-h-[90svh] w-full flex-col overflow-y-auto rounded-t-xl border-t',
+          'pb-safe',
           className,
         )}
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {children}
       </div>

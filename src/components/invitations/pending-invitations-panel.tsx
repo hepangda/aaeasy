@@ -125,7 +125,7 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
   }
 
   return (
-    <section className="bg-card shadow-soft flex flex-col gap-3 rounded-xl border p-4">
+    <section className="bg-card flex flex-col gap-3 rounded-xl border p-4">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="inline-flex items-center gap-1.5 text-base font-semibold">
           <Mail className="size-4" />

@@ -208,7 +208,7 @@ export function GroupDetailPage() {
               content: (
                 <section className="flex flex-col gap-4">
                   <SettlementStatus pendingTransfers={transfers.length} />
-                  <div className="bg-card shadow-soft rounded-xl border p-4 sm:p-5">
+                  <div className="bg-card rounded-xl border p-4 sm:p-5">
                     <TransfersPanel
                       groupId={groupId}
                       members={members.map((member) => ({
@@ -256,7 +256,7 @@ export function GroupDetailPage() {
               id: 'settings',
               label: t('groups.settings'),
               content: (
-                <section className="bg-card shadow-soft rounded-xl border p-4 sm:p-5">
+                <section className="bg-card rounded-xl border p-4 sm:p-5">
                   <SettingsPanel
                     groupId={groupId}
                     members={members}

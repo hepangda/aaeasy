@@ -156,7 +156,7 @@ export function NewGroupPage() {
             </h1>
           </header>
 
-          <div className="bg-card shadow-soft rounded-xl border p-4 sm:p-6">
+          <div className="bg-card rounded-xl border p-4 sm:p-6">
             <NewGroupForm />
           </div>
         </div>

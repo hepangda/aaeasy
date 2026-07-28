@@ -59,7 +59,7 @@ export function ReceiptActionsButton({
         className="w-fit max-w-xs"
         ariaLabel={t('receipts')}
       >
-        <div className="bg-popover rounded-md border p-2 shadow-md">
+        <div className="bg-popover shadow-lifted rounded-md border p-2">
           <ReceiptList
             groupId={groupId}
             expenseId={expenseId}

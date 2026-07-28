@@ -32,7 +32,7 @@ export function AccountPage() {
 
         <section
           aria-labelledby="account-identity-title"
-          className="bg-card shadow-soft flex flex-col gap-6 rounded-xl border p-4 sm:p-6"
+          className="bg-card flex flex-col gap-6 rounded-xl border p-4 sm:p-6"
         >
           <div className="flex flex-col gap-1.5">
             <h2 id="account-identity-title" className="text-base font-semibold">
@@ -85,7 +85,7 @@ export function AccountPage() {
         {account.data.user.isSuperAdmin ? (
           <section
             aria-labelledby="admin-all-ledgers-title"
-            className="bg-card shadow-soft flex flex-col gap-4 rounded-xl border p-4 sm:p-6"
+            className="bg-card flex flex-col gap-4 rounded-xl border p-4 sm:p-6"
           >
             <div>
               <h2 id="admin-all-ledgers-title" className="text-base font-semibold">

@@ -31,7 +31,7 @@ function SkipToMainContent() {
         event.preventDefault();
         document.getElementById(MAIN_CONTENT_ID)?.focus();
       }}
-      className="bg-foreground text-background fixed top-3 left-3 z-[60] -translate-y-20 rounded-md px-4 py-2 text-sm font-semibold shadow-md transition-transform focus:translate-y-0 focus:outline-hidden"
+      className="bg-foreground text-background shadow-lifted fixed top-3 left-3 z-[60] -translate-y-20 rounded-md px-4 py-2 text-sm font-semibold transition-transform focus:translate-y-0 focus:outline-hidden"
     >
       {t('skip_to_content')}
     </a>
@@ -145,10 +145,7 @@ function DesktopSidebar({
                         : 'text-sidebar-foreground/55 hover:bg-sidebar-foreground/7 hover:text-sidebar-foreground',
                     )}
                   >
-                    <span
-                      aria-hidden="true"
-                      className="bg-primary size-1.5 shrink-0 rounded-[2px]"
-                    />
+                    <span aria-hidden="true" className="bg-primary size-1.5 shrink-0 rounded-sm" />
                     <span className="min-w-0 flex-1 truncate">{group.name}</span>
                     <span className="text-sidebar-foreground/38 font-mono text-[10px] tabular-nums">
                       {group.memberCount}
@@ -248,7 +245,7 @@ function MobileBottomNav({ pathname, hash }: { pathname: string; hash: string })
   return (
     <nav
       aria-label={t('common.actions')}
-      className="border-border bg-background/96 fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-lg lg:hidden"
+      className="border-border bg-background/96 pb-safe fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-lg lg:hidden"
     >
       <div className="mx-auto flex min-h-16 max-w-lg items-stretch gap-1 px-2 py-1">
         {groupId ? (
@@ -326,11 +323,11 @@ export function AppLayout() {
 
   if (session.isPending) {
     shell = (
-      <div className="bg-background text-foreground flex min-h-dvh flex-col">
+      <div className="bg-background text-foreground flex min-h-svh flex-col">
         <main
           id={MAIN_CONTENT_ID}
           tabIndex={-1}
-          className="flex min-h-dvh flex-1 flex-col focus-visible:outline-hidden"
+          className="flex min-h-svh flex-1 flex-col focus-visible:outline-hidden"
         >
           <LoadingPage />
         </main>
@@ -338,11 +335,11 @@ export function AppLayout() {
     );
   } else if (session.isError) {
     shell = (
-      <div className="bg-background text-foreground flex min-h-dvh flex-col">
+      <div className="bg-background text-foreground flex min-h-svh flex-col">
         <main
           id={MAIN_CONTENT_ID}
           tabIndex={-1}
-          className="flex min-h-dvh flex-1 flex-col focus-visible:outline-hidden"
+          className="flex min-h-svh flex-1 flex-col focus-visible:outline-hidden"
         >
           <ErrorPage error={session.error} />
         </main>
@@ -350,12 +347,12 @@ export function AppLayout() {
     );
   } else if (!user) {
     shell = (
-      <div className="bg-background text-foreground flex min-h-dvh flex-col">
+      <div className="bg-background text-foreground flex min-h-svh flex-col">
         <AnonymousHeader />
         <main
           id={MAIN_CONTENT_ID}
           tabIndex={-1}
-          className="flex min-h-[calc(100dvh-3.5rem)] flex-1 flex-col focus-visible:outline-hidden"
+          className="flex min-h-[calc(100svh-3.5rem)] flex-1 flex-col focus-visible:outline-hidden"
         >
           <Outlet />
         </main>
@@ -363,7 +360,7 @@ export function AppLayout() {
     );
   } else {
     shell = (
-      <div className="bg-background text-foreground min-h-dvh">
+      <div className="bg-background text-foreground min-h-svh">
         <DesktopSidebar
           displayName={user.displayName}
           groups={groups.data?.groups ?? []}
@@ -375,8 +372,10 @@ export function AppLayout() {
             id={MAIN_CONTENT_ID}
             tabIndex={-1}
             className={cn(
-              'flex min-h-[calc(100dvh-4rem)] flex-col focus-visible:outline-hidden lg:min-h-dvh lg:pb-0',
-              isExpenseComposer ? 'pb-0' : 'pb-20',
+              'flex min-h-[calc(100svh-4rem)] flex-col focus-visible:outline-hidden lg:min-h-svh lg:pb-0',
+              // The bottom nav is 4rem tall *plus* the safe-area inset, so a
+              // fixed pb-20 left content occluded on notched devices.
+              isExpenseComposer ? 'pb-0' : 'pb-bottom-nav',
             )}
           >
             <Outlet />

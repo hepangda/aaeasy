@@ -36,7 +36,9 @@
   --positive-foreground: oklch(0.22 0.065 164);
   --positive-ink: oklch(0.39 0.115 158);
   --liability: oklch(0.64 0.2 27);
-  --surface-shadow: 0 1px 1px rgb(15 23 42 / 0.03), 0 6px 18px rgb(15 23 42 / 0.045);
+  --sunken: oklch(0.955 0.014 257);
+  --sunken-strong: oklch(0.938 0.021 258);
+  --scrim: oklch(0.16 0.03 258 / 0.44);
   --lifted-shadow: 0 16px 44px rgb(15 23 42 / 0.13);
   --floating-shadow: 0 8px 24px rgb(37 82 235 / 0.2);
   --motion-fast: 120ms;
@@ -79,7 +81,9 @@
   --positive-foreground: oklch(0.21 0.065 164);
   --positive-ink: oklch(0.8 0.105 158);
   --liability: oklch(0.72 0.16 27);
-  --surface-shadow: 0 1px 1px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.18);
+  --sunken: oklch(0.155 0.025 258);
+  --sunken-strong: oklch(0.185 0.03 258);
+  --scrim: oklch(0.06 0.015 258 / 0.6);
   --lifted-shadow: 0 20px 56px rgb(0 0 0 / 0.38);
   --floating-shadow: 0 10px 28px rgb(0 0 0 / 0.4);
 }
@@ -116,6 +120,9 @@
   --color-positive-foreground: var(--positive-foreground);
   --color-positive-ink: var(--positive-ink);
   --color-liability: var(--liability);
+  --color-sunken: var(--sunken);
+  --color-sunken-strong: var(--sunken-strong);
+  --color-scrim: var(--scrim);
   --font-sans:
     Inter, 'SF Pro Text', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
@@ -123,7 +130,6 @@
     'SF Pro Display', Inter, 'Segoe UI Variable Display', 'Segoe UI', 'PingFang SC', sans-serif;
   --font-mono:
     'SFMono-Regular', 'Cascadia Code', 'Roboto Mono', 'IBM Plex Mono', Consolas, monospace;
-  --shadow-soft: var(--surface-shadow);
   --shadow-lifted: var(--lifted-shadow);
   --shadow-floating: var(--floating-shadow);
   --radius-sm: calc(var(--radius) - 4px);
@@ -229,6 +235,28 @@
 }
 
 @layer utilities {
+  /* Bottom safe-area handling. `pb-safe` is the bare inset (for a bar that
+     supplies its own padding); `pb-safe-3` keeps a minimum 0.75rem so content
+     never sits flush against the edge on non-notched devices. Use these instead
+     of hand-writing env(safe-area-inset-bottom) or an inline style. */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pb-safe-3 {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .pb-safe-5 {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  /* Height of the fixed mobile bottom nav, including the safe-area inset.
+     Content containers use `pb-bottom-nav` so nothing is occluded. */
+  .pb-bottom-nav {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+
   @keyframes flow-dash {
     to {
       stroke-dashoffset: -28;

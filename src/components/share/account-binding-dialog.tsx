@@ -433,7 +433,7 @@ function InviteSection({
             <ul
               id={`bind-suggestions-${memberId}`}
               role="listbox"
-              className="border-input bg-popover absolute top-full z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border shadow-md"
+              className="border-input bg-popover shadow-lifted absolute top-full z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border"
             >
               {suggestions.map((s) => (
                 <li key={s.username}>

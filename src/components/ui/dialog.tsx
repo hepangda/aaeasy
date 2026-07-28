@@ -203,7 +203,7 @@ export function Dialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:overflow-y-auto sm:p-4"
+      className="bg-scrim fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:overflow-y-auto sm:p-4"
       onPointerDown={(e) => {
         if (e.target !== e.currentTarget) return;
         e.preventDefault();
@@ -223,11 +223,11 @@ export function Dialog({
         tabIndex={-1}
         className={cn(
           'bg-background shadow-lifted relative flex w-full max-w-lg flex-col gap-4 border p-5',
-          'max-h-[90dvh] overflow-y-auto rounded-t-xl rounded-b-none border-b-0',
-          'sm:max-h-[calc(100dvh-2rem)] sm:rounded-xl sm:border-b',
+          'max-h-[90svh] overflow-y-auto rounded-t-xl rounded-b-none border-b-0',
+          'sm:max-h-[calc(100svh-2rem)] sm:rounded-xl sm:border-b',
+          'pb-safe-5',
           className,
         )}
-        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
       >
         {title && (
           <header className="flex items-center justify-between gap-2">

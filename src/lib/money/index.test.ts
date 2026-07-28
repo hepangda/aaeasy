@@ -4,6 +4,7 @@ import {
   convertMinor,
   decimalToMinor,
   formatMinor,
+  formatMoney,
   isCurrencyCode,
   minorToDecimal,
   minorUnits,
@@ -91,6 +92,37 @@ describe('formatMinor', () => {
   it('handles negative', () => {
     expect(formatMinor(-1055n, 'CNY')).toBe('-10.55');
     expect(formatMinor(-5n, 'USD')).toBe('-0.05');
+  });
+  it('keeps an ASCII hyphen so the output stays parseable as a form value', () => {
+    const text = formatMinor(-1055n, 'CNY');
+    expect(text).not.toContain('−');
+    expect(parseAmountToMinor(text.slice(1), 'CNY')).toBe(1055n);
+  });
+});
+
+describe('formatMoney', () => {
+  it('prefixes the currency code rather than an ambiguous symbol', () => {
+    // Intl separates the code from the number with a non-breaking space (U+00A0).
+    expect(formatMoney(12345n, 'CNY', 'en-US')).toBe('CNY 123.45');
+  });
+
+  it('renders negatives with a typographic minus (U+2212), not a hyphen', () => {
+    const text = formatMoney(-12345n, 'CNY', 'en-US');
+    expect(text).toContain('−');
+    expect(text).not.toContain('-');
+  });
+
+  it('round-trips through parseAmountToMinor despite the typographic minus', () => {
+    const text = formatMoney(-12345n, 'CNY', 'en-US');
+    const digits = text.replace('CNY', '').replace('−', '').trim();
+    expect(parseAmountToMinor(digits, 'CNY')).toBe(12345n);
+  });
+
+  it('accepts a pasted U+2212 amount in the parser', () => {
+    expect(parseAmountToMinor('123.45', 'CNY')).toBe(12345n);
+    // A negative pasted back in is rejected for being negative, not for being
+    // unparseable — proving the U+2212 was normalized to an ASCII hyphen first.
+    expect(() => parseAmountToMinor('−123.45', 'CNY')).toThrow('AMOUNT_NEGATIVE');
   });
 });
 

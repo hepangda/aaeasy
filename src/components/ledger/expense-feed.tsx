@@ -216,7 +216,7 @@ export function ExpenseReceiptFeed({
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-card shadow-soft overflow-hidden rounded-xl border">
+      <section className="bg-card overflow-hidden rounded-xl border">
         <header className="flex items-center justify-between border-b px-4 py-4 sm:px-5">
           <div className="flex min-w-0 items-center gap-2.5">
             <h2 className="text-base font-semibold tracking-[-0.02em]">{t('expenses.title')}</h2>

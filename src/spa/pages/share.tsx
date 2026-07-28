@@ -9,7 +9,7 @@ export function SharePage() {
 
   return (
     <section className="bg-background text-foreground flex w-full flex-1 items-center px-4 py-10 sm:px-6 sm:py-16">
-      <div className="bg-card shadow-soft mx-auto flex w-full max-w-md flex-col items-center rounded-xl border p-6 text-center sm:p-9">
+      <div className="bg-card mx-auto flex w-full max-w-md flex-col items-center rounded-xl border p-6 text-center sm:p-9">
         <span className="border-primary/15 bg-secondary text-secondary-foreground grid size-11 place-items-center rounded-lg border">
           <Link2 className="size-5" aria-hidden="true" />
         </span>
