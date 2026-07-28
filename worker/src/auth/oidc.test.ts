@@ -37,7 +37,7 @@ function env(overrides: Partial<OidcEnv> = {}): OidcEnv {
 afterEach(() => vi.unstubAllGlobals());
 
 function stubIntrospection(body: unknown, status = 200) {
-  const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+  const fetchMock = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
     const url = input instanceof Request ? input.url : input.toString();
     if (url.endsWith('/.well-known/openid-configuration')) {
       return Response.json(discoveryDocument);

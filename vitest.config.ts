@@ -8,9 +8,12 @@ export default defineConfig({
     },
   },
   test: {
+    // Default stays `node` for the pure-logic suites. Component tests opt into
+    // jsdom with a `// @vitest-environment jsdom` docblock at the top of the file.
     environment: 'node',
+    setupFiles: ['./src/test/setup.ts'],
     include: [
-      'src/**/*.{test,spec}.ts',
+      'src/**/*.{test,spec}.{ts,tsx}',
       'packages/contracts/src/**/*.{test,spec}.ts',
       'packages/db/src/**/*.{test,spec}.ts',
       'worker/src/**/*.{test,spec}.ts',
