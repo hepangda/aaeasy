@@ -1,37 +1,20 @@
-import { useTransition } from 'react';
-import { useRouter } from '@/compat/navigation';
 import { useTranslations } from 'use-intl';
 import { LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useAsyncAction } from '@/hooks/use-async-action';
 import { leaveGroupAction } from '@/spa/actions/groups';
-import { showI18nError } from '@/lib/ui/toast';
 
 export function LeaveGroupButton({ groupId }: { groupId: string }) {
   const t = useTranslations();
-  const confirm = useConfirm();
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const { run, pending } = useAsyncAction({
+    action: () => leaveGroupAction(groupId),
+    confirm: { message: t('groups.confirm_leave') },
+    redirectTo: '/groups',
+  });
+
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      disabled={pending}
-      onClick={async () => {
-        if (!(await confirm({ message: t('groups.confirm_leave') }))) return;
-        startTransition(async () => {
-          const res = await leaveGroupAction(groupId);
-          if (res.ok) {
-            router.push('/groups');
-            router.refresh();
-          } else {
-            showI18nError(t, res.error ?? 'errors.unknown');
-          }
-        });
-      }}
-    >
-      <LogOut className="text-destructive-ink" /> {t('groups.leave')}
+    <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => void run()}>
+      <LogOut className="text-destructive-ink" aria-hidden="true" /> {t('groups.leave')}
     </Button>
   );
 }

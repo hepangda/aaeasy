@@ -21,6 +21,7 @@ import { formatMinor, formatMoney } from '@/lib/money';
 import { getPageSlice } from '@/lib/pagination';
 import { ErrorPage } from '../page-state';
 import { SkeletonPage } from '@/components/ui/skeleton';
+import { Card } from '@/components/ui/card';
 import { useGroupQuery, useLedgerQuery } from '../queries';
 
 const PAGE_SIZE_EXPENSES = 10;
@@ -126,18 +127,18 @@ export function GroupDetailPage() {
         currency={group.defaultCurrency}
         members={members}
         archived={isArchived}
+        primaryAction={
+          access.canSettle && !isArchived ? (
+            <SettleButton
+              groupId={groupId}
+              openExpenseCount={openExpenseCount}
+              draftExpenseCount={draftExpenseCount}
+            />
+          ) : undefined
+        }
         overflowActions={
-          (access.canSettle && !isArchived) ||
-          (canManage && access.kind === 'user') ||
-          access.kind === 'user' ? (
+          (canManage && access.kind === 'user') || access.kind === 'user' ? (
             <>
-              {access.canSettle && !isArchived ? (
-                <SettleButton
-                  groupId={groupId}
-                  openExpenseCount={openExpenseCount}
-                  draftExpenseCount={draftExpenseCount}
-                />
-              ) : null}
               {canManage && access.kind === 'user' ? (
                 <GroupShareDialog
                   groupId={groupId}
@@ -152,12 +153,12 @@ export function GroupDetailPage() {
       />
 
       {isSuperAdminBypass ? (
-        <p className="border-destructive/40 bg-destructive/10 text-destructive-ink rounded-lg border px-4 py-3 text-sm font-medium">
+        <p className="border-destructive/40 bg-destructive/10 text-destructive-ink rounded-xl border px-4 py-3 text-sm font-semibold">
           {t('admin.bypass_banner')}
         </p>
       ) : null}
       {isArchived ? (
-        <p className="bg-secondary text-secondary-foreground rounded-lg border px-4 py-3 text-sm">
+        <p className="bg-secondary text-secondary-foreground rounded-xl border px-4 py-3 text-sm">
           {t('groups.archived_banner')}
         </p>
       ) : null}
@@ -171,7 +172,7 @@ export function GroupDetailPage() {
             {
               id: 'expenses',
               label: t('expenses.title'),
-              badge: expenses.length,
+              badge: openExpenseCount || undefined,
               content: (
                 <section className="flex min-w-0 flex-col gap-4">
                   {draftsForCaller.length > 0 ? (
@@ -209,7 +210,7 @@ export function GroupDetailPage() {
               content: (
                 <section className="flex flex-col gap-4">
                   <SettlementStatus pendingTransfers={transfers.length} />
-                  <div className="bg-card rounded-xl border p-4 sm:p-5">
+                  <Card padding="body">
                     <TransfersPanel
                       groupId={groupId}
                       members={members.map((member) => ({
@@ -243,7 +244,7 @@ export function GroupDetailPage() {
                         createdByName: entry.createdByName,
                       }))}
                     />
-                  </div>
+                  </Card>
                   <LedgerSummaryTable
                     summary={summary}
                     members={members}
@@ -257,7 +258,7 @@ export function GroupDetailPage() {
               id: 'settings',
               label: t('groups.settings'),
               content: (
-                <section className="bg-card rounded-xl border p-4 sm:p-5">
+                <Card as="section" padding="body">
                   <SettingsPanel
                     groupId={groupId}
                     members={members}
@@ -272,7 +273,7 @@ export function GroupDetailPage() {
                     baseUrl={window.location.origin}
                     ownerCandidates={ownerCandidates}
                   />
-                </section>
+                </Card>
               ),
             },
           ]}

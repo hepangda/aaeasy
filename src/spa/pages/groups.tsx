@@ -1,11 +1,14 @@
 import Link from '@/compat/link';
 import { Navigate } from 'react-router';
 import { useFormatter, useTranslations } from 'use-intl';
-import { Archive, ArrowLeft, ArrowUpRight, BookOpenText, Clock3, Plus, Users } from 'lucide-react';
+import { Archive, ArrowUpRight, BookOpenText, Clock3, Plus, Users } from 'lucide-react';
 import { PendingInvitationsPanel } from '@/components/invitations/pending-invitations-panel';
 import { NewGroupForm } from '@/components/group/new-group-form';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Card } from '@/components/ui/card';
+import { Eyebrow } from '@/components/ui/eyebrow';
+import { PageHeader } from '@/components/ui/page-header';
 import { ErrorPage, LoadingPage } from '../page-state';
 import { SkeletonPage } from '@/components/ui/skeleton';
 import { useGroupsQuery, useSessionQuery } from '../queries';
@@ -29,18 +32,19 @@ export function GroupsPage() {
   return (
     <section className="bg-background text-foreground flex w-full flex-1">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-7 sm:gap-9 sm:px-6 sm:py-10 lg:px-8">
-        <header className="border-border flex flex-col gap-5 border-b pb-6 sm:flex-row sm:items-end sm:justify-between sm:pb-8">
-          <h1 className="font-display text-3xl leading-none font-bold tracking-[-0.05em] sm:text-4xl">
-            {t('my_groups')}
-          </h1>
-          {groups.data.groups.length > 0 ? (
-            <Button asChild size="lg" className="w-full sm:w-auto">
-              <Link href="/groups/new">
-                <Plus /> {t('new_group')}
-              </Link>
-            </Button>
-          ) : null}
-        </header>
+        <PageHeader
+          divider
+          title={t('my_groups')}
+          action={
+            groups.data.groups.length > 0 ? (
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <Link href="/groups/new">
+                  <Plus /> {t('new_group')}
+                </Link>
+              </Button>
+            ) : null
+          }
+        />
 
         <PendingInvitationsPanel
           invitations={groups.data.invitations.map((invitation) => ({
@@ -71,7 +75,7 @@ export function GroupsPage() {
                 <li key={group.id} className="border-border border-b last:border-b-0">
                   <Link
                     href={`/groups/${group.id}`}
-                    className="hover:bg-accent/45 focus-visible:bg-accent/55 focus-visible:outline-primary group relative grid gap-5 overflow-hidden py-5 pr-1 pl-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6 sm:py-6"
+                    className="hover:bg-accent/45 focus-visible:bg-accent/55 focus-visible:outline-primary group relative flex items-center gap-4 overflow-hidden py-5 pr-4 pl-5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:px-6 sm:py-6"
                   >
                     <span
                       aria-hidden
@@ -80,49 +84,55 @@ export function GroupsPage() {
                       }`}
                     />
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       {archived || showRole ? (
                         <div className="mb-3 flex flex-wrap items-center gap-2">
                           {archived ? (
-                            <span className="bg-signal/20 text-signal-foreground dark:text-signal inline-flex items-center gap-1.5 rounded px-2 py-1 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase">
-                              <Archive className="size-3" />
+                            <Eyebrow
+                              as="span"
+                              variant="chip"
+                              tone="signal"
+                              mono
+                              icon={<Archive aria-hidden="true" />}
+                            >
                               {t('status_archived')}
-                            </span>
+                            </Eyebrow>
                           ) : null}
                           {showRole ? (
-                            <span className="border-border inline-flex rounded border px-2 py-1 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase">
+                            <Eyebrow as="span" variant="chip" tone="outline" mono>
                               {roleT(group.role)}
-                            </span>
+                            </Eyebrow>
                           ) : null}
                         </div>
                       ) : null}
 
-                      <h2 className="truncate text-xl leading-tight font-semibold tracking-[-0.035em] sm:text-2xl">
+                      <h2 className="truncate text-xl leading-tight font-bold tracking-[-0.04em] sm:text-2xl">
                         {group.name}
                       </h2>
 
                       <div className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
                         <span className="inline-flex items-center gap-1.5">
-                          <Users className="text-primary-ink size-3.5" />
+                          <Users className="text-primary-ink size-3.5" aria-hidden="true" />
                           {t('members_count', { count: group.memberCount })}
                         </span>
                         <span className="inline-flex items-center gap-1.5">
-                          <Clock3 className="text-primary-ink size-3.5" />
+                          <Clock3 className="text-primary-ink size-3.5" aria-hidden="true" />
                           {t('updated_at', {
                             date: fmt.dateTime(new Date(group.updatedAt), 'short'),
                           })}
                         </span>
+                        <Eyebrow as="span" mono>
+                          {group.defaultCurrency}
+                        </Eyebrow>
                       </div>
                     </div>
 
-                    <div className="border-border flex items-end justify-between gap-5 border-t pt-4 sm:min-w-32 sm:flex-col sm:items-end sm:border-t-0 sm:pt-0">
-                      <span className="text-muted-foreground font-mono text-sm font-semibold tracking-[0.12em] uppercase">
-                        {group.defaultCurrency}
-                      </span>
-                      <span className="text-primary-ink inline-flex items-center">
-                        <span className="sr-only">{t('open')}</span>
-                        <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                      </span>
+                    <div className="text-primary-ink flex shrink-0 items-center self-center">
+                      <span className="sr-only">{t('open')}</span>
+                      <ArrowUpRight
+                        aria-hidden="true"
+                        className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                      />
                     </div>
                   </Link>
                 </li>
@@ -144,22 +154,14 @@ export function NewGroupPage() {
   return (
     <section className="bg-background text-foreground flex w-full flex-1">
       <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-        <Button asChild variant="ghost" size="sm" className="mb-7 -ml-3 self-start">
-          <Link href="/groups">
-            <ArrowLeft /> {t('my_groups')}
-          </Link>
-        </Button>
-
         <div className="flex flex-1 flex-col gap-8">
-          <header>
-            <h1 className="font-display text-3xl leading-[1.05] font-bold tracking-[-0.05em] sm:text-4xl">
-              {t('new_group')}
-            </h1>
-          </header>
-
-          <div className="bg-card rounded-xl border p-4 sm:p-6">
+          <PageHeader
+            title={t('new_group')}
+            backLink={{ href: '/groups', label: t('my_groups') }}
+          />
+          <Card padding="body">
             <NewGroupForm />
-          </div>
+          </Card>
         </div>
       </div>
     </section>

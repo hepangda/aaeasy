@@ -6,6 +6,11 @@ import { DeleteAccountButton } from '@/components/account/delete-account-button'
 import { Button } from '@/components/ui/button';
 import { ErrorPage } from '../page-state';
 import { SkeletonPage } from '@/components/ui/skeleton';
+import { Card } from '@/components/ui/card';
+import { DangerZone } from '@/components/ui/danger-zone';
+import { Eyebrow } from '@/components/ui/eyebrow';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader, SectionHeader } from '@/components/ui/page-header';
 import { useAccountQuery, useSessionQuery } from '../queries';
 
 export function AccountPage() {
@@ -24,23 +29,22 @@ export function AccountPage() {
   return (
     <section className="flex w-full flex-1">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 px-4 py-7 sm:px-6 sm:py-10 lg:px-8">
-        <header className="border-border flex flex-col gap-3 border-b pb-6 sm:pb-8">
-          <h1 className="font-display text-3xl leading-none font-bold tracking-[-0.05em] sm:text-4xl">
-            {t('account.title')}
-          </h1>
-          <p className="text-muted-foreground text-sm">{t('account.identity_managed_by')}</p>
-        </header>
+        <PageHeader
+          divider
+          title={t('account.title')}
+          description={t('account.identity_managed_by')}
+        />
 
-        <section
+        <Card
+          as="section"
+          padding="body"
           aria-labelledby="account-identity-title"
-          className="bg-card flex flex-col gap-6 rounded-xl border p-4 sm:p-6"
+          className="flex flex-col gap-6"
         >
-          <div className="flex flex-col gap-1.5">
-            <h2 id="account-identity-title" className="text-base font-semibold">
-              {t('account.identity_title')}
-            </h2>
-            <p className="text-muted-foreground text-sm">{t('account.identity_desc')}</p>
-          </div>
+          <SectionHeader
+            title={<span id="account-identity-title">{t('account.identity_title')}</span>}
+            description={t('account.identity_desc')}
+          />
           <div className="flex items-center gap-4">
             {account.data.user.picture ? (
               <img
@@ -50,7 +54,7 @@ export function AccountPage() {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <span className="bg-primary text-primary-foreground grid size-12 shrink-0 place-items-center rounded-lg text-base font-bold">
+              <span className="bg-primary text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full font-mono text-base font-bold">
                 {initial}
               </span>
             )}
@@ -81,25 +85,23 @@ export function AccountPage() {
               </a>
             </Button>
           </div>
-        </section>
+        </Card>
 
         {account.data.user.isSuperAdmin ? (
-          <section
+          <Card
+            as="section"
+            padding="body"
             aria-labelledby="admin-all-ledgers-title"
-            className="bg-card flex flex-col gap-4 rounded-xl border p-4 sm:p-6"
+            className="flex flex-col gap-4"
           >
-            <div>
-              <h2 id="admin-all-ledgers-title" className="text-base font-semibold">
-                {t('admin.all_ledgers_title')}
-              </h2>
-              <p className="text-muted-foreground text-sm">{t('admin.all_ledgers_desc')}</p>
-            </div>
+            <SectionHeader
+              title={<span id="admin-all-ledgers-title">{t('admin.all_ledgers_title')}</span>}
+              description={t('admin.all_ledgers_desc')}
+            />
             {account.data.allLedgers.length === 0 ? (
-              <p className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-center text-sm">
-                {t('admin.all_ledgers_empty')}
-              </p>
+              <EmptyState compact title={t('admin.all_ledgers_empty')} />
             ) : (
-              <ul className="divide-y rounded-md border">
+              <ul className="divide-border divide-y rounded-xl border">
                 {account.data.allLedgers.map((group) => (
                   <li
                     key={group.id}
@@ -112,15 +114,15 @@ export function AccountPage() {
                         ) : (
                           <Link
                             href={`/groups/${group.id}`}
-                            className="font-medium hover:underline"
+                            className="font-semibold hover:underline"
                           >
                             {group.name}
                           </Link>
                         )}
                         {group.deletedAt ? (
-                          <span className="bg-destructive/15 text-destructive-ink rounded px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+                          <Eyebrow as="span" variant="chip" tone="danger">
                             {t('admin.ledger_deleted_badge')}
-                          </span>
+                          </Eyebrow>
                         ) : null}
                       </div>
                       <span className="text-muted-foreground text-xs">
@@ -133,22 +135,22 @@ export function AccountPage() {
                 ))}
               </ul>
             )}
-          </section>
+          </Card>
         ) : null}
 
-        <section
-          aria-labelledby="account-danger-zone"
-          className="border-destructive/30 flex flex-col gap-4 rounded-xl border p-4 sm:p-6"
+        <DangerZone
+          title={t('account.danger_zone')}
+          description={
+            <>
+              <span className="text-foreground block font-semibold">
+                {t('account.delete_warning')}
+              </span>
+              {t('account.delete_desc')}
+            </>
+          }
         >
-          <div className="flex flex-col gap-1.5">
-            <h2 id="account-danger-zone" className="text-destructive-ink text-base font-semibold">
-              {t('account.danger_zone')}
-            </h2>
-            <p className="text-foreground text-sm font-medium">{t('account.delete_warning')}</p>
-            <p className="text-muted-foreground text-sm">{t('account.delete_desc')}</p>
-          </div>
           <DeleteAccountButton ownedGroups={account.data.ownedGroups} />
-        </section>
+        </DangerZone>
       </div>
     </section>
   );

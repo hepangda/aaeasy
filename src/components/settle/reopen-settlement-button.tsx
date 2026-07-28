@@ -1,30 +1,19 @@
-import { useTransition } from 'react';
 import { useTranslations } from 'use-intl';
 import { Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useAsyncAction } from '@/hooks/use-async-action';
 import { reopenSettlementAction } from '@/spa/actions/settlements';
-import { showI18nError } from '@/lib/ui/toast';
 
 export function ReopenSettlementButton({ settlementId }: { settlementId: string }) {
   const t = useTranslations('settlements');
-  const tFull = useTranslations();
-  const confirm = useConfirm();
-  const [pending, startTransition] = useTransition();
-
-  async function onClick() {
-    if (!(await confirm({ message: t('reopen_confirm'), destructive: false }))) return;
-    startTransition(async () => {
-      const res = await reopenSettlementAction({ settlementId });
-      if (!res.ok) showI18nError(tFull, res.error ?? 'errors.unknown');
-    });
-  }
+  const { run, pending } = useAsyncAction({
+    action: () => reopenSettlementAction({ settlementId }),
+    confirm: { message: t('reopen_confirm'), destructive: false },
+  });
 
   return (
-    <div className="flex flex-col gap-1">
-      <Button type="button" variant="outline" size="sm" disabled={pending} onClick={onClick}>
-        <Unlock /> {pending ? t('reopening') : t('reopen')}
-      </Button>
-    </div>
+    <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => void run()}>
+      <Unlock aria-hidden="true" /> {pending ? t('reopening') : t('reopen')}
+    </Button>
   );
 }

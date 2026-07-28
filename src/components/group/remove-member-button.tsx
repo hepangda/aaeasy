@@ -1,37 +1,26 @@
-import { useTransition } from 'react';
 import { useTranslations } from 'use-intl';
-import { useRouter } from '@/compat/navigation';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useAsyncAction } from '@/hooks/use-async-action';
 import { removeMemberAction } from '@/spa/actions/groups';
-import { showI18nError } from '@/lib/ui/toast';
 
 export function RemoveMemberButton({ groupId, memberId }: { groupId: string; memberId: string }) {
   const t = useTranslations();
-  const router = useRouter();
-  const confirm = useConfirm();
-  const [pending, startTransition] = useTransition();
+  const { run, pending } = useAsyncAction({
+    action: () => removeMemberAction({ groupId, memberId }),
+    confirm: { message: t('members.confirm_remove') },
+  });
+
   return (
     <Button
       type="button"
-      size="sm"
+      size="icon"
       variant="ghost"
       disabled={pending}
-      onClick={async () => {
-        if (!(await confirm({ message: t('members.confirm_remove') }))) return;
-        startTransition(async () => {
-          const res = await removeMemberAction({ groupId, memberId });
-          if (!res.ok) {
-            showI18nError(t, res.error ?? 'errors.unknown');
-            return;
-          }
-          router.refresh();
-        });
-      }}
+      onClick={() => void run()}
       aria-label={t('members.remove')}
     >
-      <Trash2 className="text-destructive-ink" />
+      <Trash2 className="text-destructive-ink" aria-hidden="true" />
     </Button>
   );
 }

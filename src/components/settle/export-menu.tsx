@@ -68,8 +68,10 @@ export function ExportMenu({ groupId }: { groupId: string }) {
     }
   }
 
+  // Inside the ledger overflow menu every button is forced to w-full, which
+  // defeated the old `flex-wrap` row. A column is what actually renders.
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-2">
       <Button
         type="button"
         variant="outline"
@@ -77,7 +79,7 @@ export function ExportMenu({ groupId }: { groupId: string }) {
         onClick={() => handleClick('pdf')}
         disabled={busy !== null}
       >
-        <Download /> {t('pdf')}
+        <Download aria-hidden="true" /> {busy === 'pdf' ? t('exporting') : t('pdf')}
       </Button>
       <Button
         type="button"
@@ -86,7 +88,7 @@ export function ExportMenu({ groupId }: { groupId: string }) {
         onClick={() => handleClick('csv')}
         disabled={busy !== null}
       >
-        <Download /> {t('csv')}
+        <Download aria-hidden="true" /> {busy === 'csv' ? t('exporting') : t('csv')}
       </Button>
     </div>
   );

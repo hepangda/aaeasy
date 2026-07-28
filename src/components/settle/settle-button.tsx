@@ -1,11 +1,10 @@
-import { useState, useTransition } from 'react';
-import { useRouter } from '@/compat/navigation';
+import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog } from '@/components/ui/dialog';
+import { FormDialog } from '@/components/ui/form-dialog';
+import { useAsyncAction } from '@/hooks/use-async-action';
 import { settleAction } from '@/spa/actions/settlements';
-import { showI18nError } from '@/lib/ui/toast';
 
 export function SettleButton({
   groupId,
@@ -17,60 +16,42 @@ export function SettleButton({
   draftExpenseCount: number;
 }) {
   const t = useTranslations();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const disabled = openExpenseCount === 0;
 
-  function doSettle() {
-    startTransition(async () => {
-      const res = await settleAction({ groupId });
-      if (res.ok) {
-        setOpen(false);
-        router.refresh();
-      } else {
-        showI18nError(t, res.error ?? 'errors.unknown');
-      }
-    });
-  }
+  const { run, pending } = useAsyncAction({
+    action: () => settleAction({ groupId }),
+    onSuccess: () => setOpen(false),
+  });
 
   return (
     <>
       <Button
         type="button"
-        variant="outline"
-        size="sm"
-        disabled={openExpenseCount === 0}
+        disabled={disabled}
         onClick={() => setOpen(true)}
+        // A bare disabled button gave no clue why it was inert. The title makes
+        // the reason reachable on hover and to assistive tech.
+        title={disabled ? t('settlements.settle_disabled_reason') : undefined}
       >
-        <CheckSquare /> {t('settlements.settle_button')}
+        <CheckSquare aria-hidden="true" /> {t('settlements.settle_button')}
       </Button>
-      <Dialog
+
+      <FormDialog
         open={open}
-        onClose={() => {
-          if (!pending) setOpen(false);
-        }}
+        onClose={() => setOpen(false)}
         title={t('settlements.settle_confirm_title')}
-        className="max-w-md"
+        description={t('settlements.settle_confirm_desc', { count: openExpenseCount })}
+        onSubmit={() => void run()}
+        submitLabel={t('settlements.do_settle')}
+        pending={pending}
       >
-        <div className="flex flex-col gap-2 text-sm">
-          <p className="text-muted-foreground">
-            {t('settlements.settle_confirm_desc', { count: openExpenseCount })}
+        {draftExpenseCount > 0 && (
+          <p className="text-destructive-ink text-sm" role="alert">
+            {t('settlements.settle_draft_warning', { count: draftExpenseCount })}
           </p>
-          {draftExpenseCount > 0 && (
-            <p className="text-destructive-ink">
-              {t('settlements.settle_draft_warning', { count: draftExpenseCount })}
-            </p>
-          )}
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" disabled={pending} onClick={() => setOpen(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button type="button" disabled={pending} onClick={doSettle}>
-            {pending ? t('settlements.settling') : t('settlements.do_settle')}
-          </Button>
-        </div>
-      </Dialog>
+        )}
+      </FormDialog>
     </>
   );
 }

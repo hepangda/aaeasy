@@ -1,5 +1,6 @@
 import { ArrowRightLeft, Check } from 'lucide-react';
 import { useTranslations } from 'use-intl';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 export function SettlementStatus({ pendingTransfers }: { pendingTransfers: number }) {
@@ -7,7 +8,11 @@ export function SettlementStatus({ pendingTransfers }: { pendingTransfers: numbe
   const settled = pendingTransfers === 0;
 
   return (
-    <section className="bg-ledger text-ledger-foreground shadow-lifted flex items-center gap-4 rounded-xl border border-white/10 px-5 py-5 sm:gap-5 sm:px-6 sm:py-5">
+    <Card
+      tone="inverted"
+      as="section"
+      className="flex items-center gap-4 px-5 py-5 sm:gap-5 sm:px-6"
+    >
       <span
         className={cn(
           'grid size-10 shrink-0 place-items-center rounded-lg',
@@ -21,15 +26,15 @@ export function SettlementStatus({ pendingTransfers }: { pendingTransfers: numbe
         )}
       </span>
       <div className="min-w-0">
-        <h2 className="text-lg leading-tight font-semibold tracking-[-0.03em] sm:text-xl">
+        <h2 className="font-display text-lg leading-tight font-semibold tracking-[-0.04em] sm:text-xl">
           {settled
             ? t('summary.trail_title_even')
             : t('summary.trail_title_pending', { count: pendingTransfers })}
         </h2>
-        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/60">
+        <p className="text-ledger-foreground/60 mt-1 max-w-2xl text-sm leading-relaxed">
           {settled ? t('summary.trail_desc') : t('settlements.pending_desc')}
         </p>
       </div>
-    </section>
+    </Card>
   );
 }
