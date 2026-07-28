@@ -128,7 +128,7 @@
     "identity_desc": "AAEasy 从 KeyForge 读取这些资料；请在 KeyForge 中修改，以便多个应用共用同一身份。",
     "name_label": "姓名",
     "email_label": "邮箱",
-    "handle_label": "AAEasy 用户名",
+    "handle_label": "别名",
     "manage_identity": "管理 KeyForge 账户",
     "danger_zone": "危险区域",
     "delete_desc": "永久删除你的 AAEasy 数据、所有拥有的账本及其内容；KeyForge 账户不会被删除。",
