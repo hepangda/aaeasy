@@ -27,10 +27,13 @@
 | 次级填充块 | `bg-secondary` | 结论区、强调小块（如"谁该还谁"） |
 | 弱化分区 | `bg-muted/30` | 同卡片内的副栏，不要用满 `bg-muted` |
 | 凹陷面板 | `bg-sunken` / `bg-sunken-strong` | 表单内的分组区、AI 面板等"陷进去"的块 |
-| 深色反色块 | `bg-sidebar` / `bg-ledger` | 侧栏、浮层徽标；配 `text-sidebar-foreground` |
+| 导航面 | `bg-sidebar` | 侧栏；配 `text-sidebar-foreground` |
+| 状态色块 | `Card tone="brand"` / `tone="positive"` | 结算状态等需要着色表达的区域 |
 | 浮层遮罩 | `bg-scrim` | dialog / sheet 背后的蒙版，不要写 `bg-black/40` |
 
 > **透明度不要凭感觉写。** 需要半透明表面时用上面的 `sunken` / `scrim` token；禁止新增 `bg-secondary/48`、`bg-background/65` 这类一次性数值。
+
+> **明度必须连贯。** 所有表面的明度落在一条窄带内（浅色主题约 0.94–1.0），相邻表面差值不超过约 0.04。**禁止深色反色块**：曾经的侧栏（L=0.17）与结算卡（L=0.145）在 0.982 的页面上形成明度断崖，让用户一登录就从明快的落地页跌进一块黑板。需要强调时用**着色**（`tone="brand"` / `tone="positive"`）而不是拉暗，用**边框**而不是反色。
 
 ### 文字层级
 
@@ -163,6 +166,24 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 
 带图标的条目：`size-9` 图标底板 + `min-w-0 flex-1` 文本区 + 右侧金额。文本必须 `truncate`。
 
+#### 内容行的三段式
+
+账单流这类"每行是一条记录"的列表，遵循固定结构：
+
+```
+[身份锚点 size-9]  [标题 text-sm semibold]        [金额 font-mono text-lg bold]  [操作]
+                   [元信息 text-xs muted 单行]
+```
+
+四条硬规则：
+
+1. **一行只有一个视觉重心**，就是金额。它是唯一允许用 `text-lg` 和 `font-bold` 的元素。
+2. **一行最多三档字号**：标题 `text-sm`、元信息 `text-xs`、金额 `text-lg`。元信息行内的所有元素——付款人、分摊方式、标签、状态——必须同一尺寸同一颜色，谁都不许突出。
+3. **左侧锚点必须承载信息**。用头像、语义色块这类每行都不同的东西。**禁止每行放同一个图标**——那不是设计，是 36px 的空白。
+4. **元信息压成一行**。备注、长描述不占独立行；放 `title` 属性或详情页，行内至多给一个小图标提示存在。
+
+行内操作用 `opacity` 弱化（`md:opacity-60` + `group-hover:opacity-100`），不与内容争夺注意力。
+
 ### 表单
 
 - 控件高度 40px（`h-10`），与 `default` 按钮对齐。
@@ -268,3 +289,6 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 - [ ] 禁用的提交按钮旁边有可见的原因说明
 - [ ] 语义不只靠颜色（欠/被欠要有符号或图标）
 - [ ] 暗色模式下检查过一遍
+- [ ] 相邻表面明度差 ≤ 0.04，没有深色反色块
+- [ ] 列表行只有一个视觉重心，字号不超过三档
+- [ ] 左侧图标每行都不同（否则删掉）

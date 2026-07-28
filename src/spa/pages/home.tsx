@@ -13,14 +13,14 @@ const DEMO_AVATARS = [
 ] as const;
 
 const DEMO_BALANCES = [
-  { name: 'Zehao', amount: '+¥222', className: 'text-positive-ink' },
+  { name: 'Lee', amount: '+¥222', className: 'text-positive-ink' },
   { name: 'Lin', amount: '−¥168', className: 'text-primary-ink' },
   { name: 'Yuki', amount: '−¥54', className: 'text-primary-ink' },
 ] as const;
 
 const DEMO_TRANSFERS = [
-  { route: 'Lin → Zehao', amount: '¥168' },
-  { route: 'Yuki → Zehao', amount: '¥54' },
+  { route: 'Lin → Lee', amount: '¥168' },
+  { route: 'Yuki → Lee', amount: '¥54' },
 ] as const;
 
 function DemoAvatars() {
@@ -84,7 +84,7 @@ function LedgerPreview() {
 
               <div className="border-border mt-4 flex items-center justify-between gap-4 border-t border-dashed pt-3 text-xs">
                 <span className="text-muted-foreground">{t('demo_members')}</span>
-                <span className="truncate font-semibold">Lin · Yuki · Zehao · Mia</span>
+                <span className="truncate font-semibold">Lin · Yuki · Lee · Mia</span>
               </div>
             </div>
           </section>

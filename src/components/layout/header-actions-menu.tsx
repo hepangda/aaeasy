@@ -29,13 +29,7 @@ const THEMES = [
   { code: 'system', labelKey: 'theme_system', Icon: Laptop },
 ] as const;
 
-export function HeaderActionsMenu({
-  userDisplayName,
-  inverted = false,
-}: {
-  userDisplayName?: string;
-  inverted?: boolean;
-}) {
+export function HeaderActionsMenu({ userDisplayName }: { userDisplayName?: string }) {
   const locale = useLocale();
   const common = useTranslations('common');
   const account = useTranslations('account');
@@ -45,16 +39,7 @@ export function HeaderActionsMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={
-            inverted
-              ? 'text-sidebar-foreground hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground'
-              : undefined
-          }
-          aria-label={common('actions')}
-        >
+        <Button variant="ghost" size="icon" aria-label={common('actions')}>
           <Menu />
         </Button>
       </DropdownMenuTrigger>

@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { useTranslations } from 'use-intl';
-import { Info } from 'lucide-react';
 import type { SplitClass } from '@/lib/split/classify';
 import { FloatingPanel } from '@/components/ui/floating-panel';
 
@@ -12,9 +11,13 @@ export interface SharePill {
 }
 
 /**
- * Compact label ("均分" / "比例" / "特殊" / "单人支付") + an info icon that,
- * on click or keyboard focus, reveals the per-member share breakdown in a portal so
- * the popover doesn't trip the table's `overflow-x-auto`.
+ * Compact split label ("均分" / "比例" / ...) that reveals the per-member
+ * breakdown when activated.
+ *
+ * The label itself is the control — it previously sat next to a separate 32px
+ * info button, which put an interactive chrome element in the middle of a quiet
+ * metadata line. It also inherits its type size from the parent rather than
+ * hard-coding `text-sm`, which made it larger than the row it lived in.
  */
 export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePill[] }) {
   const t = useTranslations('expenses');
@@ -23,21 +26,24 @@ export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePi
 
   const labelKey = `split_class_${kind.toLowerCase()}` as const;
 
+  const label = t(labelKey);
+
+  if (shares.length === 0) {
+    return <span className="whitespace-nowrap">{label}</span>;
+  }
+
   return (
-    <span className="inline-flex items-center gap-1">
-      <span className="text-sm">{t(labelKey)}</span>
-      {shares.length > 0 ? (
-        <button
-          ref={anchorRef}
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={t('show_split_details')}
-          aria-expanded={open}
-          className="text-muted-foreground hover:bg-accent hover:text-foreground inline-grid size-8 place-items-center rounded-lg"
-        >
-          <Info className="size-3.5" />
-        </button>
-      ) : null}
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={t('show_split_details')}
+        aria-expanded={open}
+        className="hover:text-foreground inline-flex items-center gap-1 whitespace-nowrap underline decoration-dotted underline-offset-2 transition-colors"
+      >
+        {label}
+      </button>
       <FloatingPanel
         open={open && shares.length > 0}
         anchor={anchorRef.current}
@@ -63,6 +69,6 @@ export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePi
           </ul>
         </div>
       </FloatingPanel>
-    </span>
+    </>
   );
 }

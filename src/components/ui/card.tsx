@@ -19,7 +19,10 @@ import { cn } from '@/lib/utils';
 const TONE = {
   default: 'border-border bg-card',
   danger: 'border-destructive/30 bg-card',
-  inverted: 'bg-ledger text-ledger-foreground border-ledger-foreground/10 shadow-lifted',
+  /** Tinted status surface — a soft wash of the brand colour, not a dark slab. */
+  brand: 'border-primary/20 bg-secondary text-secondary-foreground',
+  /** Tinted status surface signalling a settled / all-clear state. */
+  positive: 'border-positive/30 bg-positive/12 text-positive-ink',
   sunken: 'border-border bg-sunken',
 } as const;
 

@@ -26,10 +26,13 @@
   --border: oklch(0.88 0.017 255);
   --input: oklch(0.82 0.023 255);
   --ring: oklch(0.59 0.215 264);
-  --sidebar: oklch(0.17 0.035 258);
-  --sidebar-foreground: oklch(0.94 0.012 255);
-  --ledger: oklch(0.145 0.034 258);
-  --ledger-foreground: oklch(0.96 0.01 255);
+  /* Navigation is a *light* surface. It used to be near-black (L=0.17) against
+     a 0.982 page, which read as a hard lightness cliff the moment a user signed
+     in — the marketing page was airy, the app was a black slab. It now sits one
+     step below the page so it still separates, without changing the
+     temperature of the product. */
+  --sidebar: oklch(0.962 0.012 257);
+  --sidebar-foreground: oklch(0.245 0.036 259);
   --signal: oklch(0.78 0.14 196);
   --signal-foreground: oklch(0.22 0.052 205);
   --positive: oklch(0.72 0.15 158);
@@ -71,10 +74,11 @@
   --border: oklch(0.285 0.028 258);
   --input: oklch(0.34 0.038 258);
   --ring: oklch(0.68 0.17 263);
-  --sidebar: oklch(0.095 0.02 258);
+  /* Mirror of the light theme: this surface sits one step *above* the page
+     rather than plunging below it, so navigation reads as a raised panel
+     instead of a void. */
+  --sidebar: oklch(0.165 0.026 258);
   --sidebar-foreground: oklch(0.91 0.018 255);
-  --ledger: oklch(0.095 0.022 258);
-  --ledger-foreground: oklch(0.96 0.012 255);
   --signal: oklch(0.78 0.13 196);
   --signal-foreground: oklch(0.2 0.052 205);
   --positive: oklch(0.74 0.13 158);
@@ -112,8 +116,6 @@
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-ledger: var(--ledger);
-  --color-ledger-foreground: var(--ledger-foreground);
   --color-signal: var(--signal);
   --color-signal-foreground: var(--signal-foreground);
   --color-positive: var(--positive);

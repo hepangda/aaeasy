@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { MoreHorizontal, Pencil, ReceiptText } from 'lucide-react';
+import { MoreHorizontal, Pencil, ReceiptText, StickyNote } from 'lucide-react';
 import { useLocale, useTranslations } from 'use-intl';
 import Link from '@/compat/link';
 import { DeleteExpenseMenuItem } from '@/components/expense/delete-expense-button';
@@ -103,58 +103,58 @@ function ExpenseFeedItem({
   });
 
   return (
-    <li className="group hover:bg-accent/35 flex gap-3 px-5 py-4 transition-colors sm:px-6">
-      <span className="bg-primary/7 text-primary-ink border-primary/12 mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border">
-        <ReceiptText className="size-4" aria-hidden="true" />
-      </span>
+    <li className="group hover:bg-accent/35 flex items-center gap-3 px-5 py-3.5 transition-colors sm:px-6">
+      {/* The payer's avatar replaces what used to be an identical receipt icon
+          on every single row — 36px of pure decoration. This carries real
+          information (who paid) and doubles as the scanning anchor. */}
+      {payer ? (
+        <LedgerMemberAvatar member={payer} size="md" className="mt-0.5 shrink-0" />
+      ) : (
+        <span className="bg-muted text-muted-foreground mt-0.5 grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold">
+          ?
+        </span>
+      )}
 
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        {/* Title and amount share a row so the amount stays adjacent to what it
-            describes. The old layout reserved a fixed 6.75rem column for the
-            amount plus actions, which ate 156px of a 375px viewport before the
-            title got any space at all. */}
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="min-w-0 flex-1 truncate text-sm font-semibold sm:text-base">
-            {expense.title}
-          </h3>
-          <p className="font-mono text-base font-bold tracking-[-0.04em] whitespace-nowrap tabular-nums">
-            {expense.amountMinor === null
-              ? '—'
-              : formatMoney(expense.amountMinor, expense.currency, locale)}
-          </p>
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <h3 className="truncate text-sm font-semibold" title={expense.note ?? undefined}>
+          {expense.title}
+        </h3>
 
-        <div className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          {payer ? <LedgerMemberAvatar member={payer} size="sm" className="size-5" /> : null}
-          <span className="truncate">
-            {t('expenses.payer')}: {payer?.displayName ?? '?'}
-          </span>
+        {/* One quiet metadata line. Payer name, split summary and any status
+            chips all sit at the same size and weight so none of them competes
+            with the title above or the amount to the right. */}
+        <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+          <span className="truncate">{payer?.displayName ?? '?'}</span>
           {!expense.isDraft ? (
-            <SplitBadge kind={kind} shares={splitShares(expense, members, locale)} />
+            <>
+              <span aria-hidden="true">·</span>
+              <SplitBadge kind={kind} shares={splitShares(expense, members, locale)} />
+            </>
           ) : null}
           {expense.isDraft ? (
-            <Eyebrow as="span" variant="chip" tone="signal" mono>
+            <Eyebrow as="span" variant="chip" tone="signal" mono className="shrink-0">
               {t('expenses.draft_badge')}
             </Eyebrow>
           ) : null}
-          {expense.tags.map((tag) => (
-            <Eyebrow key={tag} as="span" variant="chip" tone="secondary">
-              {tag}
-            </Eyebrow>
-          ))}
+          {expense.tags.length > 0 ? (
+            <span className="truncate">· {expense.tags.join(' · ')}</span>
+          ) : null}
+          {expense.note ? (
+            <StickyNote className="size-3 shrink-0" aria-label={t('expenses.note')} />
+          ) : null}
         </div>
-
-        {expense.note ? (
-          <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
-            {expense.note}
-          </p>
-        ) : null}
       </div>
 
-      {/* Actions live in an overflow menu rather than three adjacent 32px
-          buttons spaced 2px apart — with delete on the outside edge, that was a
-          reliable mis-tap on touch. */}
-      <div className="flex shrink-0 items-start gap-0.5">
+      {/* The amount is the one thing a user scans a ledger for, so it gets the
+          largest type on the row and is the only element allowed to be bold. */}
+      <p className="shrink-0 font-mono text-lg font-bold tracking-[-0.04em] whitespace-nowrap tabular-nums">
+        {expense.amountMinor === null
+          ? '—'
+          : formatMoney(expense.amountMinor, expense.currency, locale)}
+      </p>
+
+      {/* Row actions stay visually recessive until the row is engaged with. */}
+      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 md:opacity-60">
         <ReceiptActionsButton
           groupId={groupId}
           expenseId={expense.id}

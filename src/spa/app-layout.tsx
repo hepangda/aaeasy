@@ -94,7 +94,7 @@ function SidebarNavLink({
         'flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm font-semibold transition-colors',
         active
           ? 'bg-primary text-primary-foreground'
-          : 'text-sidebar-foreground/62 hover:bg-sidebar-foreground/8 hover:text-sidebar-foreground',
+          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
       )}
     >
       <Icon className="size-4" aria-hidden="true" />
@@ -103,38 +103,21 @@ function SidebarNavLink({
   );
 }
 
-function GroupNavLink({
-  group,
-  active,
-  inverted = true,
-}: {
-  group: GroupListItem;
-  active: boolean;
-  inverted?: boolean;
-}) {
+function GroupNavLink({ group, active }: { group: GroupListItem; active: boolean }) {
   return (
     <Link
       href={`/groups/${group.id}`}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors',
-        inverted
-          ? active
-            ? 'bg-sidebar-foreground/10 text-sidebar-foreground font-semibold'
-            : 'text-sidebar-foreground/55 hover:bg-sidebar-foreground/7 hover:text-sidebar-foreground'
-          : active
-            ? 'bg-accent text-accent-foreground font-semibold'
-            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+        active
+          ? 'bg-accent text-accent-foreground font-semibold'
+          : 'text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground',
       )}
     >
       <span aria-hidden="true" className="bg-primary size-1.5 shrink-0 rounded-sm" />
       <span className="min-w-0 flex-1 truncate">{group.name}</span>
-      <span
-        className={cn(
-          'font-mono text-[10px] tabular-nums',
-          inverted ? 'text-sidebar-foreground/38' : 'text-muted-foreground',
-        )}
-      >
+      <span className="text-muted-foreground font-mono text-[10px] tabular-nums">
         {group.memberCount}
       </span>
     </Link>
@@ -155,7 +138,7 @@ function DesktopSidebar({
   const currentGroups = groups.filter((group) => group.status !== 'ARCHIVED');
 
   return (
-    <aside className="border-sidebar-foreground/10 bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col border-r px-3 py-4 md:flex">
+    <aside className="border-border bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col border-r px-3 py-4 md:flex">
       <div className="px-1">
         <BrandHomeLink />
       </div>
@@ -177,9 +160,7 @@ function DesktopSidebar({
 
       {currentGroups.length > 0 ? (
         <div className="mt-7 min-h-0 flex-1 overflow-y-auto px-1">
-          <Eyebrow className="text-sidebar-foreground/42 mb-2.5 px-2">
-            {t('groups.current_ledgers')}
-          </Eyebrow>
+          <Eyebrow className="mb-2.5 px-2">{t('groups.current_ledgers')}</Eyebrow>
           <ul className="flex flex-col gap-1">
             {currentGroups.map((group) => {
               const href = `/groups/${group.id}`;
@@ -198,13 +179,13 @@ function DesktopSidebar({
         <div className="flex-1" />
       )}
 
-      <div className="border-sidebar-foreground/10 mt-5 flex items-center gap-1.5 border-t pt-3">
+      <div className="border-border mt-5 flex items-center gap-1.5 border-t pt-3">
         <Link
           href="/account"
           aria-current={pathname.startsWith('/account') ? 'page' : undefined}
           className={cn(
-            'hover:bg-sidebar-foreground/7 flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-2 transition-colors',
-            pathname.startsWith('/account') ? 'bg-sidebar-foreground/10' : undefined,
+            'hover:bg-accent/60 flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-2 transition-colors',
+            pathname.startsWith('/account') ? 'bg-accent' : undefined,
           )}
         >
           <span className="bg-primary text-primary-foreground grid size-8 shrink-0 place-items-center rounded-md font-mono text-xs font-bold">
@@ -212,12 +193,12 @@ function DesktopSidebar({
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold">{displayName}</span>
-            <span className="text-sidebar-foreground/42 block truncate text-xs">
+            <span className="text-muted-foreground block truncate text-xs">
               {t('common.account')}
             </span>
           </span>
         </Link>
-        <HeaderActionsMenu userDisplayName={displayName} inverted />
+        <HeaderActionsMenu userDisplayName={displayName} />
       </div>
     </aside>
   );
@@ -283,7 +264,7 @@ function MobileGroupSwitcher({
           <ul className="flex flex-col gap-0.5">
             {currentGroups.map((group) => (
               <li key={group.id}>
-                <GroupNavLink group={group} active={group.id === currentGroupId} inverted={false} />
+                <GroupNavLink group={group} active={group.id === currentGroupId} />
               </li>
             ))}
           </ul>
