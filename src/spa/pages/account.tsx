@@ -4,7 +4,8 @@ import { useFormatter, useTranslations } from 'use-intl';
 import { ExternalLink } from 'lucide-react';
 import { DeleteAccountButton } from '@/components/account/delete-account-button';
 import { Button } from '@/components/ui/button';
-import { ErrorPage, LoadingPage } from '../page-state';
+import { ErrorPage } from '../page-state';
+import { SkeletonPage } from '@/components/ui/skeleton';
 import { useAccountQuery, useSessionQuery } from '../queries';
 
 export function AccountPage() {
@@ -12,10 +13,10 @@ export function AccountPage() {
   const fmt = useFormatter();
   const session = useSessionQuery();
   const account = useAccountQuery(Boolean(session.data?.user));
-  if (session.isPending) return <LoadingPage />;
+  if (session.isPending) return <SkeletonPage rows={4} />;
   if (session.isError) return <ErrorPage error={session.error} />;
   if (!session.data?.user) return <Navigate to="/login?next=/account" replace />;
-  if (account.isPending) return <LoadingPage />;
+  if (account.isPending) return <SkeletonPage rows={4} />;
   if (account.isError) return <ErrorPage error={account.error} />;
 
   const initial = account.data.user.displayName.trim().charAt(0).toUpperCase() || 'A';

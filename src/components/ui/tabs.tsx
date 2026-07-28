@@ -66,7 +66,7 @@ export function Tabs({
   useEffect(() => {
     const changed = previousActive.current !== active;
     previousActive.current = active;
-    if (!changed || !hideTabListOnMobile || !window.matchMedia('(max-width: 639px)').matches) {
+    if (!changed || !hideTabListOnMobile || !window.matchMedia('(max-width: 767px)').matches) {
       return;
     }
     const frame = requestAnimationFrame(() => {
@@ -102,7 +102,7 @@ export function Tabs({
         role="tablist"
         className={cn(
           'border-border -mx-1 gap-0 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-          hideTabListOnMobile ? 'hidden sm:flex' : 'flex',
+          hideTabListOnMobile ? 'hidden md:flex' : 'flex',
         )}
       >
         {tabs.map((tab) => {
@@ -123,13 +123,13 @@ export function Tabs({
                 moveFocus(tab.id, event.key);
               }}
               className={cn(
-                'relative flex min-h-10 items-center gap-1.5 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors',
+                'relative flex min-h-11 items-center gap-1.5 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors',
                 isActive ? 'text-primary-ink' : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {tab.label}
               {tab.badge !== undefined && tab.badge !== null && (
-                <span className="bg-muted text-muted-foreground inline-flex min-w-5 items-center justify-center rounded px-1.5 font-mono text-[10px] tabular-nums">
+                <span className="bg-muted text-muted-foreground inline-flex min-w-5 items-center justify-center rounded-md px-1.5 font-mono text-[10px] tabular-nums">
                   {tab.badge}
                 </span>
               )}

@@ -19,7 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/tabs';
 import { formatMinor, formatMoney } from '@/lib/money';
 import { getPageSlice } from '@/lib/pagination';
-import { ErrorPage, LoadingPage } from '../page-state';
+import { ErrorPage } from '../page-state';
+import { SkeletonPage } from '@/components/ui/skeleton';
 import { useGroupQuery, useLedgerQuery } from '../queries';
 
 const PAGE_SIZE_EXPENSES = 10;
@@ -38,7 +39,7 @@ export function GroupDetailPage() {
   const detail = useGroupQuery(groupId);
   const ledgerQuery = useLedgerQuery(groupId);
 
-  if (detail.isPending || ledgerQuery.isPending) return <LoadingPage />;
+  if (detail.isPending || ledgerQuery.isPending) return <SkeletonPage rows={6} />;
   const error = detail.error ?? ledgerQuery.error;
   if (errorStatus(error) === 401) {
     return <Navigate to={`/login?next=${encodeURIComponent(`/groups/${groupId}`)}`} replace />;
@@ -189,7 +190,7 @@ export function GroupDetailPage() {
                         <Button
                           asChild
                           size="sm"
-                          className={access.kind === 'user' ? 'hidden sm:inline-flex' : undefined}
+                          className={access.kind === 'user' ? 'hidden md:inline-flex' : undefined}
                         >
                           <Link href={`/groups/${groupId}/expenses/new`}>
                             <Plus /> {t('expenses.add')}

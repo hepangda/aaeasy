@@ -7,6 +7,7 @@ import { NewGroupForm } from '@/components/group/new-group-form';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorPage, LoadingPage } from '../page-state';
+import { SkeletonPage } from '@/components/ui/skeleton';
 import { useGroupsQuery, useSessionQuery } from '../queries';
 
 export function GroupsPage() {
@@ -15,10 +16,10 @@ export function GroupsPage() {
   const fmt = useFormatter();
   const session = useSessionQuery();
   const groups = useGroupsQuery(Boolean(session.data?.user));
-  if (session.isPending) return <LoadingPage />;
+  if (session.isPending) return <SkeletonPage />;
   if (session.isError) return <ErrorPage error={session.error} />;
   if (!session.data?.user) return <Navigate to="/login?next=/groups" replace />;
-  if (groups.isPending) return <LoadingPage />;
+  if (groups.isPending) return <SkeletonPage />;
   if (groups.isError) return <ErrorPage error={groups.error} />;
   const orderedGroups = [...groups.data.groups].sort((left, right) => {
     if (left.status === right.status) return 0;

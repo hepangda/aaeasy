@@ -54,7 +54,6 @@ export function Pagination({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-8"
         disabled={current <= 1}
         onClick={() => goto(current - 1)}
         aria-label={common('previous_page')}
@@ -72,7 +71,7 @@ export function Pagination({
             type="button"
             variant={p === current ? 'default' : 'ghost'}
             size="icon"
-            className="size-8 text-xs tabular-nums"
+            className="font-mono text-xs tabular-nums"
             onClick={() => goto(p)}
             aria-current={p === current ? 'page' : undefined}
             aria-label={pageLabel(p)}
@@ -85,7 +84,6 @@ export function Pagination({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-8"
         disabled={current >= totalPages}
         onClick={() => goto(current + 1)}
         aria-label={common('next_page')}

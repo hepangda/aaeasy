@@ -9,7 +9,8 @@ import { formatMinor } from '@/lib/money';
 import { splitInputStateSchema, type SplitInputState } from '@/lib/split/input-state';
 import { splitRuleSchema, type SplitRule } from '@/lib/split/types';
 import { apiRequest } from '../api';
-import { ErrorPage, LoadingPage } from '../page-state';
+import { ErrorPage } from '../page-state';
+import { SkeletonPage } from '@/components/ui/skeleton';
 import { useGroupQuery } from '../queries';
 import type { ExpenseResponse } from '../types';
 
@@ -31,7 +32,7 @@ export function NewExpensePage() {
   const groupId = useParams<{ groupId: string }>().groupId ?? '';
   const t = useTranslations();
   const detail = useGroupQuery(groupId);
-  if (detail.isPending) return <LoadingPage />;
+  if (detail.isPending) return <SkeletonPage rows={4} />;
   if (status(detail.error) === 401) {
     return (
       <Navigate
@@ -86,7 +87,7 @@ export function EditExpensePage() {
         `/api/groups/${encodeURIComponent(groupId)}/expenses/${encodeURIComponent(expenseId)}`,
       ),
   });
-  if (detail.isPending || expenseQuery.isPending) return <LoadingPage />;
+  if (detail.isPending || expenseQuery.isPending) return <SkeletonPage rows={4} />;
   const error = detail.error ?? expenseQuery.error;
   if (status(error) === 401) {
     return (

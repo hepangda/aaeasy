@@ -1,7 +1,10 @@
 import Link from '@/compat/link';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRightLeft,
   BookOpenText,
+  ChevronLeft,
+  ChevronsUpDown,
   Plus,
   ReceiptText,
   UserRound,
@@ -13,14 +16,24 @@ import { useTranslations } from 'use-intl';
 import { BrandMark } from '@/components/layout/brand-mark';
 import { HeaderActionsMenu } from '@/components/layout/header-actions-menu';
 import { ServiceWorkerRegister } from '@/components/layout/service-worker-register';
+import { Eyebrow } from '@/components/ui/eyebrow';
 import { cn } from '@/lib/utils';
 import type { GroupListResponse } from './types';
 import { useGroupQuery, useGroupsQuery, useLedgerQuery, useSessionQuery } from './queries';
 import { ErrorPage, LoadingPage } from './page-state';
+import { useRouteAnnouncer } from './use-route-announcer';
 
 type GroupListItem = GroupListResponse['groups'][number];
 
 const MAIN_CONTENT_ID = 'main-content';
+
+/**
+ * Navigation switches at `md`, the same breakpoint the pages use for their own
+ * layouts. Previously nav switched at `lg` while content switched at `sm`,
+ * leaving a 640–1024px band that got desktop card layouts, a visible tab bar
+ * *and* the phone's bottom nav — two competing controls for one piece of state.
+ */
+const SIDEBAR_WIDTH = 'md:pl-[15.5rem]';
 
 function SkipToMainContent() {
   const t = useTranslations('common');
@@ -78,7 +91,7 @@ function SidebarNavLink({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex min-h-10 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-semibold transition-colors',
+        'flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm font-semibold transition-colors',
         active
           ? 'bg-primary text-primary-foreground'
           : 'text-sidebar-foreground/62 hover:bg-sidebar-foreground/8 hover:text-sidebar-foreground',
@@ -86,6 +99,44 @@ function SidebarNavLink({
     >
       <Icon className="size-4" aria-hidden="true" />
       <span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
+function GroupNavLink({
+  group,
+  active,
+  inverted = true,
+}: {
+  group: GroupListItem;
+  active: boolean;
+  inverted?: boolean;
+}) {
+  return (
+    <Link
+      href={`/groups/${group.id}`}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors',
+        inverted
+          ? active
+            ? 'bg-sidebar-foreground/10 text-sidebar-foreground font-semibold'
+            : 'text-sidebar-foreground/55 hover:bg-sidebar-foreground/7 hover:text-sidebar-foreground'
+          : active
+            ? 'bg-accent text-accent-foreground font-semibold'
+            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+      )}
+    >
+      <span aria-hidden="true" className="bg-primary size-1.5 shrink-0 rounded-sm" />
+      <span className="min-w-0 flex-1 truncate">{group.name}</span>
+      <span
+        className={cn(
+          'font-mono text-[10px] tabular-nums',
+          inverted ? 'text-sidebar-foreground/38' : 'text-muted-foreground',
+        )}
+      >
+        {group.memberCount}
+      </span>
     </Link>
   );
 }
@@ -104,12 +155,12 @@ function DesktopSidebar({
   const currentGroups = groups.filter((group) => group.status !== 'ARCHIVED');
 
   return (
-    <aside className="border-sidebar-foreground/10 bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col border-r px-3 py-4 lg:flex">
+    <aside className="border-sidebar-foreground/10 bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col border-r px-3 py-4 md:flex">
       <div className="px-1">
         <BrandHomeLink />
       </div>
 
-      <nav aria-label={t('groups.my_groups')} className="mt-8 flex flex-col gap-1">
+      <nav aria-label={t('common.navigation')} className="mt-8 flex flex-col gap-1">
         <SidebarNavLink
           href="/groups"
           label={t('groups.my_groups')}
@@ -126,31 +177,18 @@ function DesktopSidebar({
 
       {currentGroups.length > 0 ? (
         <div className="mt-7 min-h-0 flex-1 overflow-y-auto px-1">
-          <p className="text-sidebar-foreground/42 mb-2.5 px-2 text-[10px] font-semibold tracking-[0.16em] uppercase">
+          <Eyebrow className="text-sidebar-foreground/42 mb-2.5 px-2">
             {t('groups.current_ledgers')}
-          </p>
+          </Eyebrow>
           <ul className="flex flex-col gap-1">
             {currentGroups.map((group) => {
               const href = `/groups/${group.id}`;
-              const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <li key={group.id}>
-                  <Link
-                    href={href}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors',
-                      active
-                        ? 'bg-sidebar-foreground/10 text-sidebar-foreground font-semibold'
-                        : 'text-sidebar-foreground/55 hover:bg-sidebar-foreground/7 hover:text-sidebar-foreground',
-                    )}
-                  >
-                    <span aria-hidden="true" className="bg-primary size-1.5 shrink-0 rounded-sm" />
-                    <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                    <span className="text-sidebar-foreground/38 font-mono text-[10px] tabular-nums">
-                      {group.memberCount}
-                    </span>
-                  </Link>
+                  <GroupNavLink
+                    group={group}
+                    active={pathname === href || pathname.startsWith(`${href}/`)}
+                  />
                 </li>
               );
             })}
@@ -165,16 +203,16 @@ function DesktopSidebar({
           href="/account"
           aria-current={pathname.startsWith('/account') ? 'page' : undefined}
           className={cn(
-            'hover:bg-sidebar-foreground/7 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-2 transition-colors',
+            'hover:bg-sidebar-foreground/7 flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-2 transition-colors',
             pathname.startsWith('/account') ? 'bg-sidebar-foreground/10' : undefined,
           )}
         >
-          <span className="bg-primary text-primary-foreground grid size-8 shrink-0 place-items-center rounded-md text-xs font-bold">
+          <span className="bg-primary text-primary-foreground grid size-8 shrink-0 place-items-center rounded-md font-mono text-xs font-bold">
             {initial}
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold">{displayName}</span>
-            <span className="text-sidebar-foreground/42 block truncate text-[10px]">
+            <span className="text-sidebar-foreground/42 block truncate text-xs">
               {t('common.account')}
             </span>
           </span>
@@ -185,11 +223,120 @@ function DesktopSidebar({
   );
 }
 
-function MobileHeader({ displayName }: { displayName: string }) {
+/**
+ * Group switcher for narrow viewports. The group list previously lived only in
+ * the `lg:flex` sidebar, so on a phone the only way to change groups was to
+ * navigate back to /groups.
+ */
+function MobileGroupSwitcher({
+  groups,
+  currentGroupId,
+  label,
+}: {
+  groups: GroupListItem[];
+  currentGroupId: string;
+  label: string;
+}) {
+  const t = useTranslations();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  const currentGroups = groups.filter((group) => group.status !== 'ARCHIVED');
+  if (currentGroups.length === 0) return <p className="truncate text-sm font-bold">{label}</p>;
+
   return (
-    <header className="border-border bg-background/94 sticky top-0 z-40 border-b backdrop-blur-lg lg:hidden">
-      <div className="flex min-h-14 items-center justify-between gap-3 px-4">
-        <BrandHomeLink compact />
+    <div ref={ref} className="relative min-w-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={t('common.switch_group')}
+        className="hover:bg-accent -mx-2 flex min-h-11 min-w-0 items-center gap-1.5 rounded-md px-2 transition-colors"
+      >
+        <span className="truncate text-sm font-bold tracking-[-0.025em]">{label}</span>
+        <ChevronsUpDown className="text-muted-foreground size-3.5 shrink-0" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="border-border bg-popover shadow-lifted absolute top-[calc(100%+0.5rem)] left-0 z-50 max-h-80 w-64 overflow-y-auto rounded-xl border p-1.5"
+        >
+          <Eyebrow className="px-2 py-1.5">{t('groups.current_ledgers')}</Eyebrow>
+          <ul className="flex flex-col gap-0.5">
+            {currentGroups.map((group) => (
+              <li key={group.id}>
+                <GroupNavLink group={group} active={group.id === currentGroupId} inverted={false} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Mobile header. Now carries a back affordance and the current context label —
+ * previously it held only the brand and a hamburger, so a user deep in a group
+ * had no in-app way back and no indication of where they were.
+ */
+function MobileHeader({
+  displayName,
+  backHref,
+  title,
+  groups,
+  currentGroupId,
+}: {
+  displayName: string;
+  backHref?: string;
+  title?: string;
+  groups: GroupListItem[];
+  currentGroupId: string;
+}) {
+  const t = useTranslations('common');
+
+  return (
+    <header className="border-border bg-background/94 sticky top-0 z-40 border-b backdrop-blur-lg md:hidden">
+      <div className="flex min-h-14 items-center gap-2 px-4">
+        {backHref ? (
+          <Link
+            href={backHref}
+            aria-label={t('back')}
+            className="hover:bg-accent -ml-2 grid size-11 shrink-0 place-items-center rounded-md transition-colors"
+          >
+            <ChevronLeft className="size-5" aria-hidden="true" />
+          </Link>
+        ) : (
+          <BrandHomeLink compact />
+        )}
+
+        <div className="min-w-0 flex-1">
+          {title &&
+            (currentGroupId ? (
+              <MobileGroupSwitcher groups={groups} currentGroupId={currentGroupId} label={title} />
+            ) : (
+              <p className="truncate text-sm font-bold tracking-[-0.025em]">{title}</p>
+            ))}
+        </div>
+
         <HeaderActionsMenu userDisplayName={displayName} />
       </div>
     </header>
@@ -214,12 +361,8 @@ function MobileNavItem({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[11px] font-semibold transition-colors',
-        prominent
-          ? 'text-primary-ink'
-          : active
-            ? 'text-primary-ink'
-            : 'text-muted-foreground hover:text-foreground',
+        'relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] font-semibold transition-colors',
+        prominent || active ? 'text-primary-ink' : 'text-muted-foreground hover:text-foreground',
       )}
     >
       {active ? (
@@ -237,17 +380,29 @@ function MobileNavItem({
   );
 }
 
-function MobileBottomNav({ pathname, hash }: { pathname: string; hash: string }) {
+/**
+ * The bottom nav keeps a stable shape: it always shows the three global
+ * destinations, and adds group-scoped items only while inside a group. It no
+ * longer disappears on the expense composer — that route instead gets a back
+ * affordance in the header, so there is always a way out.
+ */
+function MobileBottomNav({
+  pathname,
+  hash,
+  groupId,
+}: {
+  pathname: string;
+  hash: string;
+  groupId: string;
+}) {
   const t = useTranslations();
-  const groupMatch = pathname.match(/^\/groups\/([^/]+)\/?$/);
-  const groupId = groupMatch?.[1];
 
   return (
     <nav
-      aria-label={t('common.actions')}
-      className="border-border bg-background/96 pb-safe fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-lg lg:hidden"
+      aria-label={t('common.navigation')}
+      className="border-border bg-background/96 pb-safe fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-lg md:hidden"
     >
-      <div className="mx-auto flex min-h-16 max-w-lg items-stretch gap-1 px-2 py-1">
+      <div className="mx-auto flex max-w-lg items-stretch gap-1 px-2 py-1">
         {groupId ? (
           <>
             <MobileNavItem
@@ -303,8 +458,25 @@ function MobileBottomNav({ pathname, hash }: { pathname: string; hash: string })
   );
 }
 
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="bg-background text-foreground flex min-h-svh flex-col">
+      <main
+        id={MAIN_CONTENT_ID}
+        tabIndex={-1}
+        className="flex min-h-svh flex-1 flex-col focus-visible:outline-hidden"
+      >
+        {children}
+      </main>
+    </div>
+  );
+}
+
 export function AppLayout() {
   const location = useLocation();
+  const t = useTranslations();
+  useRouteAnnouncer(MAIN_CONTENT_ID);
+
   const groupRoute = location.pathname.match(/^\/groups\/([^/]+)/u);
   const routeGroupId = groupRoute?.[1] === 'new' ? '' : (groupRoute?.[1] ?? '');
   const isGroupOverview = Boolean(routeGroupId) && /^\/groups\/[^/]+\/?$/u.test(location.pathname);
@@ -313,85 +485,107 @@ export function AppLayout() {
   const groups = useGroupsQuery(Boolean(user));
   // Start route data while the global session is still resolving. The page
   // reuses these query keys, avoiding a session -> page-data request waterfall.
-  useGroupQuery(routeGroupId);
+  const group = useGroupQuery(routeGroupId);
   useLedgerQuery(routeGroupId, isGroupOverview);
   const isExpenseComposer = /^\/groups\/[^/]+\/expenses\/(?:new|[^/]+\/edit)$/.test(
     location.pathname,
   );
 
-  let shell: React.ReactNode;
-
   if (session.isPending) {
-    shell = (
-      <div className="bg-background text-foreground flex min-h-svh flex-col">
-        <main
-          id={MAIN_CONTENT_ID}
-          tabIndex={-1}
-          className="flex min-h-svh flex-1 flex-col focus-visible:outline-hidden"
-        >
+    return (
+      <>
+        <SkipToMainContent />
+        <Shell>
           <LoadingPage />
-        </main>
-      </div>
+        </Shell>
+        <ServiceWorkerRegister />
+      </>
     );
-  } else if (session.isError) {
-    shell = (
-      <div className="bg-background text-foreground flex min-h-svh flex-col">
-        <main
-          id={MAIN_CONTENT_ID}
-          tabIndex={-1}
-          className="flex min-h-svh flex-1 flex-col focus-visible:outline-hidden"
-        >
+  }
+
+  if (session.isError) {
+    return (
+      <>
+        <SkipToMainContent />
+        <Shell>
           <ErrorPage error={session.error} />
-        </main>
-      </div>
+        </Shell>
+        <ServiceWorkerRegister />
+      </>
     );
-  } else if (!user) {
-    shell = (
-      <div className="bg-background text-foreground flex min-h-svh flex-col">
-        <AnonymousHeader />
-        <main
-          id={MAIN_CONTENT_ID}
-          tabIndex={-1}
-          className="flex min-h-[calc(100svh-3.5rem)] flex-1 flex-col focus-visible:outline-hidden"
-        >
-          <Outlet />
-        </main>
-      </div>
-    );
-  } else {
-    shell = (
-      <div className="bg-background text-foreground min-h-svh">
-        <DesktopSidebar
-          displayName={user.displayName}
-          groups={groups.data?.groups ?? []}
-          pathname={location.pathname}
-        />
-        <MobileHeader displayName={user.displayName} />
-        <div className="lg:pl-[15.5rem]">
+  }
+
+  if (!user) {
+    return (
+      <>
+        <SkipToMainContent />
+        <div className="bg-background text-foreground flex min-h-svh flex-col">
+          <AnonymousHeader />
           <main
             id={MAIN_CONTENT_ID}
             tabIndex={-1}
-            className={cn(
-              'flex min-h-[calc(100svh-4rem)] flex-col focus-visible:outline-hidden lg:min-h-svh lg:pb-0',
-              // The bottom nav is 4rem tall *plus* the safe-area inset, so a
-              // fixed pb-20 left content occluded on notched devices.
-              isExpenseComposer ? 'pb-0' : 'pb-bottom-nav',
-            )}
+            className="flex min-h-[calc(100svh-3.5rem)] flex-1 flex-col focus-visible:outline-hidden"
           >
             <Outlet />
           </main>
         </div>
-        {isExpenseComposer ? null : (
-          <MobileBottomNav pathname={location.pathname} hash={location.hash} />
-        )}
-      </div>
+        <ServiceWorkerRegister />
+      </>
     );
   }
+
+  const groupList = groups.data?.groups ?? [];
+  const groupName = group.data?.group?.name;
+
+  // The composer is a focus mode: it keeps the bottom nav (so the user is never
+  // stranded) but leads with an explicit back link to the group it belongs to.
+  const backHref = isExpenseComposer
+    ? `/groups/${routeGroupId}`
+    : location.pathname === '/groups/new'
+      ? '/groups'
+      : undefined;
+
+  const headerTitle = isExpenseComposer
+    ? t('expenses.add')
+    : location.pathname === '/groups/new'
+      ? t('groups.new_group')
+      : routeGroupId
+        ? groupName
+        : location.pathname.startsWith('/account')
+          ? t('common.account')
+          : t('groups.my_groups');
 
   return (
     <>
       <SkipToMainContent />
-      {shell}
+      <div className="bg-background text-foreground min-h-svh">
+        <DesktopSidebar
+          displayName={user.displayName}
+          groups={groupList}
+          pathname={location.pathname}
+        />
+        <MobileHeader
+          displayName={user.displayName}
+          backHref={backHref}
+          title={headerTitle}
+          groups={groupList}
+          currentGroupId={isExpenseComposer ? '' : routeGroupId}
+        />
+        <div className={SIDEBAR_WIDTH}>
+          <main
+            id={MAIN_CONTENT_ID}
+            tabIndex={-1}
+            className="pb-bottom-nav flex min-h-[calc(100svh-3.5rem)] flex-col focus-visible:outline-hidden md:min-h-svh md:pb-0"
+          >
+            <Outlet />
+          </main>
+        </div>
+        <MobileBottomNav
+          pathname={location.pathname}
+          hash={location.hash}
+          groupId={isExpenseComposer ? '' : routeGroupId}
+        />
+      </div>
       <ServiceWorkerRegister />
     </>
   );

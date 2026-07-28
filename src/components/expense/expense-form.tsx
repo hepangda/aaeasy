@@ -841,7 +841,7 @@ export function ExpenseForm({
     <form
       action={formAction}
       ref={formRef}
-      className="bg-card relative flex w-full flex-col overflow-hidden rounded-xl border pb-24 lg:pb-0"
+      className="bg-card relative flex w-full flex-col overflow-hidden rounded-2xl border pb-28 md:pb-0"
     >
       <input type="hidden" name="groupId" value={groupId} />
       {/* Only submit a splitRule when we actually have a materialized split.
@@ -1485,7 +1485,7 @@ export function ExpenseForm({
         />
       </div>
 
-      <div className="bg-card/94 pb-safe-3 fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 backdrop-blur-lg lg:sticky lg:inset-x-auto lg:z-10 lg:px-8 lg:py-4">
+      <div className="bg-card/94 bottom-nav-offset fixed inset-x-0 z-30 border-t px-4 py-3 backdrop-blur-lg md:sticky md:inset-x-auto md:bottom-0 md:z-10 md:px-8 md:py-4">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-end">
           <Button
             type="submit"

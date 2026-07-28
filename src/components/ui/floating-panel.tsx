@@ -92,7 +92,7 @@ export function FloatingPanel({
   // Click-outside + Escape handling.
   useEffect(() => {
     if (!open || !onClose) return;
-    function onPointerDown(e: MouseEvent) {
+    function onPointerDown(e: PointerEvent) {
       const target = e.target as Node;
       if (panelRef.current?.contains(target)) return;
       if (anchor?.contains(target)) return;
@@ -101,10 +101,13 @@ export function FloatingPanel({
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose?.();
     }
-    document.addEventListener('mousedown', onPointerDown);
+    // `pointerdown` rather than `mousedown`: the latter is not dispatched for
+    // touch input in every browser, so tapping outside the panel on a phone
+    // could leave it stuck open.
+    document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKey);
     };
   }, [open, anchor, onClose]);
