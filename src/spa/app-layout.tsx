@@ -16,6 +16,7 @@ import { useTranslations } from 'use-intl';
 import { BrandMark } from '@/components/layout/brand-mark';
 import { HeaderActionsMenu } from '@/components/layout/header-actions-menu';
 import { ServiceWorkerRegister } from '@/components/layout/service-worker-register';
+import { Button } from '@/components/ui/button';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { cn } from '@/lib/utils';
 import type { GroupListResponse } from './types';
@@ -26,14 +27,6 @@ import { useRouteAnnouncer } from './use-route-announcer';
 type GroupListItem = GroupListResponse['groups'][number];
 
 const MAIN_CONTENT_ID = 'main-content';
-
-/**
- * Navigation switches at `md`, the same breakpoint the pages use for their own
- * layouts. Previously nav switched at `lg` while content switched at `sm`,
- * leaving a 640–1024px band that got desktop card layouts, a visible tab bar
- * *and* the phone's bottom nav — two competing controls for one piece of state.
- */
-const SIDEBAR_WIDTH = 'md:pl-[15.5rem]';
 
 function SkipToMainContent() {
   const t = useTranslations('common');
@@ -75,34 +68,6 @@ function AnonymousHeader() {
   );
 }
 
-function SidebarNavLink({
-  href,
-  label,
-  Icon,
-  active,
-}: {
-  href: string;
-  label: string;
-  Icon: LucideIcon;
-  active: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm font-semibold transition-colors',
-        active
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-      )}
-    >
-      <Icon className="size-4" aria-hidden="true" />
-      <span className="truncate">{label}</span>
-    </Link>
-  );
-}
-
 function GroupNavLink({ group, active }: { group: GroupListItem; active: boolean }) {
   return (
     <Link
@@ -124,99 +89,61 @@ function GroupNavLink({ group, active }: { group: GroupListItem; active: boolean
   );
 }
 
-function DesktopSidebar({
-  displayName,
-  groups,
-  pathname,
-}: {
-  displayName: string;
-  groups: GroupListItem[];
-  pathname: string;
-}) {
+/** The three sections inside a group, rendered as the second nav row. */
+function GroupSectionTabs({ groupId, hash }: { groupId: string; hash: string }) {
   const t = useTranslations();
-  const initial = displayName.trim().charAt(0).toUpperCase() || 'A';
-  const currentGroups = groups.filter((group) => group.status !== 'ARCHIVED');
+  const current = hash.replace(/^#/, '');
+  const sections = [
+    { id: 'expenses', label: t('expenses.title'), aliases: [''] },
+    { id: 'settlement', label: t('settlements.title'), aliases: ['summary', 'transfers'] },
+    { id: 'settings', label: t('groups.settings_short'), aliases: [] },
+  ];
 
   return (
-    <aside className="border-border bg-sidebar text-sidebar-foreground fixed inset-y-0 left-0 z-40 hidden w-[15.5rem] flex-col border-r px-3 py-4 md:flex">
-      <div className="px-1">
-        <BrandHomeLink />
-      </div>
-
-      <nav aria-label={t('common.navigation')} className="mt-8 flex flex-col gap-1">
-        <SidebarNavLink
-          href="/groups"
-          label={t('groups.my_groups')}
-          Icon={BookOpenText}
-          active={pathname === '/groups'}
-        />
-        <SidebarNavLink
-          href="/groups/new"
-          label={t('groups.new_group')}
-          Icon={Plus}
-          active={pathname === '/groups/new'}
-        />
-      </nav>
-
-      {currentGroups.length > 0 ? (
-        <div className="mt-7 min-h-0 flex-1 overflow-y-auto px-1">
-          <Eyebrow className="mb-2.5 px-2">{t('groups.current_ledgers')}</Eyebrow>
-          <ul className="flex flex-col gap-1">
-            {currentGroups.map((group) => {
-              const href = `/groups/${group.id}`;
-              return (
-                <li key={group.id}>
-                  <GroupNavLink
-                    group={group}
-                    active={pathname === href || pathname.startsWith(`${href}/`)}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : (
-        <div className="flex-1" />
-      )}
-
-      <div className="border-border mt-5 flex items-center gap-1.5 border-t pt-3">
-        <Link
-          href="/account"
-          aria-current={pathname.startsWith('/account') ? 'page' : undefined}
-          className={cn(
-            'hover:bg-accent/60 flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-2 transition-colors',
-            pathname.startsWith('/account') ? 'bg-accent' : undefined,
-          )}
-        >
-          <span className="bg-primary text-primary-foreground grid size-8 shrink-0 place-items-center rounded-md font-mono text-xs font-bold">
-            {initial}
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold">{displayName}</span>
-            <span className="text-muted-foreground block truncate text-xs">
-              {t('common.account')}
-            </span>
-          </span>
-        </Link>
-        <HeaderActionsMenu userDisplayName={displayName} />
-      </div>
-    </aside>
+    <nav aria-label={t('groups.settings')} className="flex min-w-0 items-stretch gap-1">
+      {sections.map((section) => {
+        const active = section.id === current || section.aliases.includes(current);
+        return (
+          <Link
+            key={section.id}
+            href={`/groups/${groupId}#${section.id}`}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'relative flex min-h-11 items-center px-3 text-sm whitespace-nowrap transition-colors',
+              active
+                ? 'text-primary-ink font-semibold'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {section.label}
+            {active ? (
+              <span aria-hidden="true" className="bg-primary absolute inset-x-2 -bottom-px h-0.5" />
+            ) : null}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
 /**
- * Group switcher for narrow viewports. The group list previously lived only in
- * the `lg:flex` sidebar, so on a phone the only way to change groups was to
- * navigate back to /groups.
+ * Group switcher, shared by the mobile header and the desktop top bar.
+ *
+ * The group list used to live in a 248px sidebar that was permanently on
+ * screen to serve a destination users pick roughly once per session. As a
+ * dropdown it costs nothing until opened, and the same component now works at
+ * every width.
  */
-function MobileGroupSwitcher({
+function GroupSwitcher({
   groups,
   currentGroupId,
   label,
+  className,
 }: {
   groups: GroupListItem[];
   currentGroupId: string;
   label: string;
+  className?: string;
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
@@ -242,7 +169,7 @@ function MobileGroupSwitcher({
   if (currentGroups.length === 0) return <p className="truncate text-sm font-bold">{label}</p>;
 
   return (
-    <div ref={ref} className="relative min-w-0">
+    <div ref={ref} className={cn('relative min-w-0', className)}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -275,6 +202,89 @@ function MobileGroupSwitcher({
 }
 
 /**
+ * Desktop top bar.
+ *
+ * Replaces a fixed 248px sidebar. That sidebar cost the same width at every
+ * viewport while carrying only low-frequency destinations — every frequent
+ * action (expenses, settlement, settings) lived a level down behind tabs. It
+ * also collided with the summary table's own `md` grid, squeezing figure
+ * columns to ~79px at 768px.
+ *
+ * Two rows keep the hierarchy legible: identity and group choice on top, the
+ * sections of the current group below.
+ */
+function DesktopHeader({
+  displayName,
+  groups,
+  currentGroupId,
+  groupName,
+  pathname,
+  hash,
+}: {
+  displayName: string;
+  groups: GroupListItem[];
+  currentGroupId: string;
+  groupName?: string;
+  pathname: string;
+  hash: string;
+}) {
+  const t = useTranslations();
+
+  return (
+    <header className="border-border bg-background/94 sticky top-0 z-40 hidden border-b backdrop-blur-lg lg:block">
+      <div className="mx-auto w-full max-w-6xl px-6">
+        <div className="flex min-h-14 items-center gap-4">
+          <BrandHomeLink compact />
+
+          {currentGroupId && groupName ? (
+            <>
+              <span aria-hidden="true" className="bg-border h-5 w-px shrink-0" />
+              <GroupSwitcher
+                groups={groups}
+                currentGroupId={currentGroupId}
+                label={groupName}
+                className="max-w-xs"
+              />
+            </>
+          ) : null}
+
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/groups">
+                <BookOpenText aria-hidden="true" />
+                {t('groups.my_groups')}
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/groups/new">
+                <Plus aria-hidden="true" />
+                {t('groups.new_group')}
+              </Link>
+            </Button>
+            <Link
+              href="/account"
+              aria-current={pathname.startsWith('/account') ? 'page' : undefined}
+              aria-label={t('common.account')}
+              className={cn(
+                'hover:bg-accent grid size-9 place-items-center rounded-full transition-colors',
+                pathname.startsWith('/account') && 'ring-primary ring-2',
+              )}
+            >
+              <span className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-full font-mono text-xs font-bold">
+                {displayName.trim().charAt(0).toUpperCase() || 'A'}
+              </span>
+            </Link>
+            <HeaderActionsMenu userDisplayName={displayName} />
+          </div>
+        </div>
+
+        {currentGroupId ? <GroupSectionTabs groupId={currentGroupId} hash={hash} /> : null}
+      </div>
+    </header>
+  );
+}
+
+/**
  * Mobile header. Now carries a back affordance and the current context label —
  * previously it held only the brand and a hamburger, so a user deep in a group
  * had no in-app way back and no indication of where they were.
@@ -295,7 +305,7 @@ function MobileHeader({
   const t = useTranslations('common');
 
   return (
-    <header className="border-border bg-background/94 sticky top-0 z-40 border-b backdrop-blur-lg md:hidden">
+    <header className="border-border bg-background/94 sticky top-0 z-40 border-b backdrop-blur-lg lg:hidden">
       <div className="flex min-h-14 items-center gap-2 px-4">
         {backHref ? (
           <Link
@@ -312,7 +322,7 @@ function MobileHeader({
         <div className="min-w-0 flex-1">
           {title &&
             (currentGroupId ? (
-              <MobileGroupSwitcher groups={groups} currentGroupId={currentGroupId} label={title} />
+              <GroupSwitcher groups={groups} currentGroupId={currentGroupId} label={title} />
             ) : (
               <p className="truncate text-sm font-bold tracking-[-0.025em]">{title}</p>
             ))}
@@ -381,7 +391,7 @@ function MobileBottomNav({
   return (
     <nav
       aria-label={t('common.navigation')}
-      className="border-border bg-background/96 pb-safe fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-lg md:hidden"
+      className="border-border bg-background/96 pb-safe fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-lg lg:hidden"
     >
       <div className="mx-auto flex max-w-lg items-stretch gap-1 px-2 py-1">
         {groupId ? (
@@ -540,10 +550,13 @@ export function AppLayout() {
     <>
       <SkipToMainContent />
       <div className="bg-background text-foreground min-h-svh">
-        <DesktopSidebar
+        <DesktopHeader
           displayName={user.displayName}
           groups={groupList}
+          currentGroupId={isExpenseComposer ? '' : routeGroupId}
+          groupName={groupName}
           pathname={location.pathname}
+          hash={location.hash}
         />
         <MobileHeader
           displayName={user.displayName}
@@ -552,15 +565,13 @@ export function AppLayout() {
           groups={groupList}
           currentGroupId={isExpenseComposer ? '' : routeGroupId}
         />
-        <div className={SIDEBAR_WIDTH}>
-          <main
-            id={MAIN_CONTENT_ID}
-            tabIndex={-1}
-            className="pb-bottom-nav flex min-h-[calc(100svh-3.5rem)] flex-col focus-visible:outline-hidden md:min-h-svh md:pb-0"
-          >
-            <Outlet />
-          </main>
-        </div>
+        <main
+          id={MAIN_CONTENT_ID}
+          tabIndex={-1}
+          className="pb-bottom-nav flex min-h-[calc(100svh-3.5rem)] flex-col focus-visible:outline-hidden lg:min-h-svh lg:pb-0"
+        >
+          <Outlet />
+        </main>
         <MobileBottomNav
           pathname={location.pathname}
           hash={location.hash}

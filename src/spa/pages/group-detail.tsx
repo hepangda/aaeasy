@@ -120,7 +120,7 @@ export function GroupDetailPage() {
       : [];
 
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-9">
+    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-9">
       <GroupLiveRefresher groupId={groupId} />
       <LedgerPageHeader
         name={group.name}
@@ -166,7 +166,7 @@ export function GroupDetailPage() {
       <div>
         <Tabs
           defaultTab={isArchived ? 'settlement' : 'expenses'}
-          hideTabListOnMobile
+          navigatedElsewhereOnDesktop
           hashAliases={{ summary: 'settlement', transfers: 'settlement' }}
           tabs={[
             {
@@ -191,7 +191,7 @@ export function GroupDetailPage() {
                         <Button
                           asChild
                           size="sm"
-                          className={access.kind === 'user' ? 'hidden md:inline-flex' : undefined}
+                          className={access.kind === 'user' ? 'hidden lg:inline-flex' : undefined}
                         >
                           <Link href={`/groups/${groupId}/expenses/new`}>
                             <Plus /> {t('expenses.add')}

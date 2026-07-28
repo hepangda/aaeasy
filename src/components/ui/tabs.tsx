@@ -22,12 +22,17 @@ export interface TabDefinition {
 export function Tabs({
   tabs,
   defaultTab,
-  hideTabListOnMobile = false,
+  navigatedElsewhereOnDesktop = false,
   hashAliases = {},
 }: {
   tabs: TabDefinition[];
   defaultTab?: string;
-  hideTabListOnMobile?: boolean;
+  /**
+   * Hide the tab strip at `lg`, where the sidebar surfaces the same sections
+   * as second-level navigation. Without this the two are visible at once and
+   * drive the same URL hash — two controls for one piece of state.
+   */
+  navigatedElsewhereOnDesktop?: boolean;
   /** Legacy URL hashes that should resolve to a current tab id. */
   hashAliases?: Record<string, string>;
 }) {
@@ -66,14 +71,18 @@ export function Tabs({
   useEffect(() => {
     const changed = previousActive.current !== active;
     previousActive.current = active;
-    if (!changed || !hideTabListOnMobile || !window.matchMedia('(max-width: 767px)').matches) {
+    if (
+      !changed ||
+      !navigatedElsewhereOnDesktop ||
+      !window.matchMedia('(max-width: 1023px)').matches
+    ) {
       return;
     }
     const frame = requestAnimationFrame(() => {
       document.getElementById(`${idPrefix}-tabpanel-${active}`)?.scrollIntoView({ block: 'start' });
     });
     return () => cancelAnimationFrame(frame);
-  }, [active, hideTabListOnMobile, idPrefix]);
+  }, [active, navigatedElsewhereOnDesktop, idPrefix]);
 
   function activate(id: string) {
     void navigate(
@@ -102,7 +111,7 @@ export function Tabs({
         role="tablist"
         className={cn(
           'border-border -mx-1 gap-0 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-          hideTabListOnMobile ? 'hidden md:flex' : 'flex',
+          navigatedElsewhereOnDesktop ? 'flex lg:hidden' : 'flex',
         )}
       >
         {tabs.map((tab) => {
