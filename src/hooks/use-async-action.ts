@@ -6,7 +6,7 @@ import { showI18nError, successToast } from '@/lib/ui/toast';
 
 /** The shape every server action in this app resolves to. */
 export interface ActionResult {
-  ok: boolean;
+  ok?: boolean;
   error?: string;
 }
 

@@ -41,14 +41,13 @@ export function ReceiptActionsButton({
         type="button"
         size="icon"
         variant="ghost"
-        className="size-8"
         onClick={() => setOpen((v) => !v)}
         aria-label={t('receipts')}
         aria-expanded={open}
       >
         <Paperclip />
         {receipts.length > 0 && (
-          <span className="ml-0.5 text-[10px] tabular-nums">{receipts.length}</span>
+          <span className="ml-0.5 font-mono text-[10px] tabular-nums">{receipts.length}</span>
         )}
       </Button>
       <FloatingPanel
@@ -59,7 +58,7 @@ export function ReceiptActionsButton({
         className="w-fit max-w-xs"
         ariaLabel={t('receipts')}
       >
-        <div className="bg-popover shadow-lifted rounded-md border p-2">
+        <div className="bg-popover shadow-lifted rounded-xl border p-2">
           <ReceiptList
             groupId={groupId}
             expenseId={expenseId}

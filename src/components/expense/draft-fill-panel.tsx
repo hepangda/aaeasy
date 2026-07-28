@@ -13,6 +13,7 @@ import { useRouter } from '@/compat/navigation';
 import { useTranslations, useFormatter } from 'use-intl';
 import { Button } from '@/components/ui/button';
 import { NumericInput } from '@/components/ui/numeric-input';
+import { Eyebrow } from '@/components/ui/eyebrow';
 import { fillDraftsAction } from '@/spa/actions/expenses';
 import { showI18nError, successToast } from '@/lib/ui/toast';
 import { formatMinor, minorUnits } from '@/lib/money';
@@ -67,9 +68,12 @@ export function DraftFillPanel({ groupId, drafts }: { groupId: string; drafts: D
   }
 
   return (
-    <form onSubmit={onSubmit} className="bg-secondary/40 flex flex-col gap-3 rounded-xl border p-4">
+    <form
+      onSubmit={onSubmit}
+      className="bg-sunken flex flex-col gap-3 rounded-2xl border p-4 sm:p-5"
+    >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">
+        <h2 className="text-base font-bold tracking-[-0.025em]">
           {t('expenses.drafts_to_fill', { count: drafts.length })}
         </h2>
         <Button type="submit" size="sm" disabled={pending}>
@@ -77,85 +81,43 @@ export function DraftFillPanel({ groupId, drafts }: { groupId: string; drafts: D
         </Button>
       </div>
       <p className="text-muted-foreground text-xs">{t('expenses.drafts_hint')}</p>
-      <ul className="divide-y rounded-lg border sm:hidden">
+      {/* One tree at every width. The old dual render (a card list plus a
+          min-w-[480px] table) forced horizontal scroll on narrow tablets and
+          duplicated every future column change. */}
+      <ul className="divide-border bg-card divide-y rounded-xl border">
         {drafts.map((draft) => (
-          <li key={draft.expenseId} className="grid gap-3 p-3">
-            <div className="flex min-w-0 items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{draft.title}</p>
-                <p className="text-muted-foreground mt-0.5 text-xs">
-                  {fmt.dateTime(draft.occurredAt, 'short')} · {draft.payerName}
-                </p>
-              </div>
-              <span className="text-muted-foreground font-mono text-xs">{draft.currency}</span>
+          <li
+            key={draft.expenseId}
+            className="grid gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-4"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{draft.title}</p>
+              <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                {fmt.dateTime(draft.occurredAt, 'short')} · {draft.payerName}
+              </p>
             </div>
-            <NumericInput
-              aria-label={`${t('expenses.amount')} · ${draft.title}`}
-              placeholder={formatMinor(0n, draft.currency)}
-              precision={minorUnits(draft.currency)}
-              className="text-right tabular-nums"
-              value={amounts[draft.expenseId] ?? ''}
-              onChange={(event) =>
-                setAmounts((current) => ({
-                  ...current,
-                  [draft.expenseId]: event.target.value,
-                }))
-              }
-              keypadTitle={draft.title}
-            />
+            <div className="flex items-center justify-end gap-2">
+              <Eyebrow as="span" mono>
+                {draft.currency}
+              </Eyebrow>
+              <NumericInput
+                aria-label={`${t('expenses.amount')} · ${draft.title}`}
+                placeholder={formatMinor(0n, draft.currency)}
+                precision={minorUnits(draft.currency)}
+                className="w-32 text-right font-mono tabular-nums md:w-36"
+                value={amounts[draft.expenseId] ?? ''}
+                onChange={(event) =>
+                  setAmounts((current) => ({
+                    ...current,
+                    [draft.expenseId]: event.target.value,
+                  }))
+                }
+                keypadTitle={draft.title}
+              />
+            </div>
           </li>
         ))}
       </ul>
-      <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-[480px] text-sm">
-          <colgroup>
-            <col className="w-[88px]" />
-            <col />
-            <col className="w-[120px]" />
-            <col className="w-[160px]" />
-          </colgroup>
-          <thead className="text-muted-foreground text-xs tracking-wide uppercase">
-            <tr>
-              <th className="px-2 py-1.5 text-left font-medium">{t('expenses.date')}</th>
-              <th className="px-2 py-1.5 text-left font-medium">{t('expenses.title_field')}</th>
-              <th className="px-2 py-1.5 text-left font-medium">{t('expenses.payer')}</th>
-              <th className="px-2 py-1.5 text-right font-medium">{t('expenses.amount')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {drafts.map((d) => (
-              <tr key={d.expenseId} className="border-t align-middle">
-                <td className="text-muted-foreground px-2 py-2 whitespace-nowrap tabular-nums">
-                  {fmt.dateTime(d.occurredAt, 'short')}
-                </td>
-                <td className="px-2 py-2">
-                  <span className="font-medium">{d.title}</span>
-                </td>
-                <td className="px-2 py-2 whitespace-nowrap">{d.payerName}</td>
-                <td className="px-2 py-2">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <span className="text-muted-foreground text-xs">{d.currency}</span>
-                    <NumericInput
-                      aria-label={`${t('expenses.amount')} · ${d.title}`}
-                      placeholder={formatMinor(0n, d.currency)}
-                      precision={minorUnits(d.currency)}
-                      className="h-8 w-24 text-right tabular-nums"
-                      value={amounts[d.expenseId] ?? ''}
-                      onChange={(e) =>
-                        setAmounts((cur) => ({
-                          ...cur,
-                          [d.expenseId]: e.target.value,
-                        }))
-                      }
-                      keypadTitle={d.title}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </form>
   );
 }

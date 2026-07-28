@@ -1,11 +1,17 @@
-import { useTransition } from 'react';
 import { useTranslations } from 'use-intl';
-import { useRouter } from '@/compat/navigation';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useConfirm } from '@/components/ui/confirm-dialog';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { useAsyncAction } from '@/hooks/use-async-action';
 import { softDeleteExpenseAction } from '@/spa/actions/expenses';
-import { showI18nError } from '@/lib/ui/toast';
+
+function useDeleteExpense(groupId: string, expenseId: string) {
+  const t = useTranslations('expenses');
+  return useAsyncAction({
+    action: () => softDeleteExpenseAction({ groupId, expenseId }),
+    confirm: { message: t('confirm_delete') },
+  });
+}
 
 export function DeleteExpenseButton({
   groupId,
@@ -15,31 +21,45 @@ export function DeleteExpenseButton({
   expenseId: string;
 }) {
   const t = useTranslations('expenses');
-  const tRoot = useTranslations();
-  const router = useRouter();
-  const confirm = useConfirm();
-  const [pending, startTransition] = useTransition();
+  const { run, pending } = useDeleteExpense(groupId, expenseId);
+
   return (
     <Button
       type="button"
       size="icon"
       variant="ghost"
-      className="size-8"
       disabled={pending}
-      onClick={async () => {
-        if (!(await confirm({ message: t('confirm_delete') }))) return;
-        startTransition(async () => {
-          const result = await softDeleteExpenseAction({ groupId, expenseId });
-          if (!result.ok) {
-            showI18nError(tRoot, result.error ?? 'errors.unknown');
-            return;
-          }
-          router.refresh();
-        });
-      }}
+      onClick={() => void run()}
       aria-label={t('delete')}
     >
       <Trash2 className="text-destructive-ink" />
     </Button>
+  );
+}
+
+/** Same action, rendered as a row inside an overflow menu. */
+export function DeleteExpenseMenuItem({
+  groupId,
+  expenseId,
+}: {
+  groupId: string;
+  expenseId: string;
+}) {
+  const t = useTranslations('expenses');
+  const { run, pending } = useDeleteExpense(groupId, expenseId);
+
+  return (
+    <DropdownMenuItem
+      disabled={pending}
+      onSelect={(event) => {
+        // Keep the menu mounted while the confirm dialog resolves.
+        event.preventDefault();
+        void run();
+      }}
+      className="text-destructive-ink gap-2"
+    >
+      <Trash2 className="size-4" aria-hidden="true" />
+      {t('delete')}
+    </DropdownMenuItem>
   );
 }

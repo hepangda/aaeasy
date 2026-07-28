@@ -1,14 +1,36 @@
 import { useLocale, useTranslations } from 'use-intl';
 import { LedgerMemberAvatar } from '@/components/ledger/member-avatar';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Eyebrow } from '@/components/ui/eyebrow';
+import { toneForAmount } from '@/components/ui/amount-row';
 import { formatMoney } from '@/lib/money';
+import { cn } from '@/lib/utils';
 import type { HydratedLedger, LedgerMember } from '@/spa/types';
 
-function balanceTone(value: bigint): string {
-  if (value > 0n) return 'text-positive-ink';
-  if (value < 0n) return 'text-destructive-ink';
-  return 'text-muted-foreground';
-}
+const TONE_CLASS = {
+  positive: 'text-positive-ink',
+  negative: 'text-destructive-ink',
+  neutral: 'text-foreground',
+  danger: 'text-destructive-ink',
+  muted: 'text-muted-foreground',
+} as const;
 
+/**
+ * Per-member balances.
+ *
+ * This used to render the same data twice — a `sm:hidden` card list and a
+ * `min-w-[42rem]` table — which had two consequences worth calling out:
+ *
+ *  1. The table overflowed horizontally between 640–671px with no scroll
+ *     affordance, orphaning the numbers from the member-name column.
+ *  2. The two trees had drifted apart: the mobile list showed only a single
+ *     net figure, so phone users could not see the pre/post settlement pair
+ *     the desktop table exposed. That is a data-parity bug, not a style one.
+ *
+ * One tree now serves every width. Below `md` each member is a stacked block;
+ * at `md` and up the same blocks lay out as aligned columns via a shared grid
+ * template, so nothing scrolls sideways and nothing is hidden.
+ */
 export function LedgerSummaryTable({
   summary,
   members,
@@ -24,99 +46,116 @@ export function LedgerSummaryTable({
   const locale = useLocale();
   const memberById = new Map(members.map((member) => [member.id, member]));
 
+  // 4 or 5 columns depending on whether settlements have been recorded.
+  const grid = hasSettlementEntries
+    ? 'md:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]'
+    : 'md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]';
+
   return (
-    <section className="bg-card overflow-hidden rounded-xl border">
-      <header className="border-b px-4 py-4 sm:px-5">
-        <p className="text-muted-foreground font-mono text-[9px] font-semibold tracking-[0.15em] uppercase">
-          {currency}
-        </p>
-        <h2 className="mt-1 text-base font-semibold tracking-[-0.02em]">{t('summary.title')}</h2>
-      </header>
-      <ul className="divide-y sm:hidden">
+    <Card>
+      <CardHeader eyebrow={<Eyebrow mono>{currency}</Eyebrow>} title={t('summary.title')} />
+
+      {/* Column headers: only meaningful once the rows align as a grid. */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          'bg-muted/55 border-border text-muted-foreground hidden border-b px-5 py-2.5 sm:px-6 md:grid md:gap-4',
+          grid,
+        )}
+      >
+        <Eyebrow as="span">{t('summary.member')}</Eyebrow>
+        <Eyebrow as="span" className="text-right">
+          {t('summary.paid')}
+        </Eyebrow>
+        <Eyebrow as="span" className="text-right">
+          {t('summary.owed')}
+        </Eyebrow>
+        <Eyebrow as="span" className="text-right">
+          {hasSettlementEntries ? t('settlements.before') : t('summary.net')}
+        </Eyebrow>
+        {hasSettlementEntries && (
+          <Eyebrow as="span" className="text-right">
+            {t('settlements.current')}
+          </Eyebrow>
+        )}
+      </div>
+
+      <ul className="divide-border divide-y">
         {summary.map((row) => {
           const member = memberById.get(row.memberId);
-          const current = hasSettlementEntries ? row.adjustedNetMinorInGroup : row.netMinorInGroup;
+          const net = row.netMinorInGroup;
+          const adjusted = row.adjustedNetMinorInGroup;
+
           return (
-            <li key={row.memberId} className="grid gap-3 px-4 py-4">
-              <div className="flex min-w-0 items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2.5 font-medium">
-                  {member ? <LedgerMemberAvatar member={member} size="sm" /> : null}
-                  <span className="truncate">{member?.displayName ?? '?'}</span>
-                </div>
-                <span className={`font-mono font-semibold tabular-nums ${balanceTone(current)}`}>
-                  {formatMoney(current, currency, locale)}
-                </span>
+            <li
+              key={row.memberId}
+              className={cn(
+                'hover:bg-muted/25 grid gap-3 px-5 py-4 transition-colors sm:px-6 md:items-center md:gap-4',
+                grid,
+              )}
+            >
+              <div className="flex min-w-0 items-center gap-2.5 font-semibold">
+                {member ? <LedgerMemberAvatar member={member} size="sm" /> : null}
+                <span className="truncate text-sm">{member?.displayName ?? '?'}</span>
               </div>
-              <dl className="text-muted-foreground grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <dt>{t('summary.paid')}</dt>
-                  <dd className="text-foreground mt-0.5 font-mono tabular-nums">
-                    {formatMoney(row.paidMinorInGroup, currency, locale)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('summary.owed')}</dt>
-                  <dd className="text-foreground mt-0.5 font-mono tabular-nums">
-                    {formatMoney(row.owedMinorInGroup, currency, locale)}
-                  </dd>
-                </div>
-              </dl>
+
+              <Figure
+                label={t('summary.paid')}
+                value={formatMoney(row.paidMinorInGroup, currency, locale)}
+              />
+              <Figure
+                label={t('summary.owed')}
+                value={formatMoney(row.owedMinorInGroup, currency, locale)}
+              />
+              <Figure
+                label={hasSettlementEntries ? t('settlements.before') : t('summary.net')}
+                value={formatMoney(net, currency, locale)}
+                tone={toneForAmount(net)}
+                emphasis
+              />
+              {hasSettlementEntries && (
+                <Figure
+                  label={t('settlements.current')}
+                  value={formatMoney(adjusted, currency, locale)}
+                  tone={toneForAmount(adjusted)}
+                  emphasis
+                />
+              )}
             </li>
           );
         })}
       </ul>
-      <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-[42rem] text-sm">
-          <thead className="bg-muted/55 text-muted-foreground font-mono text-[10px] tracking-[0.04em] uppercase">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium sm:px-5">{t('summary.member')}</th>
-              <th className="px-3 py-3 text-right font-medium">{t('summary.paid')}</th>
-              <th className="px-3 py-3 text-right font-medium">{t('summary.owed')}</th>
-              <th className="px-3 py-3 text-right font-medium">
-                {hasSettlementEntries ? t('settlements.before') : t('summary.net')}
-              </th>
-              {hasSettlementEntries ? (
-                <th className="px-4 py-3 text-right font-medium sm:px-5">
-                  {t('settlements.current')}
-                </th>
-              ) : null}
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {summary.map((row) => {
-              const member = memberById.get(row.memberId);
-              return (
-                <tr key={row.memberId} className="hover:bg-muted/25 transition-colors">
-                  <td className="px-4 py-3 sm:px-5">
-                    <div className="flex items-center gap-2.5 font-medium">
-                      {member ? <LedgerMemberAvatar member={member} size="sm" /> : null}
-                      <span>{member?.displayName ?? '?'}</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 text-right font-mono tabular-nums">
-                    {formatMoney(row.paidMinorInGroup, currency, locale)}
-                  </td>
-                  <td className="px-3 py-3 text-right font-mono tabular-nums">
-                    {formatMoney(row.owedMinorInGroup, currency, locale)}
-                  </td>
-                  <td
-                    className={`px-3 py-3 text-right font-mono font-semibold tabular-nums ${balanceTone(row.netMinorInGroup)}`}
-                  >
-                    {formatMoney(row.netMinorInGroup, currency, locale)}
-                  </td>
-                  {hasSettlementEntries ? (
-                    <td
-                      className={`px-4 py-3 text-right font-mono font-semibold tabular-nums sm:px-5 ${balanceTone(row.adjustedNetMinorInGroup)}`}
-                    >
-                      {formatMoney(row.adjustedNetMinorInGroup, currency, locale)}
-                    </td>
-                  ) : null}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </Card>
+  );
+}
+
+/**
+ * One figure. Carries its own label below `md` (where there is no column
+ * header to inherit meaning from) and drops it once the grid aligns.
+ */
+function Figure({
+  label,
+  value,
+  tone = 'neutral',
+  emphasis = false,
+}: {
+  label: string;
+  value: string;
+  tone?: keyof typeof TONE_CLASS;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 md:block md:text-right">
+      <span className="text-muted-foreground text-xs md:hidden">{label}</span>
+      <span
+        className={cn(
+          'font-mono text-sm tabular-nums',
+          emphasis ? 'font-bold' : 'font-semibold',
+          TONE_CLASS[tone],
+        )}
+      >
+        {value}
+      </span>
+    </div>
   );
 }

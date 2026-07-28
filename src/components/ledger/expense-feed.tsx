@@ -1,13 +1,22 @@
 import { useMemo, type ReactNode } from 'react';
-import { Pencil, ReceiptText } from 'lucide-react';
+import { MoreHorizontal, Pencil, ReceiptText } from 'lucide-react';
 import { useLocale, useTranslations } from 'use-intl';
 import Link from '@/compat/link';
-import { DeleteExpenseButton } from '@/components/expense/delete-expense-button';
+import { DeleteExpenseMenuItem } from '@/components/expense/delete-expense-button';
 import { ReceiptActionsButton } from '@/components/expense/receipt-actions-button';
 import { SplitBadge } from '@/components/expense/split-badge';
 import { LedgerMemberAvatar } from '@/components/ledger/member-avatar';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
+import { Eyebrow } from '@/components/ui/eyebrow';
+import { Card, CardHeader } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { formatMoney } from '@/lib/money';
 import { splitInputStateSchema } from '@/lib/split/input-state';
 import { classifyPersistedSplit } from '@/lib/split/intent';
@@ -94,84 +103,82 @@ function ExpenseFeedItem({
   });
 
   return (
-    <li className="group hover:bg-accent/35 grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-4 py-4 transition-colors sm:px-5 sm:py-4.5">
-      <div className="flex min-w-0 gap-3">
-        <span className="bg-primary/7 text-primary-ink border-primary/12 mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border">
-          <ReceiptText className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-semibold sm:text-base">{expense.title}</h3>
-            {expense.isDraft ? (
-              <span className="bg-signal/20 text-signal-foreground dark:text-signal inline-flex rounded px-2 py-0.5 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase">
-                {t('expenses.draft_badge')}
-              </span>
-            ) : null}
-            {expense.tags.map((tag) => (
-              <span key={tag} className="bg-accent rounded px-2 py-0.5 text-[10px]">
-                {tag}
-              </span>
-            ))}
-          </div>
+    <li className="group hover:bg-accent/35 flex gap-3 px-5 py-4 transition-colors sm:px-6">
+      <span className="bg-primary/7 text-primary-ink border-primary/12 mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border">
+        <ReceiptText className="size-4" aria-hidden="true" />
+      </span>
 
-          <div className="text-muted-foreground mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-            {payer ? (
-              <LedgerMemberAvatar member={payer} size="sm" className="size-5 border-0 text-[8px]" />
-            ) : null}
-            <span className="truncate">
-              {t('expenses.payer')}: {payer?.displayName ?? '?'}
-            </span>
-            {!expense.isDraft ? (
-              <>
-                <span aria-hidden className="hidden sm:inline">
-                  ·
-                </span>
-                <SplitBadge kind={kind} shares={splitShares(expense, members, locale)} />
-              </>
-            ) : null}
-          </div>
-
-          {expense.note ? (
-            <p className="text-muted-foreground mt-2 line-clamp-2 text-xs leading-relaxed">
-              {expense.note}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="flex min-w-[6.75rem] flex-col items-end justify-between gap-2 text-right">
-        <div>
-          <p className="font-mono text-base font-semibold tracking-[-0.025em] tabular-nums sm:text-lg">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        {/* Title and amount share a row so the amount stays adjacent to what it
+            describes. The old layout reserved a fixed 6.75rem column for the
+            amount plus actions, which ate 156px of a 375px viewport before the
+            title got any space at all. */}
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="min-w-0 flex-1 truncate text-sm font-semibold sm:text-base">
+            {expense.title}
+          </h3>
+          <p className="font-mono text-base font-bold tracking-[-0.04em] whitespace-nowrap tabular-nums">
             {expense.amountMinor === null
               ? '—'
               : formatMoney(expense.amountMinor, expense.currency, locale)}
           </p>
         </div>
 
-        <div className="flex min-h-8 items-center justify-end gap-0.5">
-          <ReceiptActionsButton
-            groupId={groupId}
-            expenseId={expense.id}
-            receipts={expense.receipts}
-            canEdit={editable}
-          />
-          {editable ? (
-            <>
-              <Button
-                asChild
-                size="icon"
-                variant="ghost"
-                className="size-8"
-                aria-label={t('common.edit')}
-              >
-                <Link href={`/groups/${groupId}/expenses/${expense.id}/edit`}>
-                  <Pencil />
-                </Link>
-              </Button>
-              <DeleteExpenseButton groupId={groupId} expenseId={expense.id} />
-            </>
+        <div className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          {payer ? <LedgerMemberAvatar member={payer} size="sm" className="size-5" /> : null}
+          <span className="truncate">
+            {t('expenses.payer')}: {payer?.displayName ?? '?'}
+          </span>
+          {!expense.isDraft ? (
+            <SplitBadge kind={kind} shares={splitShares(expense, members, locale)} />
           ) : null}
+          {expense.isDraft ? (
+            <Eyebrow as="span" variant="chip" tone="signal" mono>
+              {t('expenses.draft_badge')}
+            </Eyebrow>
+          ) : null}
+          {expense.tags.map((tag) => (
+            <Eyebrow key={tag} as="span" variant="chip" tone="secondary">
+              {tag}
+            </Eyebrow>
+          ))}
         </div>
+
+        {expense.note ? (
+          <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
+            {expense.note}
+          </p>
+        ) : null}
+      </div>
+
+      {/* Actions live in an overflow menu rather than three adjacent 32px
+          buttons spaced 2px apart — with delete on the outside edge, that was a
+          reliable mis-tap on touch. */}
+      <div className="flex shrink-0 items-start gap-0.5">
+        <ReceiptActionsButton
+          groupId={groupId}
+          expenseId={expense.id}
+          receipts={expense.receipts}
+          canEdit={editable}
+        />
+        {editable ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" size="icon" variant="ghost" aria-label={t('common.actions')}>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild className="gap-2">
+                <Link href={`/groups/${groupId}/expenses/${expense.id}/edit`}>
+                  <Pencil className="size-4" aria-hidden="true" />
+                  {t('common.edit')}
+                </Link>
+              </DropdownMenuItem>
+              <DeleteExpenseMenuItem groupId={groupId} expenseId={expense.id} />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
     </li>
   );
@@ -216,34 +223,33 @@ export function ExpenseReceiptFeed({
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="bg-card overflow-hidden rounded-xl border">
-        <header className="flex items-center justify-between border-b px-4 py-4 sm:px-5">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <h2 className="text-base font-semibold tracking-[-0.02em]">{t('expenses.title')}</h2>
-            <span className="bg-muted text-muted-foreground rounded px-2 py-1 font-mono text-[10px] font-medium tabular-nums">
-              {totalItems}
+      <Card>
+        <CardHeader
+          title={
+            <span className="flex items-center gap-2.5">
+              {t('expenses.title')}
+              <Eyebrow as="span" variant="chip" tone="secondary" mono>
+                {totalItems}
+              </Eyebrow>
             </span>
-          </div>
-          {action}
-        </header>
+          }
+          action={action}
+        />
 
         {expenses.length === 0 ? (
-          <div className="flex min-h-48 flex-col items-center justify-center px-6 text-center">
-            <span className="bg-muted text-muted-foreground grid size-10 place-items-center rounded-lg border">
-              <ReceiptText className="size-5" />
-            </span>
-            <p className="text-muted-foreground mt-3 max-w-sm text-sm">{t('expenses.empty')}</p>
-          </div>
+          <EmptyState compact icon={<ReceiptText />} title={t('expenses.empty')} />
         ) : (
           dateGroups.map((dateGroup) => (
             <section key={dateGroup.key} aria-labelledby={`expense-date-${dateGroup.key}`}>
-              <h3
+              <Eyebrow
+                as="h3"
                 id={`expense-date-${dateGroup.key}`}
-                className="bg-muted/55 text-muted-foreground border-b px-4 py-2 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase sm:px-5"
+                mono
+                className="bg-muted/55 border-border border-b px-5 py-2 sm:px-6"
               >
                 {dateGroup.label}
-              </h3>
-              <ul className="divide-y">
+              </Eyebrow>
+              <ul className="divide-border divide-y">
                 {dateGroup.expenses.map((expense) => (
                   <ExpenseFeedItem
                     key={expense.id}
@@ -260,7 +266,7 @@ export function ExpenseReceiptFeed({
             </section>
           ))
         )}
-      </section>
+      </Card>
 
       {totalItems > pageSize ? (
         <Pagination paramKey="ep" totalItems={totalItems} pageSize={pageSize} />
