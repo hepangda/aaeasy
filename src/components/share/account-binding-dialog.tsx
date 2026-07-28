@@ -257,13 +257,13 @@ function SectionTab({
       aria-controls={controls}
       onClick={onClick}
       className={cn(
-        'relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors',
+        'relative flex items-center gap-1.5 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors',
         active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
       )}
     >
       {label}
       {typeof badge === 'number' && (
-        <span className="bg-muted text-muted-foreground inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] tabular-nums">
+        <span className="bg-muted text-muted-foreground inline-flex min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-[10px] tabular-nums">
           {badge}
         </span>
       )}
@@ -301,7 +301,7 @@ function MethodCard({
         )}
       >
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
             {icon}
             {title}
           </span>
@@ -451,7 +451,7 @@ function InviteSection({
                     className="hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
                   >
                     <AtSign className="text-muted-foreground size-3.5 shrink-0" />
-                    <span className="truncate font-medium">{s.username}</span>
+                    <span className="truncate font-semibold">{s.username}</span>
                     <span className="text-muted-foreground min-w-0 truncate text-xs">
                       {s.displayName}
                     </span>
@@ -665,7 +665,7 @@ function SentList({
                 className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
               >
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm leading-tight font-medium">
+                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm leading-tight font-semibold">
                     <TypeChip label={t('binding.type_invite')} />
                     <span className="min-w-0 truncate">
                       {item.pending.invitedUser.displayName}
@@ -704,7 +704,7 @@ function SentList({
                     !item.link.revoked && item.link.expired && 'text-muted-foreground',
                   )}
                 >
-                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm leading-tight font-medium">
+                  <span className="text-foreground flex min-w-0 items-center gap-2 text-sm leading-tight font-semibold">
                     <TypeChip label={t('binding.type_link')} />
                     <span className="min-w-0 truncate">{item.link.label ?? memberName}</span>
                   </span>
@@ -747,7 +747,7 @@ function SentList({
 
 function TypeChip({ label }: { label: string }) {
   return (
-    <span className="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-[10px] font-normal tracking-wide uppercase">
+    <span className="bg-secondary text-secondary-foreground rounded-md px-1.5 py-0.5 text-[10px] font-normal tracking-wide uppercase">
       {label}
     </span>
   );
@@ -786,7 +786,7 @@ function RoleSegmented({
             aria-checked={active}
             onClick={() => onChange(r)}
             className={cn(
-              'min-w-0 flex-1 truncate rounded px-3 text-sm font-medium transition-colors',
+              'min-w-0 flex-1 truncate rounded-md px-3 text-sm font-semibold transition-colors',
               active
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground',

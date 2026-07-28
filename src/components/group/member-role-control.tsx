@@ -39,7 +39,7 @@ export function MemberRoleControl({
   // OWNER badge or non-editable: render label only.
   if (!editable || currentRole === 'OWNER') {
     return (
-      <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs font-medium">
+      <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-semibold">
         {t(`members.role.${currentRole}` as never)}
       </span>
     );

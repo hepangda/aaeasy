@@ -1,7 +1,12 @@
 import type { LedgerMember } from '@/spa/types';
 import { cn } from '@/lib/utils';
 
-const FALLBACK_COLORS = ['#356AE6', '#2F8F72', '#D19A2A', '#B85864', '#7257B8', '#3B7E9F'];
+/**
+ * Avatar background colours. Every entry is checked to clear WCAG AA (4.5:1)
+ * against the white initials drawn on top — the previous palette had three
+ * failures, the worst being an amber at 2.51:1 that was effectively unreadable.
+ */
+const FALLBACK_COLORS = ['#2F5FD0', '#1F7A5E', '#8A6410', '#A8434F', '#63489F', '#2C6A88'];
 
 function fallbackColor(seed: string): string {
   let hash = 0;

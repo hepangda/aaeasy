@@ -52,11 +52,11 @@ export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePi
             {shares.map((s) => (
               <li
                 key={s.memberId}
-                className={`flex items-center justify-between gap-3 rounded px-1.5 py-1 ${
+                className={`flex items-center justify-between gap-3 rounded-md px-1.5 py-1 ${
                   s.isPayer ? 'bg-primary/10' : ''
                 }`}
               >
-                <span className="font-medium">{s.memberName}</span>
+                <span className="font-semibold">{s.memberName}</span>
                 <span className="font-mono tabular-nums">{s.amountText}</span>
               </li>
             ))}

@@ -4,16 +4,7 @@ import { useTranslations } from 'use-intl';
 import { FileText, Plus, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { errorToast, showI18nError } from '@/lib/ui/toast';
-
-const MAX_BYTES = 5 * 1024 * 1024;
-const ALLOWED = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/heic',
-  'application/pdf',
-]);
+import { ALLOWED_RECEIPT_TYPES, MAX_RECEIPT_BYTES } from '@/lib/expenses/receipt-constraints';
 
 interface Receipt {
   id: string;
@@ -49,11 +40,11 @@ export function ReceiptList({
     let uploaded = false;
     try {
       for (const file of Array.from(files)) {
-        if (file.size > MAX_BYTES) {
+        if (file.size > MAX_RECEIPT_BYTES) {
           errorToast(t('file_too_large'));
           continue;
         }
-        if (!ALLOWED.has(file.type)) {
+        if (!ALLOWED_RECEIPT_TYPES.has(file.type)) {
           errorToast(t('unsupported_type'));
           continue;
         }
@@ -109,7 +100,7 @@ export function ReceiptList({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`${t('receipts')} ${index + 1}`}
-                className="block overflow-hidden rounded border"
+                className="block overflow-hidden rounded-md border"
               >
                 <img
                   src={`/api/groups/${groupId}/expenses/${expenseId}/receipts/${r.id}`}
@@ -124,7 +115,7 @@ export function ReceiptList({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`${t('receipts')} ${index + 1}`}
-                className="bg-muted text-muted-foreground hover:bg-accent flex size-16 items-center justify-center rounded border text-xs"
+                className="bg-muted text-muted-foreground hover:bg-accent flex size-16 items-center justify-center rounded-md border text-xs"
               >
                 <FileText className="size-6" />
               </a>
@@ -149,7 +140,7 @@ export function ReceiptList({
               onClick={() => fileRef.current?.click()}
               disabled={busy}
               aria-label={uploading ? t('uploading') : t('upload_receipt')}
-              className="border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground flex size-16 items-center justify-center rounded border-2 border-dashed transition-colors disabled:opacity-50"
+              className="border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground flex size-16 items-center justify-center rounded-md border-2 border-dashed transition-colors disabled:opacity-50"
             >
               <Plus className="size-6" />
             </button>

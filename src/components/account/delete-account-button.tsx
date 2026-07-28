@@ -55,13 +55,13 @@ export function DeleteAccountButton({
 
         {ownedGroups.length > 0 ? (
           <div className="border-destructive/40 bg-destructive/10 flex flex-col gap-2 rounded-md border p-3 text-sm">
-            <p className="font-medium">
+            <p className="font-semibold">
               {t('account.delete_owned_warning', { count: ownedGroups.length })}
             </p>
             <ul className="list-disc space-y-1 pl-5 text-xs">
               {ownedGroups.map((g) => (
                 <li key={g.id}>
-                  <span className="font-medium">{g.name}</span>{' '}
+                  <span className="font-semibold">{g.name}</span>{' '}
                   <span className="text-muted-foreground">
                     · {t('groups.members_count', { count: g.memberCount })}
                   </span>

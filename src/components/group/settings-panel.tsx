@@ -80,12 +80,12 @@ export function SettingsPanel({
               <li key={m.id} className="flex flex-col gap-2 px-4 py-3 text-sm">
                 <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-medium">{displayName}</span>
+                    <span className="font-semibold">{displayName}</span>
                     {m.linkedUsername && (
                       <span className="text-muted-foreground text-xs">@{m.linkedUsername}</span>
                     )}
                     {!isLinked && (
-                      <span className="text-muted-foreground rounded border border-dashed px-2 py-0.5 text-xs">
+                      <span className="text-muted-foreground rounded-md border border-dashed px-2 py-0.5 text-xs">
                         {t('members.unlinked_badge')}
                       </span>
                     )}

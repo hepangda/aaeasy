@@ -3,6 +3,8 @@ import { useRouter } from '@/compat/navigation';
 import { useTranslations } from 'use-intl';
 import { Check, X, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { showI18nError, successToast } from '@/lib/ui/toast';
 import {
@@ -125,12 +127,12 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
   }
 
   return (
-    <section className="bg-card flex flex-col gap-3 rounded-xl border p-4">
+    <Card as="section" padding="body" className="flex flex-col gap-3">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="inline-flex items-center gap-1.5 text-base font-semibold">
-          <Mail className="size-4" />
+        <h2 className="inline-flex items-center gap-1.5 text-base font-bold tracking-[-0.025em]">
+          <Mail className="size-4" aria-hidden="true" />
           {t('invitations.section_title')}
-          <span className="bg-muted text-muted-foreground ml-1 inline-flex min-w-5 items-center justify-center rounded px-1.5 font-mono text-[10px] tabular-nums">
+          <span className="bg-muted text-muted-foreground ml-1 inline-flex min-w-5 items-center justify-center rounded-md px-1.5 font-mono text-[10px] tabular-nums">
             {invitations.length}
           </span>
         </h2>
@@ -167,15 +169,13 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
           )}
         </div>
       </header>
-      <ul className="divide-y rounded-lg border">
+      <ul className="divide-border divide-y rounded-xl border">
         {invitations.map((inv) => (
           <li key={inv.id} className="flex items-start gap-3 px-3 py-2.5 text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={selected.has(inv.id)}
               onChange={() => toggle(inv.id)}
               aria-label={t('invitations.select_row')}
-              className="mt-1 size-4"
               disabled={pending}
             />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -218,6 +218,6 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
           </li>
         ))}
       </ul>
-    </section>
+    </Card>
   );
 }

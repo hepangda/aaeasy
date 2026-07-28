@@ -143,7 +143,7 @@ export function GroupShareDialog({
                   className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
                 >
                   <span className={`flex flex-col gap-0.5 ${tone}`}>
-                    <span className="text-foreground text-sm leading-tight font-medium">
+                    <span className="text-foreground text-sm leading-tight font-semibold">
                       {l.label ?? t('share.group_default_label')}
                     </span>
                     <span className="text-muted-foreground">

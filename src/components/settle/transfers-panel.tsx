@@ -181,7 +181,7 @@ export function TransfersPanel({
       {suggested.length > 0 ? (
         <section className="flex flex-col gap-2">
           <header className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-medium">{t('settlements.suggested')}</h3>
+            <h3 className="text-sm font-semibold">{t('settlements.suggested')}</h3>
             <Button type="button" variant="outline" size="sm" onClick={copyAll}>
               <Copy data-icon="inline-start" />
               {copied ? t('settlements.copied') : t('settlements.copy_all')}
@@ -199,9 +199,9 @@ export function TransfersPanel({
                   className="flex flex-col items-stretch gap-2.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
                 >
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="min-w-0 truncate font-medium">{s.fromName}</span>
+                    <span className="min-w-0 truncate font-semibold">{s.fromName}</span>
                     <ArrowRight className="text-muted-foreground size-4" />
-                    <span className="min-w-0 truncate font-medium">{s.toName}</span>
+                    <span className="min-w-0 truncate font-semibold">{s.toName}</span>
                   </span>
                   <span className="flex items-center justify-between gap-3 sm:justify-end">
                     <span className="font-mono whitespace-nowrap tabular-nums">{s.amountText}</span>
@@ -229,7 +229,7 @@ export function TransfersPanel({
       {/* ─── Executed entries + manual add ──────────────────────────── */}
       <section className="flex flex-col gap-2">
         <header className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium">{t('settlements.executed')}</h3>
+          <h3 className="text-sm font-semibold">{t('settlements.executed')}</h3>
           {canAddManual && !manualOpen && (
             <Button type="button" size="sm" variant="outline" onClick={() => setManualOpen(true)}>
               <Plus data-icon="inline-start" />
@@ -324,7 +324,7 @@ export function TransfersPanel({
           </p>
         ) : (
           <details className="group/history">
-            <summary className="text-muted-foreground hover:bg-muted/45 flex min-h-10 cursor-pointer list-none items-center justify-between rounded-lg border px-4 text-sm font-medium transition-colors [&::-webkit-details-marker]:hidden">
+            <summary className="text-muted-foreground hover:bg-muted/45 flex min-h-10 cursor-pointer list-none items-center justify-between rounded-lg border px-4 text-sm font-semibold transition-colors [&::-webkit-details-marker]:hidden">
               {t('settlements.recorded_count', { count: executed.length })}
               <ChevronDown className="size-4 transition-transform group-open/history:rotate-180" />
             </summary>
@@ -341,9 +341,9 @@ export function TransfersPanel({
                   >
                     <div className="flex flex-col gap-0.5">
                       <span className="flex min-w-0 items-center gap-2">
-                        <span className="min-w-0 truncate font-medium">{e.fromName}</span>
+                        <span className="min-w-0 truncate font-semibold">{e.fromName}</span>
                         <ArrowRight className="text-muted-foreground size-4" />
-                        <span className="min-w-0 truncate font-medium">{e.toName}</span>
+                        <span className="min-w-0 truncate font-semibold">{e.toName}</span>
                       </span>
                       <span className="text-muted-foreground text-xs">
                         {e.occurredAt}

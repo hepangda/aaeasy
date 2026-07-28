@@ -3,9 +3,11 @@ import { useRouter } from '@/compat/navigation';
 import { useTranslations } from 'use-intl';
 import { Minus, Paperclip, Plus, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Eyebrow } from '@/components/ui/eyebrow';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -22,26 +24,14 @@ import { distribute, parseMajorMinor, parseSignedMajorMinor } from '@/lib/split/
 import type { SplitRule } from '@/lib/split/types';
 import type { SplitInputState, SplitInputRow } from '@/lib/split/input-state';
 import { computeSplit } from '@/lib/split';
-import {
-  decimalToMinor,
-  formatMinor,
-  isCurrencyCode,
-  minorToDecimal,
-  minorUnits,
-} from '@/lib/money';
+import { formatMinor, isCurrencyCode, minorUnits } from '@/lib/money';
 import { mergeAiRows, type CurrentSnapshot } from '@/lib/expenses/ai-schema';
 import { useAiParseStream } from '@/lib/expenses/use-ai-parse-stream';
-
-const MAX_BYTES = 5 * 1024 * 1024;
-const MAX_AI_IMAGE_BYTES = 3 * 1024 * 1024;
-const ALLOWED = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/heic',
-  'application/pdf',
-]);
+import {
+  ALLOWED_RECEIPT_TYPES,
+  MAX_AI_IMAGE_BYTES,
+  MAX_RECEIPT_BYTES,
+} from '@/lib/expenses/receipt-constraints';
 
 type Member = { id: string; displayName: string };
 type AiImageContext = { name: string; mime: string; dataUrl: string };
@@ -273,12 +263,10 @@ export function ExpenseForm({
         return cur.map((r) => ({ ...r, baseText: r.checked ? '' : r.baseText }));
       }
       let extrasSum = 0n;
-      const extraMinors: bigint[] = cur.map((r) => {
+      for (const r of cur) {
         const v = parseSignedMajorMinor(r.extraText, currency);
-        const e = v === null ? 0n : v;
-        extrasSum += e;
-        return e;
-      });
+        extrasSum += v === null ? 0n : v;
+      }
       const remaining = totalMinor - extrasSum;
       if (remaining < 0n) {
         return cur.map((r) => ({ ...r, baseText: r.checked ? formatMinor(0n, currency) : '' }));
@@ -288,7 +276,6 @@ export function ExpenseForm({
         const n = parseInt(r.shares || '0', 10);
         return Number.isFinite(n) && n > 0 ? n : 0;
       });
-      void extraMinors;
       const distributed = distribute(remaining, weights);
       return cur.map((r, i) => ({
         ...r,
@@ -505,11 +492,11 @@ export function ExpenseForm({
     const next: File[] = [...pendingFiles];
     let firstImageForAi: File | null = null;
     for (const f of Array.from(picked)) {
-      if (f.size > MAX_BYTES) {
+      if (f.size > MAX_RECEIPT_BYTES) {
         errorToast(t('expenses.file_too_large'));
         continue;
       }
-      if (!ALLOWED.has(f.type)) {
+      if (!ALLOWED_RECEIPT_TYPES.has(f.type)) {
         errorToast(t('expenses.unsupported_type'));
         continue;
       }
@@ -583,11 +570,6 @@ export function ExpenseForm({
       cancelled = true;
     };
   }, [state.ok, state.expenseId, groupId, router, t]);
-
-  // Suppress unused-import warnings (used only conditionally).
-  void minorToDecimal;
-  void decimalToMinor;
-  void minorUnits;
 
   // NOTE: on touch devices `NumericInput` renders readOnly (it drives a custom
   // keypad), and readOnly controls are excluded from HTML constraint
@@ -894,7 +876,7 @@ export function ExpenseForm({
         <div className="flex flex-col gap-2 px-5 pt-3 sm:px-8">
           <div className="bg-sunken flex flex-col gap-3 rounded-lg border p-4">
             <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
                 <Sparkles className="size-4" />{' '}
                 {defaults ? t('expenses.ai_describe_edit_title') : t('expenses.ai_title')}
               </span>
@@ -916,7 +898,7 @@ export function ExpenseForm({
               </Button>
             </div>
             {aiImage && (
-              <div className="bg-background/60 flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs">
+              <div className="bg-background/60 flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs">
                 <span className="text-muted-foreground truncate">
                   {t('expenses.ai_image_in_context', { name: aiImage.name })}
                 </span>
@@ -1115,12 +1097,12 @@ export function ExpenseForm({
               {pendingFiles.map((f, i) => (
                 <li
                   key={i}
-                  className="bg-muted/40 flex items-center justify-between gap-2 rounded px-3 py-1.5 text-sm"
+                  className="bg-muted/40 flex items-center justify-between gap-2 rounded-md px-3 py-1.5 text-sm"
                 >
                   <span className="truncate">
                     <Paperclip className="mr-1 inline size-3" />
                     {f.name}
-                    <span className="text-muted-foreground ml-2 text-xs">
+                    <span className="text-muted-foreground ml-2 font-mono text-xs tabular-nums">
                       {(f.size / 1024).toFixed(1)} KB
                     </span>
                   </span>
@@ -1201,154 +1183,67 @@ export function ExpenseForm({
                 </Button>
               </div>
 
-              {/* ─── Desktop: tabular layout ───────────────────────── */}
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full text-sm">
-                  <thead className="text-muted-foreground font-mono text-[10px] tracking-[0.04em] uppercase">
-                    <tr>
-                      <th className="w-7 px-1 py-1 text-left"></th>
-                      <th className="px-2 py-1 text-left font-medium">
-                        {t('expenses.col_member')}
-                      </th>
-                      <th className="w-32 px-1 py-1 text-center font-medium">
-                        {t('expenses.col_shares')}
-                      </th>
-                      <th className="w-24 px-1 py-1 text-right font-medium">
-                        {t('expenses.col_base')}
-                      </th>
-                      <th className="w-28 px-1 py-1 text-right font-medium">
-                        {t('expenses.col_extra')}
-                      </th>
-                      <th className="px-2 py-1 text-right font-medium whitespace-nowrap">
-                        {t('expenses.col_subtotal')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r, i) => {
-                      const m = members.find((x) => x.id === r.memberId);
-                      if (!m) return null;
-                      const hasContribution = r.checked || perMemberFinal[i]! > 0n;
-                      const baseShown = r.checked ? r.baseText || formatMinor(0n, currency) : null;
-                      return (
-                        <tr key={r.memberId} className="border-t">
-                          <td className="px-1 py-1.5">
-                            <Checkbox
-                              checked={r.checked}
-                              onChange={(e) => setChecked(r.memberId, e.target.checked)}
-                              aria-label={t('expenses.member_field', {
-                                name: m.displayName,
-                                field: t('expenses.split_rule'),
-                              })}
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 font-medium">{m.displayName}</td>
-                          <td className="px-1 py-1.5">
-                            <SharesStepper
-                              value={r.shares}
-                              disabled={!r.checked}
-                              onChange={(v) => setShares(r.memberId, v)}
-                              onBump={(d) => bumpShares(r.memberId, d)}
-                              decLabel={t('expenses.shares_dec')}
-                              incLabel={t('expenses.shares_inc')}
-                              label={t('expenses.member_field', {
-                                name: m.displayName,
-                                field: t('expenses.col_shares'),
-                              })}
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 text-right font-mono tabular-nums">
-                            {baseShown ?? <span className="text-muted-foreground">—</span>}
-                          </td>
-                          <td className="px-1 py-1.5">
-                            <ExtraInput
-                              value={r.extraText}
-                              onChange={(v) => updateRow(r.memberId, { extraText: v })}
-                              precision={currencyPrecision}
-                              clearLabel={t('expenses.clear')}
-                              label={t('expenses.member_field', {
-                                name: m.displayName,
-                                field: t('expenses.col_extra'),
-                              })}
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 text-right font-mono whitespace-nowrap tabular-nums">
-                            {hasContribution ? (
-                              <>
-                                <span className="text-muted-foreground mr-1 text-xs">
-                                  {currency}
-                                </span>
-                                {formatMinor(perMemberFinal[i]!, currency)}
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t font-medium">
-                      <td colSpan={4} className="px-2 py-2 text-right text-xs">
-                        {t('expenses.split_total')}
-                      </td>
-                      <td className="px-1 py-2 text-right font-mono text-xs whitespace-nowrap tabular-nums">
-                        {totalMinor !== null ? (
-                          <>
-                            <span className="text-muted-foreground mr-1">{currency}</span>
-                            {formatMinor(totalMinor, currency)}
-                          </>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td
-                        className={`px-2 py-2 text-right font-mono whitespace-nowrap tabular-nums ${
-                          sumMatchesTotal
-                            ? 'text-positive-ink'
-                            : totalMinor === null
-                              ? 'text-muted-foreground'
-                              : 'text-destructive-ink'
-                        }`}
-                      >
-                        <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
-                        {formatMinor(sumMinor, currency)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+              {/* One tree at every width. Below `md` each member is a stacked
+                  card with its own inline labels; at `md` the same blocks align
+                  into columns under a shared grid template. The previous dual
+                  render duplicated every field across a table and a card list. */}
+              <div
+                aria-hidden="true"
+                className="text-muted-foreground hidden gap-3 px-2.5 pb-1 md:grid md:grid-cols-[2.75rem_minmax(0,1fr)_8rem_6rem_7rem_7rem] md:items-end"
+              >
+                <span />
+                <Eyebrow as="span">{t('expenses.col_member')}</Eyebrow>
+                <Eyebrow as="span" className="text-center">
+                  {t('expenses.col_shares')}
+                </Eyebrow>
+                <Eyebrow as="span" className="text-right">
+                  {t('expenses.col_base')}
+                </Eyebrow>
+                <Eyebrow as="span" className="text-right">
+                  {t('expenses.col_extra')}
+                </Eyebrow>
+                <Eyebrow as="span" className="text-right">
+                  {t('expenses.col_subtotal')}
+                </Eyebrow>
               </div>
 
-              {/* ─── Mobile: stacked card layout ────────────────────
-            Tapping the row toggles the checkbox; stepper sits in the same
-            row so adjustments need only one thumb. */}
-              <ul className="flex flex-col gap-2 md:hidden">
+              <ul className="flex flex-col gap-2 md:gap-0">
                 {rows.map((r, i) => {
                   const m = members.find((x) => x.id === r.memberId);
                   if (!m) return null;
                   const finalMinor = perMemberFinal[i]!;
                   const hasContribution = r.checked || finalMinor > 0n;
+                  const baseShown = r.checked ? r.baseText || formatMinor(0n, currency) : null;
                   return (
                     <li
                       key={r.memberId}
-                      className={`flex flex-col gap-2 rounded-md border p-2.5 ${
-                        r.checked ? 'bg-card' : 'bg-muted/30'
-                      }`}
+                      className={cn(
+                        'flex flex-col gap-2 rounded-md border p-2.5',
+                        'md:grid md:grid-cols-[2.75rem_minmax(0,1fr)_8rem_6rem_7rem_7rem] md:items-center md:gap-3 md:rounded-none md:border-0 md:border-t md:px-2.5 md:py-1.5',
+                        r.checked ? 'bg-card' : 'bg-muted/30 md:bg-transparent',
+                      )}
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 md:contents">
                         <Checkbox
                           checked={r.checked}
                           onChange={(e) => setChecked(r.memberId, e.target.checked)}
-                          aria-label={m.displayName}
+                          aria-label={t('expenses.member_field', {
+                            name: m.displayName,
+                            field: t('expenses.split_rule'),
+                          })}
                         />
                         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                           {m.displayName}
                         </span>
-                        <span className="text-right font-mono text-sm whitespace-nowrap tabular-nums">
+                        {/* Subtotal sits beside the name on mobile, but in the
+                            last column on desktop — hence the two renders of a
+                            single value, not of a whole row. */}
+                        <span className="text-right font-mono text-sm whitespace-nowrap tabular-nums md:order-last">
                           {hasContribution ? (
                             <>
-                              <span className="text-muted-foreground mr-1 text-xs">{currency}</span>
+                              <span className="text-muted-foreground mr-1 text-xs md:hidden">
+                                {currency}
+                              </span>
                               {formatMinor(finalMinor, currency)}
                             </>
                           ) : (
@@ -1356,11 +1251,12 @@ export function ExpenseForm({
                           )}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+
+                      <div className="grid grid-cols-2 gap-2 md:contents">
+                        <div className="flex flex-col gap-1 md:block">
+                          <Eyebrow as="span" className="md:hidden">
                             {t('expenses.col_shares')}
-                          </span>
+                          </Eyebrow>
                           <SharesStepper
                             value={r.shares}
                             disabled={!r.checked}
@@ -1374,10 +1270,15 @@ export function ExpenseForm({
                             })}
                           />
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-muted-foreground text-[11px] tracking-wide uppercase">
+
+                        <span className="text-muted-foreground hidden text-right font-mono text-sm tabular-nums md:block">
+                          {baseShown ?? '—'}
+                        </span>
+
+                        <div className="flex flex-col gap-1 md:block">
+                          <Eyebrow as="span" className="md:hidden">
                             {t('expenses.col_extra')}
-                          </span>
+                          </Eyebrow>
                           <ExtraInput
                             value={r.extraText}
                             onChange={(v) => updateRow(r.memberId, { extraText: v })}
@@ -1395,8 +1296,7 @@ export function ExpenseForm({
                 })}
               </ul>
 
-              {/* ─── Totals readout (mobile only — desktop has it in tfoot) ─ */}
-              <div className="flex items-center justify-between gap-3 text-sm md:hidden">
+              <div className="border-border flex items-center justify-between gap-3 border-t pt-2 text-sm">
                 <span className="text-muted-foreground text-xs">{t('expenses.split_total')}</span>
                 <span className="flex items-baseline gap-3 font-mono tabular-nums">
                   <span className="text-muted-foreground text-xs">
@@ -1524,7 +1424,7 @@ function SharesStepper({
         unstyled
         keypadTitle={label}
         aria-label={label}
-        className="w-full min-w-0 flex-1 border-x bg-transparent text-center text-sm tabular-nums focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full min-w-0 flex-1 border-x bg-transparent text-center font-mono text-sm tabular-nums focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
       />
       <button
         type="button"
@@ -1569,7 +1469,7 @@ function ExtraInput({
           type="button"
           onClick={() => onChange('')}
           aria-label={clearLabel}
-          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1.5 grid -translate-y-1/2 place-items-center rounded p-0.5"
+          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1.5 grid -translate-y-1/2 place-items-center rounded-md p-0.5"
         >
           <X className="size-3" />
         </button>
