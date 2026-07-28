@@ -48,7 +48,7 @@ export function BottomSheet({
         aria-label={ariaLabel}
         tabIndex={-1}
         className={cn(
-          'bg-background shadow-lifted flex max-h-[90svh] w-full flex-col overflow-y-auto rounded-t-xl border-t',
+          'bg-background shadow-lifted flex max-h-[90svh] w-full flex-col overflow-y-auto rounded-t-2xl border-t',
           'pb-safe',
           className,
         )}

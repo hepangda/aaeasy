@@ -6,6 +6,12 @@ import { Dialog } from '@/components/ui/dialog';
 export interface ConfirmOptions {
   title?: string;
   message: string;
+  /**
+   * Extra content rendered under the message — a warning list, a count, a
+   * detail the plain message can't express. Lets call sites that would
+   * otherwise hand-roll a `<Dialog>` stay on the shared confirm.
+   */
+  body?: React.ReactNode;
   confirmText?: string;
   cancelText?: string;
   /** Use a destructive (red) confirm button. Defaults to true since most
@@ -64,6 +70,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
         className="max-w-sm"
       >
         <p className="text-sm leading-relaxed">{state?.opts.message}</p>
+        {state?.opts.body}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => finish(false)}>
             {state?.opts.cancelText ?? t('cancel')}

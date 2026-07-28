@@ -20,7 +20,9 @@ const buttonVariants = cva(
         default: 'h-10 px-4 py-2',
         sm: 'h-9 px-3',
         lg: 'h-11 px-5',
-        icon: 'h-10 w-10',
+        // 44px — the iOS/Android touch-target minimum. Icon-only buttons carry
+        // no text to widen their hit area, so they must not shrink below this.
+        icon: 'size-11',
       },
     },
     defaultVariants: {
