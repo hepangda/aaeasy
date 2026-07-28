@@ -147,9 +147,14 @@ export function NumericKeypad({
 
   return (
     <BottomSheet open={open} onClose={onClose} ariaLabel={title} className="pt-2">
-      <div className="text-muted-foreground flex items-center justify-between px-4 pt-1 pb-2 text-xs">
-        <span>{title}</span>
-        <span className="text-foreground text-base font-medium tabular-nums">{draft || '0'}</span>
+      <div
+        className="border-border flex flex-col gap-0.5 border-b px-4 pt-1 pb-3"
+        aria-live="polite"
+      >
+        <span className="text-muted-foreground text-xs">{title}</span>
+        <span className="text-foreground font-mono text-2xl font-bold tracking-[-0.04em] tabular-nums">
+          {draft || '0'}
+        </span>
       </div>
       <div className="grid grid-cols-4 gap-2 p-3 pt-1">
         <KeypadButton onClick={() => pressDigit('7')}>7</KeypadButton>
@@ -246,7 +251,7 @@ function KeypadButton({
       disabled={disabled}
       aria-label={ariaLabel}
       className={cn(
-        'h-14 text-xl font-medium tabular-nums select-none',
+        'h-14 font-mono text-xl font-semibold tabular-nums select-none',
         variant === 'muted' && 'bg-muted/40',
         variant === 'primary' &&
           'bg-primary text-primary-foreground hover:bg-primary/90 border-transparent',

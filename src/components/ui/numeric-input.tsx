@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
+import { Input, type InputVariant } from '@/components/ui/input';
 import { NumericKeypad, type NumericMode } from '@/components/ui/numeric-keypad';
 
 export interface NumericInputProps extends Omit<
@@ -16,6 +16,7 @@ export interface NumericInputProps extends Omit<
   keypadTitle: string;
   unstyled?: boolean;
   allowNegative?: boolean;
+  variant?: InputVariant;
 }
 
 function useCoarsePointer() {
@@ -50,6 +51,7 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
       onPointerDown,
       unstyled,
       allowNegative,
+      variant,
       ...rest
     },
     ref,
@@ -96,8 +98,17 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
         defaultValue: isControlled ? undefined : defaultValue,
         onChange: desktopOnChange,
       };
-      return unstyled ? <input {...desktopProps} /> : <Input {...desktopProps} />;
+      return unstyled ? <input {...desktopProps} /> : <Input variant={variant} {...desktopProps} />;
     }
+
+    // The keypad sheet covers the bottom ~50% of a phone viewport. Without
+    // this, editing a field low in a long form means typing blind.
+    const revealAndOpen = (el: HTMLInputElement) => {
+      setOpen(true);
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+    };
 
     const mobileProps = {
       ...rest,
@@ -113,13 +124,13 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
         onPointerDown?.(e);
         if (e.defaultPrevented || disabled || readOnly) return;
         e.preventDefault();
-        setOpen(true);
+        revealAndOpen(e.currentTarget);
       },
       onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
         onFocus?.(e);
         if (e.defaultPrevented || disabled || readOnly) return;
         e.currentTarget.blur();
-        setOpen(true);
+        revealAndOpen(e.currentTarget);
       },
     };
 

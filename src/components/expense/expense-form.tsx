@@ -1,11 +1,11 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '@/compat/navigation';
 import { useTranslations } from 'use-intl';
-import Decimal from 'decimal.js';
-import { Minus, Paperclip, Plus, Sparkles, X } from 'lucide-react';
+import { Minus, Paperclip, Plus, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -18,6 +18,7 @@ import {
 } from '@/spa/actions/expenses';
 import { errorToast, showI18nError, successToast } from '@/lib/ui/toast';
 import { describeSplitIntent } from '@/lib/split/intent';
+import { distribute, parseMajorMinor, parseSignedMajorMinor } from '@/lib/split/allocate';
 import type { SplitRule } from '@/lib/split/types';
 import type { SplitInputState, SplitInputRow } from '@/lib/split/input-state';
 import { computeSplit } from '@/lib/split';
@@ -27,7 +28,6 @@ import {
   isCurrencyCode,
   minorToDecimal,
   minorUnits,
-  parseAmountToMinor,
 } from '@/lib/money';
 import { mergeAiRows, type CurrentSnapshot } from '@/lib/expenses/ai-schema';
 import { useAiParseStream } from '@/lib/expenses/use-ai-parse-stream';
@@ -95,62 +95,6 @@ interface SplitRow {
    * base pool everyone else shares.
    */
   extraText: string;
-}
-
-function parseMajorMinor(text: string, currency: string): bigint | null {
-  const t = text.trim();
-  if (!t) return 0n;
-  try {
-    return parseAmountToMinor(t, currency);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Same as `parseMajorMinor` but accepts a leading `-` so the extras column
- * can record refunds / discounts as negative amounts.
- */
-function parseSignedMajorMinor(text: string, currency: string): bigint | null {
-  const t = text.trim();
-  if (!t) return 0n;
-  const negative = t.startsWith('-');
-  const body = negative ? t.slice(1).trim() : t;
-  if (!body) return null;
-  try {
-    const v = parseAmountToMinor(body, currency);
-    return negative ? -v : v;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Distribute `total` minor units across `weights` using LRM tail diff.
- * Returns one minor-unit bigint per input weight (parallel array). Inputs with
- * zero weight get 0.
- */
-function distribute(total: bigint, weights: number[]): bigint[] {
-  if (total <= 0n) return weights.map(() => 0n);
-  const sum = weights.reduce((a, b) => a + b, 0);
-  if (sum === 0) return weights.map(() => 0n);
-  const totalD = new Decimal(total.toString());
-  const sumD = new Decimal(sum);
-  const rows = weights.map((w, i) => {
-    const exact = totalD.times(w).div(sumD);
-    const floor = exact.toDecimalPlaces(0, Decimal.ROUND_FLOOR);
-    return { i, base: BigInt(floor.toFixed(0)), frac: exact.minus(floor) };
-  });
-  let remainder = total - rows.reduce((a, r) => a + r.base, 0n);
-  // Largest fractional part wins; ties broken by index for determinism.
-  const ranked = rows.slice().sort((a, b) => b.frac.cmp(a.frac) || a.i - b.i);
-  let k = 0;
-  while (remainder > 0n) {
-    rows[ranked[k % ranked.length]!.i]!.base += 1n;
-    remainder--;
-    k++;
-  }
-  return rows.map((r) => r.base);
 }
 
 /**
@@ -645,7 +589,28 @@ export function ExpenseForm({
   void decimalToMinor;
   void minorUnits;
 
-  const submitDisabled = pending || uploadingReceipts || (!isDraftMode && !sumMatchesTotal);
+  // NOTE: on touch devices `NumericInput` renders readOnly (it drives a custom
+  // keypad), and readOnly controls are excluded from HTML constraint
+  // validation — so `required` on the amount field never fires on a phone.
+  // The gate below is therefore the *only* thing stopping an empty amount, and
+  // must stay explicit rather than relying on the browser.
+  const amountMissing = !isDraftMode && totalMinor === null;
+  const submitDisabled =
+    pending || uploadingReceipts || amountMissing || (!isDraftMode && !sumMatchesTotal);
+
+  // Why the submit button is inert, phrased for the user. Null when it isn't.
+  const blockingReason = (() => {
+    if (isDraftMode || pending || uploadingReceipts) return null;
+    if (anyParseError) return t('errors.invalid_amount');
+    if (totalMinor === null) return t('expenses.amount_required');
+    if (!sumMatchesTotal) {
+      return t('expenses.split_diff', {
+        diff: `${diffMinor < 0n ? '+' : ''}${formatMinor(-diffMinor, currency)}`,
+        currency,
+      });
+    }
+    return null;
+  })();
 
   // ─── AI-assisted parsing ───────────────────────────────
   // The user types a free-form sentence; we POST it to the streaming parse
@@ -927,7 +892,7 @@ export function ExpenseForm({
           form fields. The user always reviews before saving. */}
       {aiOpen && (
         <div className="flex flex-col gap-2 px-5 pt-3 sm:px-8">
-          <div className="bg-secondary/55 flex flex-col gap-3 rounded-lg border p-4">
+          <div className="bg-sunken flex flex-col gap-3 rounded-lg border p-4">
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 text-sm font-medium">
                 <Sparkles className="size-4" />{' '}
@@ -1008,7 +973,7 @@ export function ExpenseForm({
       {/* ─── Row 2: Amount | Currency | Payer | Attach receipts ────
           Mobile: amount + currency share one row, then payer + attach
           stack below. Desktop keeps the original four-column row. */}
-      <section className="bg-secondary/48 mt-5 flex flex-col gap-4 border-y px-5 py-6 sm:mt-6 sm:grid sm:grid-cols-[1.35fr_auto_1fr_auto] sm:items-end sm:px-8 sm:py-7">
+      <section className="bg-sunken mt-5 flex flex-col gap-4 border-y px-5 py-6 sm:mt-6 sm:grid sm:grid-cols-[1.35fr_auto_1fr_auto] sm:items-end sm:px-8 sm:py-7">
         {!isDraftMode && (
           <div className="grid gap-2 sm:contents">
             <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
@@ -1023,7 +988,7 @@ export function ExpenseForm({
                   onChange={(e) => setAmountText(e.target.value)}
                   precision={currencyPrecision}
                   keypadTitle={t('expenses.amount')}
-                  className="h-14 rounded-none border-0 bg-transparent px-0 font-mono text-3xl font-semibold tracking-[-0.045em] shadow-none ring-0 focus-visible:ring-0 sm:h-15 sm:text-4xl"
+                  variant="display"
                 />
               </div>
               <div className="grid gap-2">
@@ -1034,7 +999,7 @@ export function ExpenseForm({
                   value={currency}
                   preferredCurrency={groupCurrency}
                   onChange={(event) => setCurrency(event.target.value)}
-                  className="w-36 font-mono sm:w-40"
+                  className="w-24 font-mono sm:w-40"
                 />
               </div>
             </div>
@@ -1179,7 +1144,7 @@ export function ExpenseForm({
 
       {/* ─── Split rule (hidden in DRAFT mode) ──────────────── */}
       {!isDraftMode && (
-        <fieldset className="bg-background/65 mx-5 mb-6 grid gap-4 rounded-lg border p-4 sm:mx-8 sm:p-5">
+        <fieldset className="bg-sunken-strong mx-5 mb-6 grid gap-4 rounded-lg border p-4 sm:mx-8 sm:p-5">
           <legend className="px-2 text-sm font-semibold">{t('expenses.split_rule')}</legend>
 
           <details
@@ -1268,9 +1233,7 @@ export function ExpenseForm({
                       return (
                         <tr key={r.memberId} className="border-t">
                           <td className="px-1 py-1.5">
-                            <input
-                              type="checkbox"
-                              className="size-4"
+                            <Checkbox
                               checked={r.checked}
                               onChange={(e) => setChecked(r.memberId, e.target.checked)}
                               aria-label={t('expenses.member_field', {
@@ -1374,14 +1337,12 @@ export function ExpenseForm({
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <input
-                          type="checkbox"
-                          className="size-4 shrink-0"
+                        <Checkbox
                           checked={r.checked}
                           onChange={(e) => setChecked(r.memberId, e.target.checked)}
                           aria-label={m.displayName}
                         />
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                           {m.displayName}
                         </span>
                         <span className="text-right font-mono text-sm whitespace-nowrap tabular-nums">
@@ -1485,13 +1446,26 @@ export function ExpenseForm({
         />
       </div>
 
-      <div className="bg-card/94 bottom-nav-offset fixed inset-x-0 z-30 border-t px-4 py-3 backdrop-blur-lg md:sticky md:inset-x-auto md:bottom-0 md:z-10 md:px-8 md:py-4">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-end">
+      <div className="bg-card/95 bottom-nav-offset fixed inset-x-0 z-30 border-t px-4 py-3 backdrop-blur-lg md:sticky md:inset-x-auto md:bottom-0 md:z-10 md:px-8 md:py-4">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          {/* The reason Save is disabled must be visible *here*. It used to live
+              only inside the split editor, which defaults to collapsed — so a
+              1-cent mismatch showed the user a dead button and no explanation
+              anywhere on screen. */}
+          {blockingReason && (
+            <p
+              role="alert"
+              className="text-destructive-ink flex items-center gap-1.5 text-xs sm:mr-auto"
+            >
+              <TriangleAlert className="size-3.5 shrink-0" aria-hidden="true" />
+              {blockingReason}
+            </p>
+          )}
           <Button
             type="submit"
             disabled={submitDisabled}
             size="lg"
-            className="w-full sm:ml-auto sm:w-auto sm:min-w-40"
+            className="w-full sm:w-auto sm:min-w-40"
             {...(isDraftMode ? { formNoValidate: true } : {})}
           >
             {uploadingReceipts
