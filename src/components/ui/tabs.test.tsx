@@ -6,40 +6,43 @@ import { IntlProvider } from 'use-intl';
 import messages from '../../../messages/en.json';
 import { Tabs } from './tabs';
 
-function renderTabs(navigatedElsewhereOnDesktop: boolean) {
+function renderTabs(initialHash = '#expenses') {
   return render(
     <IntlProvider locale="en" messages={messages}>
-      <MemoryRouter initialEntries={['/groups/g1#expenses']}>
+      <MemoryRouter initialEntries={[`/groups/g1${initialHash}`]}>
         <Tabs
-          navigatedElsewhereOnDesktop={navigatedElsewhereOnDesktop}
           tabs={[
             { id: 'expenses', label: 'Expenses', content: <p>expenses panel</p> },
             { id: 'settlement', label: 'Settlement', content: <p>settlement panel</p> },
           ]}
         />
       </MemoryRouter>
-      ,
     </IntlProvider>,
   );
 }
 
 describe('Tabs', () => {
-  it('renders the active panel', () => {
-    renderTabs(false);
-    expect(screen.getByText('expenses panel')).toBeInTheDocument();
+  it('renders the panel named by the URL hash', () => {
+    renderTabs('#settlement');
+    expect(screen.getByText('settlement panel')).toBeInTheDocument();
   });
 
-  it('hides its strip at lg when navigation lives in the sidebar', () => {
-    const { container } = renderTabs(true);
+  it('keeps the strip visible at every width', () => {
+    const { container } = renderTabs();
     const strip = container.querySelector('[role="tablist"]')!;
-    // Regression guard: the sidebar surfaces these same sections from lg up.
-    // Showing both would put two controls on one piece of state.
-    expect(strip.className).toContain('lg:hidden');
+    // The strip is the sole control for these sections. An earlier revision
+    // duplicated it into the global top bar and hid this one at `lg`, which put
+    // ledger-scoped navigation into application chrome.
+    // (`[&::-webkit-scrollbar]:hidden` also contains "hidden", so match on the
+    // responsive utilities specifically.)
+    const classes = strip.className.split(/\s+/);
+    expect(classes).not.toContain('hidden');
+    expect(classes).not.toContain('lg:hidden');
   });
 
-  it('keeps its strip at every width when nothing else navigates', () => {
-    const { container } = renderTabs(false);
-    const strip = container.querySelector('[role="tablist"]')!;
-    expect(strip.className).not.toContain('lg:hidden');
+  it('marks the active tab for assistive tech', () => {
+    renderTabs('#settlement');
+    const active = screen.getByRole('tab', { selected: true });
+    expect(active).toHaveTextContent('Settlement');
   });
 });

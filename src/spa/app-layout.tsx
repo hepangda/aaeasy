@@ -89,43 +89,6 @@ function GroupNavLink({ group, active }: { group: GroupListItem; active: boolean
   );
 }
 
-/** The three sections inside a group, rendered as the second nav row. */
-function GroupSectionTabs({ groupId, hash }: { groupId: string; hash: string }) {
-  const t = useTranslations();
-  const current = hash.replace(/^#/, '');
-  const sections = [
-    { id: 'expenses', label: t('expenses.title'), aliases: [''] },
-    { id: 'settlement', label: t('settlements.title'), aliases: ['summary', 'transfers'] },
-    { id: 'settings', label: t('groups.settings_short'), aliases: [] },
-  ];
-
-  return (
-    <nav aria-label={t('groups.settings')} className="flex min-w-0 items-stretch gap-1">
-      {sections.map((section) => {
-        const active = section.id === current || section.aliases.includes(current);
-        return (
-          <Link
-            key={section.id}
-            href={`/groups/${groupId}#${section.id}`}
-            aria-current={active ? 'page' : undefined}
-            className={cn(
-              'relative flex min-h-11 items-center px-3 text-sm whitespace-nowrap transition-colors',
-              active
-                ? 'text-primary-ink font-semibold'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {section.label}
-            {active ? (
-              <span aria-hidden="true" className="bg-primary absolute inset-x-2 -bottom-px h-0.5" />
-            ) : null}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 /**
  * Group switcher, shared by the mobile header and the desktop top bar.
  *
@@ -204,14 +167,13 @@ function GroupSwitcher({
 /**
  * Desktop top bar.
  *
- * Replaces a fixed 248px sidebar. That sidebar cost the same width at every
- * viewport while carrying only low-frequency destinations — every frequent
- * action (expenses, settlement, settings) lived a level down behind tabs. It
- * also collided with the summary table's own `md` grid, squeezing figure
- * columns to ~79px at 768px.
+ * Replaces a fixed 248px sidebar, which cost the same width at every viewport
+ * while carrying only low-frequency destinations, and collided with the summary
+ * table's `md` grid (~79px figure columns at 768px).
  *
- * Two rows keep the hierarchy legible: identity and group choice on top, the
- * sections of the current group below.
+ * Scope matters here: this bar is application chrome — identity, account, and
+ * which ledger you're looking at. The sections *within* a ledger belong to that
+ * ledger's page, not to global chrome, so they live in the page header instead.
  */
 function DesktopHeader({
   displayName,
@@ -219,14 +181,12 @@ function DesktopHeader({
   currentGroupId,
   groupName,
   pathname,
-  hash,
 }: {
   displayName: string;
   groups: GroupListItem[];
   currentGroupId: string;
   groupName?: string;
   pathname: string;
-  hash: string;
 }) {
   const t = useTranslations();
 
@@ -277,8 +237,6 @@ function DesktopHeader({
             <HeaderActionsMenu userDisplayName={displayName} />
           </div>
         </div>
-
-        {currentGroupId ? <GroupSectionTabs groupId={currentGroupId} hash={hash} /> : null}
       </div>
     </header>
   );
@@ -556,7 +514,6 @@ export function AppLayout() {
           currentGroupId={isExpenseComposer ? '' : routeGroupId}
           groupName={groupName}
           pathname={location.pathname}
-          hash={location.hash}
         />
         <MobileHeader
           displayName={user.displayName}

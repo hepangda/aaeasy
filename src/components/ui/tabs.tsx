@@ -22,17 +22,16 @@ export interface TabDefinition {
 export function Tabs({
   tabs,
   defaultTab,
-  navigatedElsewhereOnDesktop = false,
+  scrollIntoViewOnMobile = false,
   hashAliases = {},
 }: {
   tabs: TabDefinition[];
   defaultTab?: string;
   /**
-   * Hide the tab strip at `lg`, where the sidebar surfaces the same sections
-   * as second-level navigation. Without this the two are visible at once and
-   * drive the same URL hash — two controls for one piece of state.
+   * Scroll the newly activated panel into view on narrow screens, where the
+   * strip and the panel don't fit together.
    */
-  navigatedElsewhereOnDesktop?: boolean;
+  scrollIntoViewOnMobile?: boolean;
   /** Legacy URL hashes that should resolve to a current tab id. */
   hashAliases?: Record<string, string>;
 }) {
@@ -71,18 +70,14 @@ export function Tabs({
   useEffect(() => {
     const changed = previousActive.current !== active;
     previousActive.current = active;
-    if (
-      !changed ||
-      !navigatedElsewhereOnDesktop ||
-      !window.matchMedia('(max-width: 1023px)').matches
-    ) {
+    if (!changed || !scrollIntoViewOnMobile || !window.matchMedia('(max-width: 1023px)').matches) {
       return;
     }
     const frame = requestAnimationFrame(() => {
       document.getElementById(`${idPrefix}-tabpanel-${active}`)?.scrollIntoView({ block: 'start' });
     });
     return () => cancelAnimationFrame(frame);
-  }, [active, navigatedElsewhereOnDesktop, idPrefix]);
+  }, [active, scrollIntoViewOnMobile, idPrefix]);
 
   function activate(id: string) {
     void navigate(
@@ -109,10 +104,7 @@ export function Tabs({
     <div className="flex flex-col gap-5">
       <div
         role="tablist"
-        className={cn(
-          'border-border -mx-1 gap-0 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-          navigatedElsewhereOnDesktop ? 'flex lg:hidden' : 'flex',
-        )}
+        className="border-border -mx-1 flex gap-0 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {tabs.map((tab) => {
           const isActive = tab.id === active;

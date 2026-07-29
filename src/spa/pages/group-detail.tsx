@@ -163,10 +163,10 @@ export function GroupDetailPage() {
         </p>
       ) : null}
 
-      <div>
+      <div className="-mt-2">
         <Tabs
           defaultTab={isArchived ? 'settlement' : 'expenses'}
-          navigatedElsewhereOnDesktop
+          scrollIntoViewOnMobile
           hashAliases={{ summary: 'settlement', transfers: 'settlement' }}
           tabs={[
             {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { IntlProvider } from 'use-intl';
@@ -76,29 +76,22 @@ describe('AppLayout navigation', () => {
     expect(container.querySelector('aside')).toBeNull();
   });
 
-  it('surfaces the current group and its sections together', () => {
+  it('names the current ledger so the switcher has context', () => {
+    const { container } = renderLayout('/groups/g1#settlement');
+    const header = container.querySelector('header.lg\\:block')!;
+    expect(header.textContent).toContain('Osaka trip');
+  });
+
+  it('keeps ledger-scoped sections out of application chrome', () => {
     const { container } = renderLayout('/groups/g1#settlement');
     const header = container.querySelector('header.lg\\:block')!;
     const text = header.textContent ?? '';
 
-    // Row one: identity and group choice.
-    expect(text).toContain('Osaka trip');
-    // Row two: the sections that used to live only behind tabs.
-    expect(text).toContain(EXPENSES_LABEL);
-    expect(text).toContain(SETTLEMENT_LABEL);
-  });
-
-  it('marks the active section from the URL hash', () => {
-    const { container } = renderLayout('/groups/g1#settlement');
-    const header = container.querySelector('header.lg\\:block')!;
-    const current = within(header as HTMLElement).getByRole('link', { current: 'page' });
-    expect(current).toHaveTextContent(SETTLEMENT_LABEL);
-  });
-
-  it('omits group sections outside a group', () => {
-    const { container } = renderLayout('/groups');
-    const header = container.querySelector('header.lg\\:block')!;
-    expect(header.textContent).not.toContain(SETTLEMENT_LABEL);
+    // The top bar answers "who am I / which ledger". Which *part* of a ledger
+    // you're viewing belongs to that ledger's own page header — putting it here
+    // blurred the scope and forced the page's tab strip to be hidden.
+    expect(text).not.toContain(SETTLEMENT_LABEL);
+    expect(text).not.toContain(EXPENSES_LABEL);
   });
 
   it('keeps content free of any sidebar offset', () => {
