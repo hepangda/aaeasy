@@ -94,6 +94,23 @@ describe('AppLayout navigation', () => {
     expect(text).not.toContain(EXPENSES_LABEL);
   });
 
+  it('offers every ledger section in the bottom nav', () => {
+    const { container } = renderLayout('/groups/g1#members');
+    const nav = container.querySelector('nav.lg\\:hidden')!;
+    const text = nav.textContent ?? '';
+
+    // The bottom nav is the sole section control below `lg`, so it has to carry
+    // all four — leaving one out would strand it behind no affordance at all.
+    for (const label of [
+      messages.expenses.title,
+      messages.settlements.title,
+      messages.members.title,
+      messages.groups.settings_short,
+    ]) {
+      expect(text).toContain(label);
+    }
+  });
+
   it('keeps content free of any sidebar offset', () => {
     renderLayout('/groups/g1#expenses');
     const main = screen.getByRole('main');

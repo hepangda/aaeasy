@@ -7,6 +7,7 @@ import {
   ChevronsUpDown,
   Plus,
   ReceiptText,
+  Settings,
   UserRound,
   UsersRound,
   type LucideIcon,
@@ -310,12 +311,12 @@ function MobileNavItem({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] font-semibold transition-colors',
+        'relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] font-semibold transition-colors',
         prominent || active ? 'text-primary-ink' : 'text-muted-foreground hover:text-foreground',
       )}
     >
       {active ? (
-        <span aria-hidden="true" className="bg-primary absolute inset-x-5 top-0 h-0.5" />
+        <span aria-hidden="true" className="bg-primary absolute inset-x-3 top-0 h-0.5" />
       ) : null}
       {prominent ? (
         <span className="bg-primary text-primary-foreground -mt-2 grid size-9 place-items-center rounded-md">
@@ -351,7 +352,7 @@ function MobileBottomNav({
       aria-label={t('common.navigation')}
       className="border-border bg-background/96 pb-safe fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-lg lg:hidden"
     >
-      <div className="mx-auto flex max-w-lg items-stretch gap-1 px-2 py-1">
+      <div className="mx-auto flex max-w-lg items-stretch px-1 py-1">
         {groupId ? (
           <>
             <MobileNavItem
@@ -374,9 +375,15 @@ function MobileBottomNav({
               active={['#settlement', '#summary', '#transfers'].includes(hash)}
             />
             <MobileNavItem
+              href={`/groups/${groupId}#members`}
+              label={t('members.title')}
+              Icon={UsersRound}
+              active={hash === '#members'}
+            />
+            <MobileNavItem
               href={`/groups/${groupId}#settings`}
               label={t('groups.settings_short')}
-              Icon={UsersRound}
+              Icon={Settings}
               active={hash === '#settings'}
             />
           </>

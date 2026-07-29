@@ -4,6 +4,7 @@ import { useFormatter, useLocale, useTranslations } from 'use-intl';
 import { Plus } from 'lucide-react';
 import { DraftFillPanel, type DraftRow } from '@/components/expense/draft-fill-panel';
 import { GroupLiveRefresher } from '@/components/group/group-live-refresher';
+import { MembersPanel } from '@/components/group/members-panel';
 import { SettingsPanel } from '@/components/group/settings-panel';
 import type { OwnerCandidate } from '@/components/group/transfer-ownership-button';
 import { ExpenseReceiptFeed } from '@/components/ledger/expense-feed';
@@ -166,7 +167,7 @@ export function GroupDetailPage() {
       <div className="-mt-2">
         <Tabs
           defaultTab={isArchived ? 'settlement' : 'expenses'}
-          scrollIntoViewOnMobile
+          alsoInBottomNav
           hashAliases={{ summary: 'settlement', transfers: 'settlement' }}
           tabs={[
             {
@@ -255,22 +256,35 @@ export function GroupDetailPage() {
               ),
             },
             {
-              id: 'settings',
-              label: t('groups.settings'),
+              id: 'members',
+              label: t('members.title'),
+              badge: members.length || undefined,
               content: (
                 <Card as="section" padding="body">
-                  <SettingsPanel
+                  <MembersPanel
                     groupId={groupId}
                     members={members}
                     membersPage={membersPage}
                     isOwner={isOwner}
                     canManage={canManage}
-                    canSettle={access.canSettle}
-                    isArchived={isArchived}
-                    settlementId={detail.data.latestSettlementId ?? undefined}
                     existingShareLinks={existingShareLinks.filter((link) => link.memberId !== null)}
                     pendingInvitations={pendingInvitations}
                     baseUrl={window.location.origin}
+                  />
+                </Card>
+              ),
+            },
+            {
+              id: 'settings',
+              label: t('groups.settings_short'),
+              content: (
+                <Card as="section" padding="body">
+                  <SettingsPanel
+                    groupId={groupId}
+                    isOwner={isOwner}
+                    canSettle={access.canSettle}
+                    isArchived={isArchived}
+                    settlementId={detail.data.latestSettlementId ?? undefined}
                     ownerCandidates={ownerCandidates}
                   />
                 </Card>

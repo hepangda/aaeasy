@@ -22,16 +22,18 @@ export interface TabDefinition {
 export function Tabs({
   tabs,
   defaultTab,
-  scrollIntoViewOnMobile = false,
+  alsoInBottomNav = false,
   hashAliases = {},
 }: {
   tabs: TabDefinition[];
   defaultTab?: string;
   /**
-   * Scroll the newly activated panel into view on narrow screens, where the
-   * strip and the panel don't fit together.
+   * Set when the mobile bottom nav already offers these same sections. The
+   * strip then hides below `lg` (two controls for one hash is confusing) and
+   * the newly activated panel is scrolled into view, since the user's tap
+   * happened at the bottom of the screen.
    */
-  scrollIntoViewOnMobile?: boolean;
+  alsoInBottomNav?: boolean;
   /** Legacy URL hashes that should resolve to a current tab id. */
   hashAliases?: Record<string, string>;
 }) {
@@ -70,14 +72,14 @@ export function Tabs({
   useEffect(() => {
     const changed = previousActive.current !== active;
     previousActive.current = active;
-    if (!changed || !scrollIntoViewOnMobile || !window.matchMedia('(max-width: 1023px)').matches) {
+    if (!changed || !alsoInBottomNav || !window.matchMedia('(max-width: 1023px)').matches) {
       return;
     }
     const frame = requestAnimationFrame(() => {
       document.getElementById(`${idPrefix}-tabpanel-${active}`)?.scrollIntoView({ block: 'start' });
     });
     return () => cancelAnimationFrame(frame);
-  }, [active, scrollIntoViewOnMobile, idPrefix]);
+  }, [active, alsoInBottomNav, idPrefix]);
 
   function activate(id: string) {
     void navigate(
@@ -104,7 +106,10 @@ export function Tabs({
     <div className="flex flex-col gap-5">
       <div
         role="tablist"
-        className="border-border -mx-1 flex gap-0 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className={cn(
+          'border-border -mx-1 gap-0 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          alsoInBottomNav ? 'hidden lg:flex' : 'flex',
+        )}
       >
         {tabs.map((tab) => {
           const isActive = tab.id === active;
