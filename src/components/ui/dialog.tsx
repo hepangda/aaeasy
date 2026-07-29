@@ -19,31 +19,63 @@ const FOCUSABLE_SELECTOR = [
 interface ModalLayer {
   id: symbol;
   getPanel: () => HTMLElement | null;
+  /** Whether this layer contributes to the body scroll lock. */
+  locksScroll: boolean;
 }
 
 const modalLayers: ModalLayer[] = [];
 let bodyOverflowBeforeLock = '';
+let bodyPaddingRightBeforeLock = '';
 let rootRestoreTarget: HTMLElement | null = null;
 
 function topModalLayer(): ModalLayer | undefined {
   return modalLayers[modalLayers.length - 1];
 }
 
+function lockingLayerCount(): number {
+  return modalLayers.filter((layer) => layer.locksScroll).length;
+}
+
 function registerModalLayer(layer: ModalLayer, restoreTarget: HTMLElement | null): void {
-  if (modalLayers.length === 0) {
-    bodyOverflowBeforeLock = document.body.style.overflow;
-    rootRestoreTarget = restoreTarget;
-  }
+  const isFirstLock = layer.locksScroll && lockingLayerCount() === 0;
+  if (modalLayers.length === 0) rootRestoreTarget = restoreTarget;
   modalLayers.push(layer);
+  if (!layer.locksScroll) return;
+
+  if (isFirstLock) {
+    bodyOverflowBeforeLock = document.body.style.overflow;
+    bodyPaddingRightBeforeLock = document.body.style.paddingRight;
+
+    // Hiding overflow removes the scrollbar, which widens the viewport by its
+    // thickness and shifts every centred element sideways. Replace it with
+    // padding so the layout doesn't move. Overlay scrollbars report 0 here and
+    // correctly get no padding.
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      const current = parseFloat(window.getComputedStyle(document.body).paddingRight) || 0;
+      document.body.style.paddingRight = `${current + scrollbarWidth}px`;
+    }
+  }
   document.body.style.overflow = 'hidden';
 }
 
 function unregisterModalLayer(id: symbol): HTMLElement | null {
   const index = modalLayers.findIndex((layer) => layer.id === id);
+  const removed = index >= 0 ? modalLayers[index] : undefined;
   if (index >= 0) modalLayers.splice(index, 1);
-  if (modalLayers.length > 0) return null;
+
+  // Only release the lock once the last *locking* layer is gone; a popover
+  // layered over a dialog must not unfreeze the page behind it.
+  if (!removed?.locksScroll || lockingLayerCount() > 0) {
+    return modalLayers.length === 0 ? takeRestoreTarget() : null;
+  }
 
   document.body.style.overflow = bodyOverflowBeforeLock;
+  document.body.style.paddingRight = bodyPaddingRightBeforeLock;
+  return takeRestoreTarget();
+}
+
+function takeRestoreTarget(): HTMLElement | null {
   const target = rootRestoreTarget;
   rootRestoreTarget = null;
   return target;
@@ -63,11 +95,19 @@ function focusPanel(panel: HTMLElement): void {
   (focusable[0] ?? panel).focus();
 }
 
-/** Shared modal behaviour for Dialog and BottomSheet. */
+/**
+ * Shared modal behaviour: Escape, focus trapping, focus restore, and (for true
+ * modals) a body scroll lock.
+ *
+ * `lockScroll: false` suits transient popovers like a select listbox. Freezing
+ * the page for a dropdown is heavy-handed, and the lock's own side effect —
+ * removing the scrollbar — visibly shifts the layout underneath.
+ */
 export function useModalLayer<T extends HTMLElement>(
   open: boolean,
   onClose: () => void,
   panelRef: RefObject<T | null>,
+  { lockScroll = true }: { lockScroll?: boolean } = {},
 ): () => void {
   const layerId = useRef(Symbol('modal-layer'));
   const onCloseRef = useRef(onClose);
@@ -98,7 +138,7 @@ export function useModalLayer<T extends HTMLElement>(
     const id = layerId.current;
     const focusBeforeOpen =
       focusBeforeOpenRef.current ?? (document.activeElement as HTMLElement | null);
-    const layer: ModalLayer = { id, getPanel: () => panelRef.current };
+    const layer: ModalLayer = { id, getPanel: () => panelRef.current, locksScroll: lockScroll };
     registerModalLayer(layer, focusBeforeOpen);
 
     function onKeyDown(event: KeyboardEvent) {
@@ -159,7 +199,7 @@ export function useModalLayer<T extends HTMLElement>(
         if (rootTarget?.isConnected) rootTarget.focus();
       });
     };
-  }, [open, panelRef]);
+  }, [open, panelRef, lockScroll]);
 
   return useCallback(() => {
     if (topModalLayer()?.id === layerId.current) onCloseRef.current();

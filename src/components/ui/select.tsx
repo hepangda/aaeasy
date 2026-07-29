@@ -71,7 +71,10 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const [triggerEl, setTriggerEl] = React.useState<HTMLButtonElement | null>(null);
     const listRef = React.useRef<HTMLDivElement>(null);
     const close = React.useCallback(() => setOpen(false), []);
-    useModalLayer(open, close, listRef);
+    // A dropdown shouldn't freeze the page — and the lock's own side effect
+    // (removing the scrollbar) shifts everything underneath. The floating panel
+    // repositions itself on scroll instead.
+    useModalLayer(open, close, listRef, { lockScroll: false });
 
     // Drive the hidden <select> through its native setter and dispatch a real
     // change event, so React's own onChange fires with a genuine event object

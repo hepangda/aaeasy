@@ -136,6 +136,22 @@ describe('Select', () => {
     expect(getComputedStyle(listbox).position).toBe('absolute');
   });
 
+  it('leaves the page scrollable and unshifted', async () => {
+    const user = userEvent.setup();
+    render(
+      <Select value="a" onChange={() => {}}>
+        <Options />
+      </Select>,
+    );
+
+    await user.click(screen.getByRole('button'));
+
+    // Locking the body would remove the scrollbar, widening the viewport and
+    // visibly shifting every centred element behind the dropdown.
+    expect(document.body.style.overflow).not.toBe('hidden');
+    expect(document.body.style.paddingRight).toBe('');
+  });
+
   it('opens with the keyboard and closes on Escape', async () => {
     const user = userEvent.setup();
     render(
