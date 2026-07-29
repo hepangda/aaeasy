@@ -111,6 +111,16 @@ describe('AppLayout navigation', () => {
     }
   });
 
+  it('centres the compose action in the bottom nav', () => {
+    const { container } = renderLayout('/groups/g1#expenses');
+    const items = [...container.querySelector('nav.lg\\:hidden')!.firstElementChild!.children];
+
+    // Adding an expense is why this app exists, so it sits where a thumb rests
+    // — two sections either side of it rather than pushed off to one edge.
+    expect(items).toHaveLength(5);
+    expect(items[2]!.textContent).toContain(messages.expenses.add);
+  });
+
   it('keeps content free of any sidebar offset', () => {
     renderLayout('/groups/g1#expenses');
     const main = screen.getByRole('main');

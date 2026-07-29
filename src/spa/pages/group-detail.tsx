@@ -278,16 +278,14 @@ export function GroupDetailPage() {
               id: 'settings',
               label: t('groups.settings_short'),
               content: (
-                <Card as="section" padding="body">
-                  <SettingsPanel
-                    groupId={groupId}
-                    isOwner={isOwner}
-                    canSettle={access.canSettle}
-                    isArchived={isArchived}
-                    settlementId={detail.data.latestSettlementId ?? undefined}
-                    ownerCandidates={ownerCandidates}
-                  />
-                </Card>
+                <SettingsPanel
+                  groupId={groupId}
+                  isOwner={isOwner}
+                  canSettle={access.canSettle}
+                  isArchived={isArchived}
+                  settlementId={detail.data.latestSettlementId ?? undefined}
+                  ownerCandidates={ownerCandidates}
+                />
               ),
             },
           ]}

@@ -319,8 +319,8 @@ function MobileNavItem({
         <span aria-hidden="true" className="bg-primary absolute inset-x-3 top-0 h-0.5" />
       ) : null}
       {prominent ? (
-        <span className="bg-primary text-primary-foreground -mt-2 grid size-9 place-items-center rounded-md">
-          <Icon className="size-4" aria-hidden="true" />
+        <span className="bg-primary text-primary-foreground shadow-lifted -mt-3 grid size-11 place-items-center rounded-full">
+          <Icon className="size-5" aria-hidden="true" />
         </span>
       ) : (
         <Icon className="size-4" aria-hidden="true" />
@@ -355,6 +355,9 @@ function MobileBottomNav({
       <div className="mx-auto flex max-w-lg items-stretch px-1 py-1">
         {groupId ? (
           <>
+            {/* Two sections, the compose action, two sections. Adding an
+                expense is the reason this app exists, so it sits dead centre
+                where a thumb naturally rests. */}
             <MobileNavItem
               href={`/groups/${groupId}#expenses`}
               label={t('expenses.title')}
@@ -362,17 +365,17 @@ function MobileBottomNav({
               active={!hash || hash === '#expenses'}
             />
             <MobileNavItem
+              href={`/groups/${groupId}#settlement`}
+              label={t('settlements.title')}
+              Icon={ArrowRightLeft}
+              active={['#settlement', '#summary', '#transfers'].includes(hash)}
+            />
+            <MobileNavItem
               href={`/groups/${groupId}/expenses/new`}
               label={t('expenses.add')}
               Icon={Plus}
               active={false}
               prominent
-            />
-            <MobileNavItem
-              href={`/groups/${groupId}#settlement`}
-              label={t('settlements.title')}
-              Icon={ArrowRightLeft}
-              active={['#settlement', '#summary', '#transfers'].includes(hash)}
             />
             <MobileNavItem
               href={`/groups/${groupId}#members`}

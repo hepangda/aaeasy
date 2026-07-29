@@ -6,6 +6,7 @@ import {
   type OwnerCandidate,
 } from '@/components/group/transfer-ownership-button';
 import { ReopenSettlementButton } from '@/components/settle/reopen-settlement-button';
+import { Card } from '@/components/ui/card';
 import { DangerZone } from '@/components/ui/danger-zone';
 import { SectionHeader } from '@/components/ui/page-header';
 
@@ -13,8 +14,11 @@ export type { MemberLite } from './types';
 
 /**
  * Group-level settings: ownership, reopening a settlement, and the destructive
- * operations. The member roster lives in its own panel — the two were bundled
- * under "Members & settings", which made the tab a catch-all.
+ * operations.
+ *
+ * The danger zone is a sibling card, not a nested one. Wrapping the whole panel
+ * in a single card put the red block *inside* the ownership card, which read as
+ * "delete" belonging to "transfer ownership".
  */
 export function SettingsPanel({
   groupId,
@@ -32,36 +36,32 @@ export function SettingsPanel({
   ownerCandidates: OwnerCandidate[];
 }) {
   const t = useTranslations();
-  const showOwnership = isOwner || (isArchived && canSettle && settlementId);
+  const canReopen = Boolean(isArchived && canSettle && settlementId);
 
   return (
-    <section className="flex flex-col gap-6">
-      {showOwnership ? (
-        <div className="flex flex-col gap-5">
-          {isOwner ? (
-            <div className="flex flex-col gap-3">
-              <SectionHeader
-                title={t('groups.transfer_owner')}
-                description={t('groups.transfer_owner_desc')}
-              />
-              <div>
-                <TransferOwnershipButton groupId={groupId} candidates={ownerCandidates} />
-              </div>
-            </div>
-          ) : null}
+    <div className="flex flex-col gap-5">
+      {isOwner ? (
+        <Card as="section" padding="body" className="flex flex-col gap-3">
+          <SectionHeader
+            title={t('groups.transfer_owner')}
+            description={t('groups.transfer_owner_desc')}
+          />
+          <div>
+            <TransferOwnershipButton groupId={groupId} candidates={ownerCandidates} />
+          </div>
+        </Card>
+      ) : null}
 
-          {isArchived && canSettle && settlementId ? (
-            <div className="flex flex-col gap-3">
-              <SectionHeader
-                title={t('expenses.reopen_title')}
-                description={t('expenses.reopen_desc')}
-              />
-              <div>
-                <ReopenSettlementButton settlementId={settlementId} />
-              </div>
-            </div>
-          ) : null}
-        </div>
+      {canReopen ? (
+        <Card as="section" padding="body" className="flex flex-col gap-3">
+          <SectionHeader
+            title={t('expenses.reopen_title')}
+            description={t('expenses.reopen_desc')}
+          />
+          <div>
+            <ReopenSettlementButton settlementId={settlementId!} />
+          </div>
+        </Card>
       ) : null}
 
       <DangerZone
@@ -70,6 +70,6 @@ export function SettingsPanel({
       >
         {isOwner ? <DeleteGroupButton groupId={groupId} /> : <LeaveGroupButton groupId={groupId} />}
       </DangerZone>
-    </section>
+    </div>
   );
 }
