@@ -48,7 +48,10 @@ export function MembersPanel({
           const isLinked = !!m.linkedUserId;
           const displayName = isLinked ? (m.linkedUserDisplayName ?? m.displayName) : m.displayName;
           return (
-            <li key={m.id} className="flex flex-col gap-2 px-4 py-3 text-sm">
+            <li
+              key={m.id}
+              className="flex min-h-16 flex-col justify-center gap-2 px-4 py-2 text-sm"
+            >
               <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-semibold">{displayName}</span>
@@ -61,7 +64,7 @@ export function MembersPanel({
                     </span>
                   )}
                 </div>
-                <span className="flex flex-wrap items-center justify-end gap-1">
+                <span className="flex min-h-11 flex-wrap items-center justify-end gap-1">
                   {isLinked && m.linkedUserRole && (
                     <MemberRoleControl
                       groupId={groupId}

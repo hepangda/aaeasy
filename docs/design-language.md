@@ -166,6 +166,10 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 
 带图标的条目：`size-9` 图标底板 + `min-w-0 flex-1` 文本区 + 右侧金额。文本必须 `truncate`。
 
+#### 等高行
+
+同一列表内的行必须等高，即使内容多寡不同。行高由内容决定时，"只有一个徽章"的行会明显矮于"带三个图标按钮"的行。做法：给行设 `min-h-*` 下限，并给操作区设 `min-h-11` 占位。
+
 #### 内容行的三段式
 
 账单流这类"每行是一条记录"的列表，遵循固定结构：
@@ -192,6 +196,7 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 - 标签用 `<Label>`，`text-xs font-semibold`；错误信息 `text-xs text-destructive-ink`。
 - 金额输入用 `NumericInput` + `NumericKeypad`，不要用裸 `<input type="number">`。大号金额展示用 `Input variant="display"`，不要靠一串 override 去取消边框和焦点环。
 - 复选框用 `ui/checkbox.tsx`（含 44px 触控区），不要写裸 `<input type="checkbox">`。
+- 下拉用 `ui/select.tsx`，**不要写裸 `<select>`**。它保留真实 `<select>` 以维持表单语义，但渲染自绘列表——原生下拉在移动端会交给系统选择器（iOS 的整屏滚轮、Android 的裸对话框），完全无视应用的字体、间距与暗色模式，也给不出 44px 触控行。
 - **触屏下 `NumericInput` 是 `readOnly`，原生 `required` 校验对它无效**。金额必填必须走显式校验，不能依赖浏览器约束。
 - 提交被禁用时，**必须在按钮旁边说明原因**，且该说明不得藏在折叠面板里。错误提示加 `role="alert"`。
 
@@ -218,6 +223,7 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 | `EmptyState` | `ui/empty-state.tsx` | 手写空状态 |
 | `Field` | `ui/field.tsx` | Label + 控件 + 错误的组合 |
 | `Checkbox` | `ui/checkbox.tsx` | 裸 `<input type="checkbox">` |
+| `Select` | `ui/select.tsx` | 裸 `<select>`（移动端会被系统接管） |
 | `FormDialog` | `ui/form-dialog.tsx` | 手写 Dialog 的头尾与取消按钮 |
 | `useConfirm` | `ui/confirm-dialog.tsx` | 手写确认弹窗（需要正文时传 `body`） |
 | `DangerZone` | `ui/danger-zone.tsx` | 手写危险操作区 |
@@ -267,6 +273,7 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 - [ ] 没有 Tailwind 原生色（`grep -nE '-(gray|slate|zinc|red|blue|green|amber)-[0-9]'`）
 - [ ] 没有 `font-medium` / `font-black` / `font-extrabold`
 - [ ] 没有裸 `rounded` 或 `rounded-[Npx]`；没有 `shadow-soft` / `shadow-md`
+- [ ] 没有裸 `<select>` / `<input type="checkbox">`
 - [ ] 没有 `text-[8px]` / `[9px]` / `[11px]` / `[13px]`
 - [ ] 没有 `dvh` / `vh`（一律 `svh`）
 - [ ] 字距落在四个允许值内
@@ -291,4 +298,5 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 - [ ] 暗色模式下检查过一遍
 - [ ] 相邻表面明度差 ≤ 0.04，没有深色反色块
 - [ ] 列表行只有一个视觉重心，字号不超过三档
+- [ ] 同一列表内各行等高，不因操作多寡而参差
 - [ ] 左侧图标每行都不同（否则删掉）
