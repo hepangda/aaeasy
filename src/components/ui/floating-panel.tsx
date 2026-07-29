@@ -12,7 +12,13 @@ export interface FloatingPanelProps {
   gap?: number;
   className?: string;
   ariaLabel: string;
-  role?: 'dialog' | 'region';
+  role?: 'dialog' | 'region' | 'listbox';
+  /** Match the anchor's width — for panels that read as part of the control. */
+  matchAnchorWidth?: boolean;
+  /** Extra props for the panel element — keyboard handlers, ARIA wiring. */
+  panelProps?: React.HTMLAttributes<HTMLDivElement>;
+  /** Access the panel element, e.g. to move focus into it. */
+  panelRef?: React.Ref<HTMLDivElement>;
   children: React.ReactNode;
 }
 
@@ -35,10 +41,13 @@ export function FloatingPanel({
   className,
   ariaLabel,
   role = 'dialog',
+  matchAnchorWidth = false,
+  panelProps,
+  panelRef: externalPanelRef,
   children,
 }: FloatingPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; width?: number } | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -73,7 +82,10 @@ export function FloatingPanel({
       const maxLeft = window.scrollX + window.innerWidth - pw - inset;
       const minLeft = window.scrollX + inset;
       left = Math.max(minLeft, Math.min(left, maxLeft));
-      setCoords({ top, left });
+      // A zero width means the anchor hasn't been laid out yet; pinning the
+      // panel to it would render an invisible sliver.
+      const width = matchAnchorWidth && r.width > 0 ? r.width : undefined;
+      setCoords({ top, left, width });
     }
     update();
     const resizeObserver =
@@ -87,7 +99,7 @@ export function FloatingPanel({
       window.removeEventListener('resize', update);
       resizeObserver?.disconnect();
     };
-  }, [open, anchor, align, gap]);
+  }, [open, anchor, align, gap, matchAnchorWidth]);
 
   // Click-outside + Escape handling.
   useEffect(() => {
@@ -116,16 +128,22 @@ export function FloatingPanel({
 
   return createPortal(
     <div
-      ref={panelRef}
+      ref={(node) => {
+        panelRef.current = node;
+        if (typeof externalPanelRef === 'function') externalPanelRef(node);
+        else if (externalPanelRef) externalPanelRef.current = node;
+      }}
       style={{
         position: 'absolute',
         top: coords?.top ?? -9999,
         left: coords?.left ?? -9999,
+        width: coords?.width,
         visibility: coords ? 'visible' : 'hidden',
       }}
       className={cn('z-50', className)}
       role={role}
       aria-label={ariaLabel}
+      {...panelProps}
     >
       {children}
     </div>,

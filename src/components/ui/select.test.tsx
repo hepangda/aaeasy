@@ -118,6 +118,24 @@ describe('Select', () => {
     }
   });
 
+  it('floats the listbox above the page instead of displacing it', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <Select value="a" onChange={() => {}}>
+        <Options />
+      </Select>,
+    );
+
+    await user.click(screen.getByRole('button'));
+    const listbox = screen.getByRole('listbox');
+
+    // Rendered through a portal, so an ancestor with `overflow: hidden` can't
+    // clip it and the list can't push sibling content out of the way.
+    expect(container.contains(listbox)).toBe(false);
+    expect(document.body.contains(listbox)).toBe(true);
+    expect(getComputedStyle(listbox).position).toBe('absolute');
+  });
+
   it('opens with the keyboard and closes on Escape', async () => {
     const user = userEvent.setup();
     render(

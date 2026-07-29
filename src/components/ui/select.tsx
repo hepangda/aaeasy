@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useModalLayer } from '@/components/ui/dialog';
+import { FloatingPanel } from '@/components/ui/floating-panel';
 import { cn } from '@/lib/utils';
 
 export type SelectProps = Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'size'>;
@@ -66,7 +67,8 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 
     const [open, setOpen] = React.useState(false);
     const [activeIndex, setActiveIndex] = React.useState(0);
-    const rootRef = React.useRef<HTMLDivElement>(null);
+    // State, not a ref: the panel needs a re-render once the anchor exists.
+    const [triggerEl, setTriggerEl] = React.useState<HTMLButtonElement | null>(null);
     const listRef = React.useRef<HTMLDivElement>(null);
     const close = React.useCallback(() => setOpen(false), []);
     useModalLayer(open, close, listRef);
@@ -88,16 +90,6 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       setter?.call(element, next);
       element.dispatchEvent(new Event('change', { bubbles: true }));
     }
-
-    // Dismiss on an outside press. `useModalLayer` covers Escape and focus.
-    React.useEffect(() => {
-      if (!open) return;
-      const onPointerDown = (event: PointerEvent) => {
-        if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-      };
-      document.addEventListener('pointerdown', onPointerDown);
-      return () => document.removeEventListener('pointerdown', onPointerDown);
-    }, [open]);
 
     React.useEffect(() => {
       if (!open) return;
@@ -142,7 +134,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     }
 
     return (
-      <div ref={rootRef} className="relative">
+      <div className="relative">
         {/* The real control stays in the DOM for form semantics, but is never
             what the user interacts with. */}
         <select
@@ -164,6 +156,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         </select>
 
         <button
+          ref={setTriggerEl}
           type="button"
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
@@ -188,46 +181,53 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           />
         </button>
 
-        {open ? (
-          <div
-            ref={listRef}
-            role="listbox"
-            tabIndex={-1}
-            aria-activedescendant={`${id ?? name ?? 'select'}-option-${activeIndex}`}
-            onKeyDown={onListKeyDown}
-            className="border-border bg-popover shadow-lifted absolute top-[calc(100%+0.25rem)] left-0 z-50 max-h-64 w-full min-w-max overflow-y-auto rounded-xl border p-1 focus:outline-hidden"
-          >
-            {options.map((option, index) => {
-              const isSelected = option.value === current;
-              return (
-                <div
-                  key={option.value}
-                  id={`${id ?? name ?? 'select'}-option-${index}`}
-                  role="option"
-                  aria-selected={isSelected}
-                  aria-disabled={option.disabled || undefined}
-                  onPointerDown={(event) => {
-                    event.preventDefault();
-                    if (!option.disabled) commit(option.value);
-                  }}
-                  onPointerEnter={() => setActiveIndex(index)}
-                  className={cn(
-                    // 44px rows: this list is the touch target on mobile.
-                    'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2.5 text-sm',
-                    option.disabled && 'pointer-events-none opacity-45',
-                    index === activeIndex && 'bg-accent text-accent-foreground',
-                  )}
-                >
-                  <Check
-                    className={cn('size-4 shrink-0', isSelected ? 'opacity-100' : 'opacity-0')}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
+        <FloatingPanel
+          open={open}
+          anchor={triggerEl}
+          onClose={close}
+          align="start"
+          gap={4}
+          role="listbox"
+          ariaLabel={ariaLabel ?? ''}
+          matchAnchorWidth
+          className="border-border bg-popover shadow-lifted max-h-64 min-w-40 overflow-y-auto rounded-xl border p-1 focus:outline-hidden"
+          panelRef={listRef}
+          panelProps={{
+            tabIndex: -1,
+            onKeyDown: onListKeyDown,
+            'aria-activedescendant': `${id ?? name ?? 'select'}-option-${activeIndex}`,
+          }}
+        >
+          {options.map((option, index) => {
+            const isSelected = option.value === current;
+            return (
+              <div
+                key={option.value}
+                id={`${id ?? name ?? 'select'}-option-${index}`}
+                role="option"
+                aria-selected={isSelected}
+                aria-disabled={option.disabled || undefined}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  if (!option.disabled) commit(option.value);
+                }}
+                onPointerEnter={() => setActiveIndex(index)}
+                className={cn(
+                  // 44px rows: this list is the touch target on mobile.
+                  'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2.5 text-sm',
+                  option.disabled && 'pointer-events-none opacity-45',
+                  index === activeIndex && 'bg-accent text-accent-foreground',
+                )}
+              >
+                <Check
+                  className={cn('size-4 shrink-0', isSelected ? 'opacity-100' : 'opacity-0')}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+              </div>
+            );
+          })}
+        </FloatingPanel>
       </div>
     );
   },
