@@ -224,6 +224,7 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 | `Field` | `ui/field.tsx` | Label + 控件 + 错误的组合 |
 | `Checkbox` | `ui/checkbox.tsx` | 裸 `<input type="checkbox">` |
 | `Select` | `ui/select.tsx` | 裸 `<select>`（移动端会被系统接管） |
+| `DatePicker` | `ui/date-picker.tsx` | 裸 `<input type="date">`（同上，且各浏览器行内样式互不相同） |
 | `FormDialog` | `ui/form-dialog.tsx` | 手写 Dialog 的头尾与取消按钮 |
 | `useConfirm` | `ui/confirm-dialog.tsx` | 手写确认弹窗（需要正文时传 `body`） |
 | `DangerZone` | `ui/danger-zone.tsx` | 手写危险操作区 |
@@ -273,7 +274,7 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 - [ ] 没有 Tailwind 原生色（`grep -nE '-(gray|slate|zinc|red|blue|green|amber)-[0-9]'`）
 - [ ] 没有 `font-medium` / `font-black` / `font-extrabold`
 - [ ] 没有裸 `rounded` 或 `rounded-[Npx]`；没有 `shadow-soft` / `shadow-md`
-- [ ] 没有裸 `<select>` / `<input type="checkbox">`
+- [ ] 没有裸 `<select>` / `<input type="checkbox">` / `<input type="date">`
 - [ ] 没有 `text-[8px]` / `[9px]` / `[11px]` / `[13px]`
 - [ ] 没有 `dvh` / `vh`（一律 `svh`）
 - [ ] 字距落在四个允许值内

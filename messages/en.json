@@ -87,6 +87,8 @@
     "close": "Close",
     "confirm": "Confirm",
     "create": "Create",
+    "date_picker": "Date picker",
+    "date_placeholder": "Select a date",
     "delete": "Delete",
     "edit": "Edit",
     "home": "Home",
@@ -97,10 +99,12 @@
     "logout": "Sign out",
     "menu": "Menu",
     "navigation": "Navigation",
+    "next_month": "Next month",
     "next_page": "Next page",
     "or": "or",
     "page_number": "Page {page}",
     "pagination": "Pagination",
+    "previous_month": "Previous month",
     "previous_page": "Previous page",
     "recent_activity": "Recent activity",
     "remove": "Remove",
@@ -112,7 +116,8 @@
     "theme": "Theme",
     "theme_dark": "Dark",
     "theme_light": "Light",
-    "theme_system": "System"
+    "theme_system": "System",
+    "today": "Today"
   },
   "admin": {
     "bypass_banner": "You are viewing this ledger as a Super Admin override. You are not a member — changes will be attributed to your account.",

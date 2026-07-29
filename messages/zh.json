@@ -87,6 +87,8 @@
     "close": "关闭",
     "confirm": "确定",
     "create": "创建",
+    "date_picker": "日期选择",
+    "date_placeholder": "选择日期",
     "delete": "删除",
     "edit": "编辑",
     "home": "首页",
@@ -97,10 +99,12 @@
     "logout": "退出",
     "menu": "菜单",
     "navigation": "导航",
+    "next_month": "下个月",
     "next_page": "下一页",
     "or": "或",
     "page_number": "第 {page} 页",
     "pagination": "分页",
+    "previous_month": "上个月",
     "previous_page": "上一页",
     "recent_activity": "最近动态",
     "remove": "移除",
@@ -112,7 +116,8 @@
     "theme": "主题",
     "theme_dark": "深色",
     "theme_light": "浅色",
-    "theme_system": "跟随系统"
+    "theme_system": "跟随系统",
+    "today": "今天"
   },
   "admin": {
     "bypass_banner": "你正在以超级管理员身份越权访问该账本。你并不是其成员——任何改动会以你的账号留痕。",

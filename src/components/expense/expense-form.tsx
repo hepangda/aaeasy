@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { NumericInput } from '@/components/ui/numeric-input';
@@ -1064,11 +1065,11 @@ export function ExpenseForm({
         </div>
         <div className="grid gap-2">
           <Label htmlFor="occurredAt">{t('expenses.date')}</Label>
-          <Input
+          <DatePicker
             id="occurredAt"
             name="occurredAt"
-            type="date"
             required
+            aria-label={t('expenses.date')}
             defaultValue={
               defaults ? defaults.occurredAt.toISOString().slice(0, 10) : todayLocalISO()
             }
