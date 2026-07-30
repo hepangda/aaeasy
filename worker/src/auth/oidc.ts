@@ -94,6 +94,7 @@ export type OidcEnv = {
   OIDC_CLIENT_SECRET?: string;
   OIDC_RESOURCE: string;
   OIDC_SESSION_SECRET?: string;
+  ENVIRONMENT?: string;
 };
 
 type Discovery = z.infer<typeof discoverySchema>;
@@ -105,7 +106,7 @@ export class OidcSessionInvalidError extends Error {
   }
 }
 
-function normalizedOrigin(value: string, variable: string): string {
+function normalizedOrigin(value: string, variable: string, allowLoopback = false): string {
   let url: URL;
   try {
     url = new URL(value);
@@ -116,7 +117,7 @@ function normalizedOrigin(value: string, variable: string): string {
     throw new ApiError('OIDC_NOT_CONFIGURED', 503, `${variable} must contain only an origin`);
   }
   const loopbackHttp =
-    variable === 'APP_URL' &&
+    (variable === 'APP_URL' || allowLoopback) &&
     url.protocol === 'http:' &&
     (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]');
   if (url.protocol !== 'https:' && !loopbackHttp) {
@@ -125,9 +126,40 @@ function normalizedOrigin(value: string, variable: string): string {
   return url.origin;
 }
 
+const APPROVED_ISSUERS = ['https://auth.pangda.app', 'https://auth-staging.pangda.app'];
+
+/**
+ * Whether a loopback OIDC issuer is acceptable.
+ *
+ * The issuer allowlist is a security control: it stops a compromised or
+ * mistyped variable from redirecting users to an attacker-controlled login
+ * page. Local development needs to point at a KeyForge instance on
+ * `http://localhost:17001`, so the allowlist is widened — but only when the
+ * deployment explicitly is not production, and only for loopback hosts. A
+ * production Worker can still never be pointed anywhere but Pangda Auth.
+ */
+function allowsLoopbackIssuer(env: OidcEnv): boolean {
+  return (env.ENVIRONMENT ?? 'production') !== 'production';
+}
+
+function isLoopbackOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return (
+      url.protocol === 'http:' &&
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function oidcConfig(env: OidcEnv): OidcConfig {
-  const issuer = normalizedOrigin(env.OIDC_ISSUER, 'OIDC_ISSUER');
-  if (issuer !== 'https://auth.pangda.app' && issuer !== 'https://auth-staging.pangda.app') {
+  const devLoopback = allowsLoopbackIssuer(env);
+  const issuer = normalizedOrigin(env.OIDC_ISSUER, 'OIDC_ISSUER', devLoopback);
+  const issuerApproved =
+    APPROVED_ISSUERS.includes(issuer) || (devLoopback && isLoopbackOrigin(issuer));
+  if (!issuerApproved) {
     throw new ApiError('OIDC_NOT_CONFIGURED', 503, 'OIDC_ISSUER is not an approved login source');
   }
   const appUrl = normalizedOrigin(env.APP_URL, 'APP_URL');

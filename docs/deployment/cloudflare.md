@@ -9,7 +9,7 @@
 - 已安装 Node.js 22.12+ 和 pnpm 10+。
 - `pnpm exec wrangler whoami` 能看到目标 Cloudflare 账户。
 - 已确定生产 origin 为 `https://aaeasy.pangda.app`。
-- 可以管理 `auth.pangda.app` 与 `auth-staging.pangda.app` 的 KeyForge OAuth clients/resources。
+- 可以管理 `auth.pangda.app` 与 `auth-staging.pangda.app` 的 KeyForge OAuth clients/resources；本地开发另需一个跑在 `http://localhost:17001` 的 KeyForge 实例。
 
 Browser Run Free 当前提供每天 10 分钟、每账户 3 个并发 browser session，并限制每 20 秒启动一个新 browser；Workers Paid 的默认启动速率更高。应用默认用全局 Durable Object 把 PDF 启动间隔限制为 20 秒。参见 [Browser Run limits](https://developers.cloudflare.com/browser-run/limits/) 和 [PDF generation](https://developers.cloudflare.com/browser-run/how-to/pdf-generation/)。
 
@@ -64,12 +64,15 @@ pnpm exec wrangler hyperdrive create aaeasy-production \
 
 ## 4. 配置 Pangda Auth
 
-AAEasy 只接受以下两个 issuer：
+AAEasy 接受的 issuer：
 
-- 本地开发：`https://auth-staging.pangda.app`
 - 生产：`https://auth.pangda.app`
+- 预发：`https://auth-staging.pangda.app`
+- 本地开发：`http://localhost:17001`（本机 KeyForge）
 
-在两个 KeyForge 环境分别创建资源 `https://aaeasy.pangda.app`，允许 scopes：
+issuer 允许清单是一道安全控制 —— 它防止变量被篡改或写错时把用户导向攻击者控制的登录页。回环 issuer 属于额外开的口子，**仅在 `ENVIRONMENT` 不等于 `production` 时生效，且只接受 `localhost` / `127.0.0.1` / `[::1]`**。`ENVIRONMENT` 缺省按 `production` 处理，因此忘记设置不会意外放开。
+
+在各 KeyForge 环境分别创建资源 `https://aaeasy.pangda.app`（本地实例同样使用这个 resource URI —— 它是受众标识符，不会被访问），允许 scopes：
 
 ```json
 {
@@ -97,14 +100,14 @@ AAEasy 只接受以下两个 issuer：
 }
 ```
 
-`auth-staging.pangda.app` 中使用同一策略，但把 redirect URI 和 post-logout URI 分别改为：
+预发和本地 KeyForge（`http://localhost:17001`）中使用同一策略，但把 redirect URI 和 post-logout URI 分别改为：
 
 ```text
 http://localhost:5173/api/auth/callback
 http://localhost:5173/
 ```
 
-KeyForge 只在创建 client 时返回一次明文 secret。staging secret 写入本机 `.dev.vars`，production secret 写入 Worker secret，不能提交到仓库。KeyForge 的 `sub` 必须与现有 AAEasy `users.id` 相同；KeyForge alias 通过标准 OIDC `preferred_username` claim 同步到 AAEasy `users.username`；`admins` group 是 AAEasy 超级管理员权限的唯一来源。alias 在 KeyForge 变更后，会在 AAEasy 下次会话重新校验时同步。
+KeyForge 只在创建 client 时返回一次明文 secret。本地 secret 写入本机 `.dev.vars`，production secret 写入 Worker secret，不能提交到仓库。KeyForge 的 `sub` 必须与现有 AAEasy `users.id` 相同；KeyForge alias 通过标准 OIDC `preferred_username` claim 同步到 AAEasy `users.username`；`admins` group 是 AAEasy 超级管理员权限的唯一来源。alias 在 KeyForge 变更后，会在 AAEasy 下次会话重新校验时同步。
 
 ## 5. 配置生产变量
 

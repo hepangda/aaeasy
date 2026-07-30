@@ -83,7 +83,7 @@ describe('OIDC token sealing', () => {
 });
 
 describe('oidcConfig', () => {
-  it('uses the staging issuer for local development', () => {
+  it('accepts an approved Pangda Auth issuer', () => {
     expect(oidcConfig(env())).toMatchObject({
       issuer: 'https://auth-staging.pangda.app',
       redirectUri: 'http://localhost:5173/api/auth/callback',
@@ -95,6 +95,38 @@ describe('oidcConfig', () => {
     expect(() => oidcConfig(env({ OIDC_ISSUER: 'https://login.example.com' }))).toThrow(
       'OIDC_NOT_CONFIGURED',
     );
+  });
+
+  it('accepts a loopback issuer outside production, for a local KeyForge', () => {
+    expect(
+      oidcConfig(env({ OIDC_ISSUER: 'http://localhost:17001', ENVIRONMENT: 'development' })),
+    ).toMatchObject({ issuer: 'http://localhost:17001' });
+  });
+
+  // The loopback carve-out is the whole risk of this change: it must not
+  // become a way to point a deployed Worker at an arbitrary login page.
+  it('rejects a loopback issuer in production', () => {
+    expect(() =>
+      oidcConfig(env({ OIDC_ISSUER: 'http://localhost:17001', ENVIRONMENT: 'production' })),
+    ).toThrow('OIDC_NOT_CONFIGURED');
+  });
+
+  it('rejects a loopback issuer when ENVIRONMENT is unset', () => {
+    const withoutEnvironment = env({ OIDC_ISSUER: 'http://localhost:17001' });
+    delete withoutEnvironment.ENVIRONMENT;
+    expect(() => oidcConfig(withoutEnvironment)).toThrow('OIDC_NOT_CONFIGURED');
+  });
+
+  it('still rejects a non-loopback plaintext issuer outside production', () => {
+    expect(() =>
+      oidcConfig(env({ OIDC_ISSUER: 'http://auth.example.com', ENVIRONMENT: 'development' })),
+    ).toThrow('OIDC_NOT_CONFIGURED');
+  });
+
+  it('still rejects a remote HTTPS issuer outside production', () => {
+    expect(() =>
+      oidcConfig(env({ OIDC_ISSUER: 'https://login.example.com', ENVIRONMENT: 'development' })),
+    ).toThrow('OIDC_NOT_CONFIGURED');
   });
 });
 

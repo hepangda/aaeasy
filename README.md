@@ -50,7 +50,7 @@ pnpm dev
 
 打开 `http://localhost:5173`。默认 `wrangler.jsonc` 会把本地 `HYPERDRIVE` binding 连接到 `localhost:5432`；也可以导出以下变量覆盖它：
 
-本地登录固定使用 `https://auth-staging.pangda.app`。需要先在该环境创建 `aaeasy` confidential application client，注册回调 `http://localhost:5173/api/auth/callback` 和退出地址 `http://localhost:5173/`，再把一次性返回的 client secret 与一个独立的 32-byte session secret 写入 `.dev.vars`。完整配置见 [`docs/deployment/cloudflare.md`](docs/deployment/cloudflare.md)。
+本地登录使用运行在 `http://localhost:17001` 的 KeyForge。需要先在该实例创建 `aaeasy` confidential application client，注册回调 `http://localhost:5173/api/auth/callback` 和退出地址 `http://localhost:5173/`，再把一次性返回的 client secret 与一个独立的 32-byte session secret 写入 `.dev.vars`。回环 issuer 只在 `ENVIRONMENT` 不为 `production` 时被接受，生产 Worker 仍然只能指向 Pangda Auth。完整配置见 [`docs/deployment/cloudflare.md`](docs/deployment/cloudflare.md)。
 
 ```sh
 export CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE='postgresql://...'

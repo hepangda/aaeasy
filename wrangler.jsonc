@@ -49,7 +49,7 @@
     "APP_NAME": "AAEasy",
     "APP_URL": "http://localhost:5173",
     "ENVIRONMENT": "development",
-    "OIDC_ISSUER": "https://auth-staging.pangda.app",
+    "OIDC_ISSUER": "http://localhost:17001",
     "OIDC_CLIENT_ID": "aaeasy",
     "OIDC_RESOURCE": "https://aaeasy.pangda.app",
     "PDF_LAUNCH_INTERVAL_MS": "20000",
