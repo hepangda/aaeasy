@@ -8,7 +8,12 @@ interface BrandMarkProps {
 
 export function BrandMark({ className, iconClassName, showWordmark = true }: BrandMarkProps) {
   return (
-    <span className={cn('inline-flex min-w-0 items-center gap-2.5', className)}>
+    // `flex`, not `inline-flex`: an inline-level box sits on a text baseline,
+    // so the line-box strut adds descender space below the mark. That made the
+    // wrapping link 38.5px tall around 32px of content, and centring the link
+    // in the header centred the phantom space too — lifting the logo 3.25px
+    // above the wordmark's neighbours. A block-level box has no line box.
+    <span className={cn('flex min-w-0 items-center gap-2.5', className)}>
       <svg viewBox="0 0 48 48" aria-hidden="true" className={cn('size-8 shrink-0', iconClassName)}>
         <path
           d="M9 4h21l10 10v25a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9a5 5 0 0 1 5-5Z"
