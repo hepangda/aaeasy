@@ -110,7 +110,10 @@ function ExpenseFeedItem({
     splitInputState: parsedInputState.success ? parsedInputState.data : null,
   });
   const shares = splitShares(expense, members, locale);
-  const asMenu = editable && isCompact;
+  // Below `md` every row is a menu trigger, including rows the caller cannot
+  // edit: a row that swallows taps reads as broken, so those open a menu that
+  // shows the split breakdown and says there is nothing to do.
+  const asMenu = isCompact;
   const amountText =
     expense.amountMinor === null ? '—' : formatMoney(expense.amountMinor, expense.currency, locale);
 
@@ -209,13 +212,19 @@ function ExpenseFeedItem({
               </ul>
             ) : null}
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="gap-2">
-              <Link href={`/groups/${groupId}/expenses/${expense.id}/edit`}>
-                <Pencil className="size-4" aria-hidden="true" />
-                {t('common.edit')}
-              </Link>
-            </DropdownMenuItem>
-            <DeleteExpenseMenuItem groupId={groupId} expenseId={expense.id} />
+            {editable ? (
+              <>
+                <DropdownMenuItem asChild className="gap-2">
+                  <Link href={`/groups/${groupId}/expenses/${expense.id}/edit`}>
+                    <Pencil className="size-4" aria-hidden="true" />
+                    {t('common.edit')}
+                  </Link>
+                </DropdownMenuItem>
+                <DeleteExpenseMenuItem groupId={groupId} expenseId={expense.id} />
+              </>
+            ) : (
+              <p className="text-muted-foreground px-2 py-1.5 text-xs">{t('common.no_actions')}</p>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </li>

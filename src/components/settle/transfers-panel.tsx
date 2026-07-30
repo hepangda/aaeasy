@@ -222,7 +222,9 @@ export function TransfersPanel({
               // Below `md` the row itself opens the action menu, matching the
               // expense feed and members panel; the menu repeats the pair and
               // the amount so it is clear which transfer is being marked.
-              if (isCompact && actionable) {
+              // Rows the caller cannot act on still open — they say so rather
+              // than silently ignoring the tap.
+              if (isCompact) {
                 return (
                   <li key={i}>
                     <DropdownMenu>
@@ -247,14 +249,20 @@ export function TransfersPanel({
                           </span>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="gap-2"
-                          disabled={pending}
-                          onSelect={() => execute(s)}
-                        >
-                          <Check className="size-4" aria-hidden="true" />
-                          {t('settlements.execute')}
-                        </DropdownMenuItem>
+                        {actionable ? (
+                          <DropdownMenuItem
+                            className="gap-2"
+                            disabled={pending}
+                            onSelect={() => execute(s)}
+                          >
+                            <Check className="size-4" aria-hidden="true" />
+                            {t('settlements.execute')}
+                          </DropdownMenuItem>
+                        ) : (
+                          <p className="text-muted-foreground px-2 py-1.5 text-xs">
+                            {t('common.no_actions')}
+                          </p>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </li>

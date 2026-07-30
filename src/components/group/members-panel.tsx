@@ -150,6 +150,13 @@ function CompactMemberRow(props: RowProps) {
           ) : null}
           {facts.canUnlink ? <UnlinkMemberMenuItem groupId={groupId} memberId={member.id} /> : null}
           {facts.canRemove ? <RemoveMemberMenuItem groupId={groupId} memberId={member.id} /> : null}
+          {facts.canSetRole ||
+          facts.canRename ||
+          facts.canBind ||
+          facts.canUnlink ||
+          facts.canRemove ? null : (
+            <p className="text-muted-foreground px-2 py-1.5 text-xs">{t('common.no_actions')}</p>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -267,10 +274,10 @@ export function MembersPanel({
             pendingInvitations,
             baseUrl,
           };
-          const hasActions =
-            (canManage && !member.linkedUserId) ||
-            (isOwner && !!member.linkedUserId && member.linkedUserRole !== 'OWNER');
-          return isCompact && hasActions ? (
+          // Every compact row is tappable, even one the caller cannot manage:
+          // a row that ignores taps reads as broken, so those open a menu that
+          // identifies the member and says there is nothing to do.
+          return isCompact ? (
             <CompactMemberRow key={member.id} {...props} />
           ) : (
             <WideMemberRow key={member.id} {...props} />
