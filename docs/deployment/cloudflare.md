@@ -100,6 +100,8 @@ issuer 允许清单是一道安全控制 —— 它防止变量被篡改或写�
 }
 ```
 
+本地开发不需要手工执行以下步骤 —— `pnpm auth:setup` 会自动完成 resource 与 client 的创建。下面的配置供预发环境或排查问题时参考。
+
 预发和本地 KeyForge（`http://localhost:17001`）中使用同一策略，但把 redirect URI 和 post-logout URI 分别改为：
 
 ```text

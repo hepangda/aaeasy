@@ -196,3 +196,28 @@ describe('parseOidcProfile', () => {
     expect(() => parseOidcProfile(profile)).toThrow('OIDC_USERINFO_INVALID');
   });
 });
+
+describe('parseOidcProfile email handling', () => {
+  const base = { sub: 'usr_seed_admin', preferred_username: 'admin' };
+
+  it('keeps a valid email', () => {
+    expect(parseOidcProfile({ ...base, email: 'a@b.test' })).toMatchObject({
+      email: 'a@b.test',
+    });
+  });
+
+  // Seeded KeyForge accounts carry emails like `admin`. Dropping the field
+  // matches how a missing email already behaves; rejecting would make the
+  // whole login fail over a value used only as a display-name fallback.
+  it('drops a malformed email instead of rejecting the login', () => {
+    const profile = parseOidcProfile({ ...base, email: 'admin' });
+    expect(profile.email).toBeUndefined();
+    expect(profile.sub).toBe('usr_seed_admin');
+  });
+
+  it('still rejects a profile with no usable subject', () => {
+    expect(() => parseOidcProfile({ preferred_username: 'admin' })).toThrow(
+      'OIDC_USERINFO_INVALID',
+    );
+  });
+});

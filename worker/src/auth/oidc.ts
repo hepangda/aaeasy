@@ -52,7 +52,15 @@ const userInfoSchema = z.object({
     .min(KEYFORGE_ALIAS_MIN_LENGTH)
     .max(KEYFORGE_ALIAS_MAX_LENGTH)
     .regex(KEYFORGE_ALIAS_PATTERN),
-  email: z.string().email().optional(),
+  // A malformed address is dropped rather than fatal. `email` is optional
+  // here and nullable in the database, and it is only ever used as a
+  // display-name fallback — so rejecting the whole login for a bad value while
+  // happily accepting a missing one would be inconsistent. Locally seeded
+  // KeyForge accounts routinely carry non-RFC emails like `admin`.
+  email: z
+    .string()
+    .optional()
+    .transform((value) => (value && z.email().safeParse(value).success ? value : undefined)),
   email_verified: z.boolean().optional(),
   name: z.string().min(1).optional(),
   picture: z.url().optional(),

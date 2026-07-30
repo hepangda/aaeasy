@@ -20,6 +20,7 @@
     "test:coverage": "vitest run --coverage",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "ai:speed": "tsx scripts/ai-speed.ts",
+    "auth:setup": "tsx scripts/setup-local-auth.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p worker/tsconfig.json",
     "cf:typegen": "wrangler types --env production --env-file /dev/null && prettier --write worker-configuration.d.ts",
     "db:generate": "drizzle-kit generate",
