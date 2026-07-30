@@ -5,8 +5,7 @@ import { Dialog } from '@/components/ui/dialog';
 
 /**
  * A dialog with the standard header/body/footer rhythm and a Cancel + Submit
- * pair. Replaces 5 hand-rolled `<Dialog>` bodies and 7 copies of the same
- * `flex justify-end gap-2` footer.
+ * pair, plus the dismissal guard a submitting form needs.
  *
  * `useConfirm()` remains the right tool for a plain yes/no. Reach for
  * `FormDialog` when the body needs real content — a select, a text input, a
@@ -20,12 +19,7 @@ export function FormDialog({
   children,
   onSubmit,
   submitLabel,
-  submitDisabled,
   pending,
-  destructive = false,
-  /** Block backdrop/Escape dismissal while the action is in flight. */
-  lockWhilePending = true,
-  maxWidth = 'md',
 }: {
   open: boolean;
   onClose: () => void;
@@ -34,16 +28,14 @@ export function FormDialog({
   children?: ReactNode;
   onSubmit: () => void;
   submitLabel: ReactNode;
-  submitDisabled?: boolean;
   pending?: boolean;
-  destructive?: boolean;
-  lockWhilePending?: boolean;
-  maxWidth?: 'sm' | 'md' | 'lg';
 }) {
   const t = useTranslations('common');
 
+  // Dismissing mid-flight would strand the user with no feedback on an action
+  // that is still going to land, so the backdrop and Escape are inert then.
   const handleClose = () => {
-    if (pending && lockWhilePending) return;
+    if (pending) return;
     onClose();
   };
 
@@ -53,12 +45,7 @@ export function FormDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      title={title}
-      className={maxWidth === 'sm' ? 'max-w-sm' : maxWidth === 'lg' ? 'max-w-2xl' : 'max-w-md'}
-    >
+    <Dialog open={open} onClose={handleClose} title={title} className="max-w-md">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {description && <p className="text-muted-foreground text-sm leading-6">{description}</p>}
         {children}
@@ -66,11 +53,7 @@ export function FormDialog({
           <Button type="button" variant="ghost" onClick={handleClose} disabled={pending}>
             {t('cancel')}
           </Button>
-          <Button
-            type="submit"
-            variant={destructive ? 'destructive' : 'default'}
-            disabled={submitDisabled || pending}
-          >
+          <Button type="submit" disabled={pending}>
             {pending ? t('loading') : submitLabel}
           </Button>
         </footer>
