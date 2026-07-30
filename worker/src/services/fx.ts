@@ -29,6 +29,7 @@ export async function getFxRate(
     .limit(1);
   if (cached) return new Decimal(cached.rate);
 
+  let rate: Decimal;
   try {
     const response = await fetch(
       `https://api.frankfurter.app/${date}?from=${encodeURIComponent(base)}&to=${encodeURIComponent(quote)}`,
@@ -38,13 +39,16 @@ export async function getFxRate(
     const payload = (await response.json()) as { rates?: Record<string, number> };
     const value = payload.rates?.[quote];
     if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
-    const rate = new Decimal(value);
-    await db
-      .insert(fxRateCache)
-      .values({ base, quote, date, rate: rate.toString() })
-      .onConflictDoNothing();
-    return rate;
+    rate = new Decimal(value);
   } catch {
     return null;
   }
+
+  // The rate is already usable; a failed cache write must not degrade into
+  // "FX unavailable" for the caller.
+  await db
+    .insert(fxRateCache)
+    .values({ base, quote, date, rate: rate.toString() })
+    .onConflictDoNothing();
+  return rate;
 }

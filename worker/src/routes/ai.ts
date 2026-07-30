@@ -1,5 +1,5 @@
 import { groups, members } from '@aaeasy/db/schema';
-import { and, asc, eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AppEnv } from '../app-env';
@@ -49,7 +49,7 @@ async function context(c: Parameters<typeof requireGroupAccess>[0], groupId: str
   const memberRows = await c.var.db
     .select({ id: members.id, displayName: members.displayName })
     .from(members)
-    .where(and(eq(members.groupId, groupId)))
+    .where(eq(members.groupId, groupId))
     .orderBy(asc(members.sortOrder));
   return { group, members: memberRows };
 }

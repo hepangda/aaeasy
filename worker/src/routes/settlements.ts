@@ -13,16 +13,11 @@ import { createId } from '@paralleldrive/cuid2';
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { AppEnv } from '../app-env';
-import { requireGroupAccess, type GroupAccess } from '../auth/access';
-import { getCurrentSession, requireUser } from '../auth/session';
+import { boundMember, requireGroupAccess, type GroupAccess } from '../auth/access';
+import { getCurrentSession } from '../auth/session';
 import { bumpGroupRevision, scheduleGroupEvent } from '../realtime/events';
 
 export const settlementRoutes = new Hono<AppEnv>();
-
-function boundMember(access: GroupAccess): string | null {
-  if (access.kind === 'share') return access.boundMemberId;
-  return access.role === 'MEMBER' ? access.linkedMemberId : null;
-}
 
 function eventActor(access: GroupAccess): string {
   return access.kind === 'user' ? access.userId : access.shareLinkId;
@@ -30,8 +25,9 @@ function eventActor(access: GroupAccess): string {
 
 settlementRoutes.post('/groups/:groupId/settlements', async (c) => {
   const groupId = c.req.param('groupId');
+  // SETTLE is never granted to share access, so this is always a user.
   const access = await requireGroupAccess(c, groupId, 'SETTLE');
-  const session = await requireUser(c);
+  const userId = eventActor(access);
   const [group] = await c.var.db
     .select({
       id: groups.id,
@@ -126,7 +122,7 @@ settlementRoutes.post('/groups/:groupId/settlements', async (c) => {
       id: settlementId,
       groupId,
       snapshotJson: snapshot,
-      createdById: session.user.id,
+      createdById: userId,
     });
     await tx
       .update(expenses)
@@ -156,7 +152,7 @@ settlementRoutes.post('/groups/:groupId/settlements', async (c) => {
       id: createId(),
       groupId,
       actorType: 'USER',
-      actorId: session.user.id,
+      actorId: userId,
       action: 'SETTLEMENT_CREATE',
       targetType: 'Settlement',
       targetId: settlementId,
@@ -175,8 +171,9 @@ settlementRoutes.post('/groups/:groupId/settlements', async (c) => {
 settlementRoutes.post('/groups/:groupId/settlements/:settlementId/reopen', async (c) => {
   const groupId = c.req.param('groupId');
   const settlementId = c.req.param('settlementId');
+  // SETTLE is never granted to share access, so this is always a user.
   const access = await requireGroupAccess(c, groupId, 'SETTLE');
-  const session = await requireUser(c);
+  const userId = eventActor(access);
   const [settlement] = await c.var.db
     .select({ id: settlements.id })
     .from(settlements)
@@ -198,7 +195,7 @@ settlementRoutes.post('/groups/:groupId/settlements/:settlementId/reopen', async
       id: createId(),
       groupId,
       actorType: 'USER',
-      actorId: session.user.id,
+      actorId: userId,
       action: 'SETTLEMENT_REOPEN',
       targetType: 'Settlement',
       targetId: settlementId,

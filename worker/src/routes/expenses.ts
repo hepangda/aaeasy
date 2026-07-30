@@ -11,7 +11,7 @@ import Decimal from 'decimal.js';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import type { AppEnv } from '../app-env';
-import { requireGroupAccess, type GroupAccess } from '../auth/access';
+import { boundMember, requireGroupAccess, type GroupAccess } from '../auth/access';
 import { bumpGroupRevision, scheduleGroupEvent } from '../realtime/events';
 import { getFxRate } from '../services/fx';
 import { loadLedger, serializeLedger } from '../services/ledger';
@@ -38,11 +38,6 @@ function actor(access: GroupAccess) {
         auditType: 'SHARE' as const,
         auditId: access.shareLinkId,
       };
-}
-
-function boundMember(access: GroupAccess): string | null {
-  if (access.kind === 'share') return access.boundMemberId;
-  return access.role === 'MEMBER' ? access.linkedMemberId : null;
 }
 
 function inputError(error: unknown): string {

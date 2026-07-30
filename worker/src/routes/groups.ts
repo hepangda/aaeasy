@@ -975,7 +975,10 @@ groupRoutes.post('/invitations/accept', async (c) => {
         entityId: invitation.memberId,
         actorId: session.user.id,
       });
-    } catch {
+    } catch (error) {
+      // linkUserToMember returns typed failures, so reaching here means an
+      // unexpected fault; keep the batch going but do not lose the cause.
+      console.error(error);
       failed.push({ id: invitation.id, error: 'errors.unknown' });
     }
   }

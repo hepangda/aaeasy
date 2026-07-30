@@ -116,3 +116,14 @@ export async function requireGroupAccess(
 
   throw new ApiError(session ? 'FORBIDDEN' : 'UNAUTHORIZED', session ? 403 : 401);
 }
+
+/**
+ * The member a caller is confined to writing as, or null when unconstrained.
+ *
+ * Share links may be bound to a single member, and a plain MEMBER may only act
+ * as the member they are linked to. OWNER and MANAGER are unconstrained.
+ */
+export function boundMember(access: GroupAccess): string | null {
+  if (access.kind === 'share') return access.boundMemberId;
+  return access.role === 'MEMBER' ? access.linkedMemberId : null;
+}
