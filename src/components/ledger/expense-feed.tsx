@@ -1,15 +1,18 @@
 import { useMemo, type ReactNode } from 'react';
-import { EllipsisVertical, Pencil, ReceiptText, StickyNote } from 'lucide-react';
+import { Pencil, ReceiptText, StickyNote } from 'lucide-react';
 import { useLocale, useTranslations } from 'use-intl';
 import Link from '@/router/link';
 import {
   DeleteExpenseButton,
   DeleteExpenseMenuItem,
 } from '@/components/expense/delete-expense-button';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SplitBadge } from '@/components/expense/split-badge';
@@ -91,6 +94,9 @@ function ExpenseFeedItem({
   locale: string;
 }) {
   const t = useTranslations();
+  // Below `md` the row itself is the control, so the choice is behavioural
+  // rather than cosmetic and cannot be expressed with a `md:` class alone.
+  const isCompact = useMediaQuery('(max-width: 767px)');
   const payer = memberById.get(expense.payerMemberId);
   const editable =
     canWrite &&
@@ -103,9 +109,13 @@ function ExpenseFeedItem({
     splitRule: parsed.success ? parsed.data : null,
     splitInputState: parsedInputState.success ? parsedInputState.data : null,
   });
+  const shares = splitShares(expense, members, locale);
+  const asMenu = editable && isCompact;
+  const amountText =
+    expense.amountMinor === null ? '—' : formatMoney(expense.amountMinor, expense.currency, locale);
 
-  return (
-    <li className="group hover:bg-accent/35 flex items-center gap-3 px-5 py-3.5 transition-colors sm:px-6">
+  const body = (
+    <>
       {/* The payer's avatar replaces what used to be an identical icon on
           every single row — 36px of pure decoration. This carries real
           information (who paid) and doubles as the scanning anchor. */}
@@ -117,7 +127,7 @@ function ExpenseFeedItem({
         </span>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <h3 className="truncate text-sm font-semibold" title={expense.note ?? undefined}>
           {expense.title}
         </h3>
@@ -130,7 +140,7 @@ function ExpenseFeedItem({
           {!expense.isDraft ? (
             <>
               <span aria-hidden="true">·</span>
-              <SplitBadge kind={kind} shares={splitShares(expense, members, locale)} />
+              <SplitBadge kind={kind} shares={shares} interactive={!asMenu} />
             </>
           ) : null}
           {expense.isDraft ? (
@@ -150,50 +160,86 @@ function ExpenseFeedItem({
       {/* The amount is the one thing a user scans a ledger for, so it gets the
           largest type on the row and is the only element allowed to be bold. */}
       <p className="shrink-0 font-mono text-lg font-bold tracking-[-0.04em] whitespace-nowrap tabular-nums">
-        {expense.amountMinor === null
-          ? '—'
-          : formatMoney(expense.amountMinor, expense.currency, locale)}
+        {amountText}
       </p>
+    </>
+  );
+
+  const rowClass =
+    'group hover:bg-accent/35 flex w-full items-center gap-3 px-5 py-3.5 transition-colors sm:px-6';
+
+  if (asMenu) {
+    return (
+      <li>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            {/* Tapping anywhere on the row opens its actions — on touch there
+                is no hover to reveal them and no room to park icon buttons.
+                While the menu is open the row stays highlighted so it is
+                unambiguous which expense the actions apply to. */}
+            <button
+              type="button"
+              className={`${rowClass} data-[state=open]:bg-accent/60 text-left`}
+              aria-label={t('common.actions')}
+            >
+              {body}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            {/* The menu repeats the expense it belongs to: once it floats over
+                the list, the highlighted row alone can be off-screen or hidden
+                behind the panel. */}
+            <DropdownMenuLabel className="flex flex-col gap-1">
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="truncate">{expense.title}</span>
+                <span className="font-mono text-xs font-bold tabular-nums">{amountText}</span>
+              </span>
+              <span className="text-muted-foreground text-xs font-normal">
+                {payer?.displayName ?? '?'} · {t(`expenses.split_class_${kind.toLowerCase()}`)}
+              </span>
+            </DropdownMenuLabel>
+            {shares.length > 0 ? (
+              <ul className="text-muted-foreground flex flex-col gap-0.5 px-2 pb-1 text-xs">
+                {shares.map((share) => (
+                  <li key={share.memberId} className="flex items-center justify-between gap-3">
+                    <span className="truncate">{share.memberName}</span>
+                    <span className="font-mono tabular-nums">{share.amountText}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild className="gap-2">
+              <Link href={`/groups/${groupId}/expenses/${expense.id}/edit`}>
+                <Pencil className="size-4" aria-hidden="true" />
+                {t('common.edit')}
+              </Link>
+            </DropdownMenuItem>
+            <DeleteExpenseMenuItem groupId={groupId} expenseId={expense.id} />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </li>
+    );
+  }
+
+  return (
+    <li className={rowClass}>
+      {body}
 
       {editable ? (
-        <>
-          {/* On touch widths the row stays clean: a single overflow trigger
-              stands in for the actions, which only appear once it is tapped.
-              A row of always-visible icon buttons costs horizontal space the
-              title and amount need more. */}
-          <div className="shrink-0 md:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" size="icon" variant="ghost" aria-label={t('common.actions')}>
-                  <EllipsisVertical />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild className="gap-2">
-                  <Link href={`/groups/${groupId}/expenses/${expense.id}/edit`}>
-                    <Pencil className="size-4" aria-hidden="true" />
-                    {t('common.edit')}
-                  </Link>
-                </DropdownMenuItem>
-                <DeleteExpenseMenuItem groupId={groupId} expenseId={expense.id} />
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* From `md` up there is a pointer and room to spare, so the two
-              actions sit directly on the row and recede until it is engaged. */}
-          <div className="hidden shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 md:flex">
-            <Button asChild type="button" size="icon" variant="ghost">
-              <Link
-                href={`/groups/${groupId}/expenses/${expense.id}/edit`}
-                aria-label={t('common.edit')}
-              >
-                <Pencil />
-              </Link>
-            </Button>
-            <DeleteExpenseButton groupId={groupId} expenseId={expense.id} />
-          </div>
-        </>
+        /* With a pointer there is room and a hover state, so the two actions
+           sit directly on the row and recede until it is engaged. */
+        <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <Button asChild type="button" size="icon" variant="ghost">
+            <Link
+              href={`/groups/${groupId}/expenses/${expense.id}/edit`}
+              aria-label={t('common.edit')}
+            >
+              <Pencil />
+            </Link>
+          </Button>
+          <DeleteExpenseButton groupId={groupId} expenseId={expense.id} />
+        </div>
       ) : null}
     </li>
   );

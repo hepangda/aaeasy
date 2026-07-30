@@ -19,7 +19,20 @@ export interface SharePill {
  * metadata line. It also inherits its type size from the parent rather than
  * hard-coding `text-sm`, which made it larger than the row it lived in.
  */
-export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePill[] }) {
+export function SplitBadge({
+  kind,
+  shares,
+  interactive = true,
+}: {
+  kind: SplitClass;
+  shares: SharePill[];
+  /**
+   * Set to `false` where the badge sits inside a larger control (a row that is
+   * itself a menu trigger) — a nested button there would be both invalid
+   * markup and an ambiguous tap target.
+   */
+  interactive?: boolean;
+}) {
   const t = useTranslations('expenses');
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
@@ -28,7 +41,7 @@ export function SplitBadge({ kind, shares }: { kind: SplitClass; shares: SharePi
 
   const label = t(labelKey);
 
-  if (shares.length === 0) {
+  if (!interactive || shares.length === 0) {
     return <span className="whitespace-nowrap">{label}</span>;
   }
 
