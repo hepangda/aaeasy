@@ -186,40 +186,41 @@ function WideMemberRow(props: RowProps) {
   const facts = useRowFacts(props);
 
   return (
-    <li className="flex min-h-16 flex-col justify-center gap-2 px-4 py-2 text-sm">
-      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <MemberIdentity displayName={facts.displayName} member={member} isLinked={facts.isLinked} />
-        <span className="flex min-h-11 flex-wrap items-center justify-end gap-1">
-          {facts.isLinked && member.linkedUserRole && (
-            <MemberRoleControl
-              groupId={groupId}
-              memberId={member.id}
-              currentRole={member.linkedUserRole}
-              editable={isOwner && member.linkedUserRole !== 'OWNER'}
-            />
-          )}
-          {facts.canRename && (
-            <MemberRenameButton
-              groupId={groupId}
-              memberId={member.id}
-              currentName={member.displayName}
-            />
-          )}
-          {facts.canBind && (
-            <AccountBindingDialog
-              groupId={groupId}
-              memberId={member.id}
-              memberName={facts.displayName}
-              canAssignManager={isOwner}
-              existingLinks={existingShareLinks.filter((l) => l.memberId === member.id)}
-              pendingInvitations={pendingInvitations.filter((inv) => inv.memberId === member.id)}
-              baseUrl={baseUrl}
-            />
-          )}
-          {facts.canUnlink && <UnlinkMemberButton groupId={groupId} memberId={member.id} />}
-          {facts.canRemove && <RemoveMemberButton groupId={groupId} memberId={member.id} />}
-        </span>
-      </div>
+    <li className="flex min-h-16 items-center gap-3 px-4 py-2 text-sm">
+      {/* Identity and controls share one line at every width. Stacking them
+          below `sm` doubled the height of rows whose only trailing element is
+          a role badge, which fits beside the name with room to spare. */}
+      <MemberIdentity displayName={facts.displayName} member={member} isLinked={facts.isLinked} />
+      <span className="flex min-h-11 shrink-0 flex-wrap items-center justify-end gap-1">
+        {facts.isLinked && member.linkedUserRole && (
+          <MemberRoleControl
+            groupId={groupId}
+            memberId={member.id}
+            currentRole={member.linkedUserRole}
+            editable={isOwner && member.linkedUserRole !== 'OWNER'}
+          />
+        )}
+        {facts.canRename && (
+          <MemberRenameButton
+            groupId={groupId}
+            memberId={member.id}
+            currentName={member.displayName}
+          />
+        )}
+        {facts.canBind && (
+          <AccountBindingDialog
+            groupId={groupId}
+            memberId={member.id}
+            memberName={facts.displayName}
+            canAssignManager={isOwner}
+            existingLinks={existingShareLinks.filter((l) => l.memberId === member.id)}
+            pendingInvitations={pendingInvitations.filter((inv) => inv.memberId === member.id)}
+            baseUrl={baseUrl}
+          />
+        )}
+        {facts.canUnlink && <UnlinkMemberButton groupId={groupId} memberId={member.id} />}
+        {facts.canRemove && <RemoveMemberButton groupId={groupId} memberId={member.id} />}
+      </span>
     </li>
   );
 }

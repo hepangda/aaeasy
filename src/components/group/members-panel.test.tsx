@@ -65,9 +65,14 @@ describe('MembersPanel', () => {
     }
   });
 
-  it('reserves the action area even when a row has no buttons', () => {
+  it('keeps identity and actions on one line', () => {
     const { container } = renderPanel([OWNER]);
-    const actions = container.querySelector('li > div > span:last-child')!;
+    const row = container.querySelector('li')!;
+    const actions = row.querySelector(':scope > span:last-child')!;
+
+    // The row used to stack below `sm`, which doubled the height of a row
+    // whose only trailing element is a role badge.
+    expect(row.className).not.toContain('flex-col');
     expect(actions.className).toContain('min-h-11');
   });
 });
