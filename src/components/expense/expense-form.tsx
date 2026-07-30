@@ -491,10 +491,14 @@ export function ExpenseForm({
       {defaults && <input type="hidden" name="expenseId" value={defaults.expenseId} />}
       {defaults && <input type="hidden" name="expectedVersion" value={defaults.version ?? 0} />}
 
-      {/* ─── Row 2: Amount | Currency | Payer ──────────────────────
+      {/* ─── Amount | Currency | Payer ─────────────────────────────
           Mobile: amount + currency share one row, then payer below.
-          Desktop keeps them on a single three-column row. */}
-      <section className="bg-sunken mt-5 flex flex-col gap-4 border-y px-5 py-6 sm:mt-6 sm:grid sm:grid-cols-[1.35fr_auto_1fr] sm:items-end sm:px-8 sm:py-7">
+          Desktop keeps them on a single three-column row.
+
+          This is the first thing in the card, so it runs flush to the top
+          edge: a margin here would leave a bare strip of card above it with
+          nothing in it. Only the bottom border remains for the same reason. */}
+      <section className="bg-sunken flex flex-col gap-4 border-b px-5 py-6 sm:grid sm:grid-cols-[1.35fr_auto_1fr] sm:items-end sm:px-8 sm:py-7">
         <div className="grid gap-2 sm:contents">
           <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
             <div className="grid gap-2">
