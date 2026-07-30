@@ -8,6 +8,15 @@ import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useMediaQuery } from '@/hooks/use-media-query';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { addSettlementEntryAction, deleteSettlementEntryAction } from '@/spa/actions/settlements';
 import { showI18nError } from '@/lib/ui/toast';
 import { formatMinor, minorUnits } from '@aaeasy/core/money';
@@ -62,6 +71,7 @@ export function TransfersPanel({
   const router = useRouter();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
+  const isCompact = useMediaQuery('(max-width: 767px)');
   const [copied, setCopied] = useState(false);
 
   // Manual-add form state.
@@ -193,8 +203,9 @@ export function TransfersPanel({
                 !boundMemberId ||
                 s.fromMemberId === boundMemberId ||
                 s.toMemberId === boundMemberId;
-              return (
-                <li key={i} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+              const actionable = canEdit && involves;
+              const body = (
+                <>
                   <span className="flex min-w-0 flex-1 items-center gap-2">
                     <span className="min-w-0 truncate font-semibold">{s.fromName}</span>
                     <ArrowRight className="text-muted-foreground size-4 shrink-0" />
@@ -202,25 +213,70 @@ export function TransfersPanel({
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <span className="font-mono whitespace-nowrap tabular-nums">{s.amountText}</span>
-                    {canEdit && involves && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => execute(s)}
-                        disabled={pending}
-                        // Below `sm` the label is dropped and the check mark
-                        // carries the action: two names, an amount and a
-                        // four-character button do not fit on 375px, and the
-                        // names are what makes the row readable.
-                        aria-label={t('settlements.execute')}
-                        className="border-positive/50 text-positive-ink hover:bg-positive/10 hover:text-positive-ink max-sm:size-9 max-sm:px-0"
-                      >
-                        <Check data-icon="inline-start" />
-                        <span className="max-sm:sr-only">{t('settlements.execute')}</span>
-                      </Button>
-                    )}
                   </span>
+                </>
+              );
+              const rowClass =
+                'flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm';
+
+              // Below `md` the row itself opens the action menu, matching the
+              // expense feed and members panel; the menu repeats the pair and
+              // the amount so it is clear which transfer is being marked.
+              if (isCompact && actionable) {
+                return (
+                  <li key={i}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className={`${rowClass} hover:bg-accent/35 data-[state=open]:bg-accent/60 transition-colors`}
+                          aria-label={t('common.actions')}
+                        >
+                          {body}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuLabel className="flex flex-col gap-1">
+                          <span className="flex items-center gap-1.5">
+                            <span className="min-w-0 truncate">{s.fromName}</span>
+                            <ArrowRight className="text-muted-foreground size-3.5 shrink-0" />
+                            <span className="min-w-0 truncate">{s.toName}</span>
+                          </span>
+                          <span className="font-mono text-xs font-bold tabular-nums">
+                            {s.amountText}
+                          </span>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="gap-2"
+                          disabled={pending}
+                          onSelect={() => execute(s)}
+                        >
+                          <Check className="size-4" aria-hidden="true" />
+                          {t('settlements.execute')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </li>
+                );
+              }
+
+              return (
+                <li key={i} className={rowClass}>
+                  {body}
+                  {actionable && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => execute(s)}
+                      disabled={pending}
+                      className="border-positive/50 text-positive-ink hover:bg-positive/10 hover:text-positive-ink shrink-0"
+                    >
+                      <Check data-icon="inline-start" />
+                      {t('settlements.execute')}
+                    </Button>
+                  )}
                 </li>
               );
             })}
