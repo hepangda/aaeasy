@@ -1,8 +1,17 @@
 import { useMemo, type ReactNode } from 'react';
-import { Pencil, ReceiptText, StickyNote } from 'lucide-react';
+import { EllipsisVertical, Pencil, ReceiptText, StickyNote } from 'lucide-react';
 import { useLocale, useTranslations } from 'use-intl';
 import Link from '@/router/link';
-import { DeleteExpenseButton } from '@/components/expense/delete-expense-button';
+import {
+  DeleteExpenseButton,
+  DeleteExpenseMenuItem,
+} from '@/components/expense/delete-expense-button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { SplitBadge } from '@/components/expense/split-badge';
 import { LedgerMemberAvatar } from '@/components/ledger/member-avatar';
 import { Button } from '@/components/ui/button';
@@ -146,17 +155,34 @@ function ExpenseFeedItem({
           : formatMoney(expense.amountMinor, expense.currency, locale)}
       </p>
 
-      {/* Edit and delete sit directly on the row rather than behind an overflow
-          menu — with receipts gone there are only two actions, and the rule
-          against a row of icon buttons only bites at three.
+      {editable ? (
+        <>
+          {/* On touch widths the row stays clean: a single overflow trigger
+              stands in for the actions, which only appear once it is tapped.
+              A row of always-visible icon buttons costs horizontal space the
+              title and amount need more. */}
+          <div className="shrink-0 md:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" size="icon" variant="ghost" aria-label={t('common.actions')}>
+                  <EllipsisVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild className="gap-2">
+                  <Link href={`/groups/${groupId}/expenses/${expense.id}/edit`}>
+                    <Pencil className="size-4" aria-hidden="true" />
+                    {t('common.edit')}
+                  </Link>
+                </DropdownMenuItem>
+                <DeleteExpenseMenuItem groupId={groupId} expenseId={expense.id} />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-          Below `md` they stay fully opaque: there is no hover on touch, so the
-          old `opacity-0` default left the only path to edit/delete invisible
-          yet tappable. On pointer devices they recede until the row is
-          engaged. */}
-      <div className="flex shrink-0 items-center gap-0.5 transition-opacity md:opacity-60 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
-        {editable ? (
-          <>
+          {/* From `md` up there is a pointer and room to spare, so the two
+              actions sit directly on the row and recede until it is engaged. */}
+          <div className="hidden shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 md:flex">
             <Button asChild type="button" size="icon" variant="ghost">
               <Link
                 href={`/groups/${groupId}/expenses/${expense.id}/edit`}
@@ -166,9 +192,9 @@ function ExpenseFeedItem({
               </Link>
             </Button>
             <DeleteExpenseButton groupId={groupId} expenseId={expense.id} />
-          </>
-        ) : null}
-      </div>
+          </div>
+        </>
+      ) : null}
     </li>
   );
 }
