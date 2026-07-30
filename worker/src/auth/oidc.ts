@@ -61,7 +61,6 @@ const userInfoSchema = z.object({
     .string()
     .optional()
     .transform((value) => (value && z.email().safeParse(value).success ? value : undefined)),
-  email_verified: z.boolean().optional(),
   name: z.string().min(1).optional(),
   picture: z.url().optional(),
   groups: z.array(z.string()).optional(),
@@ -124,10 +123,7 @@ function normalizedOrigin(value: string, variable: string, allowLoopback = false
   if (url.username || url.password || url.hash || url.search || url.pathname !== '/') {
     throw new ApiError('OIDC_NOT_CONFIGURED', 503, `${variable} must contain only an origin`);
   }
-  const loopbackHttp =
-    (variable === 'APP_URL' || allowLoopback) &&
-    url.protocol === 'http:' &&
-    (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]');
+  const loopbackHttp = allowLoopback && isLoopbackOrigin(url.origin);
   if (url.protocol !== 'https:' && !loopbackHttp) {
     throw new ApiError('OIDC_NOT_CONFIGURED', 503, `${variable} must use HTTPS`);
   }
@@ -170,7 +166,7 @@ export function oidcConfig(env: OidcEnv): OidcConfig {
   if (!issuerApproved) {
     throw new ApiError('OIDC_NOT_CONFIGURED', 503, 'OIDC_ISSUER is not an approved login source');
   }
-  const appUrl = normalizedOrigin(env.APP_URL, 'APP_URL');
+  const appUrl = normalizedOrigin(env.APP_URL, 'APP_URL', devLoopback);
   const clientId = env.OIDC_CLIENT_ID.trim();
   const clientSecret = env.OIDC_CLIENT_SECRET?.trim() ?? '';
   if (!clientId || !clientSecret) {

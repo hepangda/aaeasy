@@ -31,13 +31,9 @@ app.get('/api/health', async (c) => {
   const room = c.env.GROUP_ROOMS.getByName('__health__');
   const durableObject = await room.health();
 
-  return c.json({
-    ok: true,
-    runtime: 'cloudflare-workers',
-    framework: 'hono',
-    database: { ok: true },
-    durableObject,
-  });
+  // Reaching this point means the database query and the Durable Object call
+  // both succeeded; a failure throws and is handled as a 500.
+  return c.json({ ok: true, durableObject });
 });
 
 app.route('/api', accountRoutes);

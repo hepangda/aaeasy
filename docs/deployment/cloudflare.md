@@ -172,7 +172,7 @@ pnpm exec wrangler deploy --dry-run
 curl -fsS https://aaeasy.pangda.app/api/health
 ```
 
-期望返回 `runtime: cloudflare-workers`、`framework: hono`、健康的 PostgreSQL 和 Durable Object。随后人工验证：
+期望返回 `ok: true` 与健康的 Durable Object；该 endpoint 只有在 PostgreSQL 查询和 Durable Object 调用都成功时才返回 200。随后人工验证：
 
 1. 从 AAEasy 跳转 Pangda Auth 登录、回调、刷新页面和 RP logout；确认本地没有注册、密码或 Passkey 入口；
 2. 用 `admins` group 用户验证超级管理员越权视图，用普通用户确认没有该权限；

@@ -19,7 +19,6 @@ export async function sha256(value: string): Promise<string> {
   return bytesToHex(new Uint8Array(digest));
 }
 
-export async function hashIp(ip: string | null | undefined): Promise<string | null> {
-  if (!ip) return null;
+export async function hashIp(ip: string): Promise<string> {
   return (await sha256(ip)).slice(0, 32);
 }

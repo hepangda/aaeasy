@@ -65,7 +65,7 @@ function profileDisplayName(profile: OidcProfile, fallback?: string): string {
 async function syncOidcUser(
   db: Pick<Context<AppEnv>['var']['db'], 'select' | 'insert' | 'update'>,
   profile: OidcProfile,
-): Promise<{ user: Omit<SessionUserDto, 'isSuperAdmin'>; existed: boolean }> {
+): Promise<Omit<SessionUserDto, 'isSuperAdmin'>> {
   const [existing] = await db.select().from(users).where(eq(users.id, profile.sub)).limit(1);
   const username = profile.preferred_username;
   const updatedAt = new Date();
@@ -88,23 +88,14 @@ async function syncOidcUser(
   };
   if (existing) {
     await db.update(users).set(identity).where(eq(users.id, profile.sub));
-    return {
-      existed: true,
-      user: {
-        id: existing.id,
-        ...identity,
-      },
-    };
+    return { id: existing.id, ...identity };
   }
 
   await db.insert(users).values({
     id: profile.sub,
     ...identity,
   });
-  return {
-    existed: false,
-    user: { id: profile.sub, ...identity },
-  };
+  return { id: profile.sub, ...identity };
 }
 
 function sessionContext(input: {
@@ -159,7 +150,7 @@ export async function createSession(
     sessionId,
     userAgent: hints.userAgent,
     isSuperAdmin,
-    user: synced.user,
+    user: synced,
   });
 }
 
@@ -291,7 +282,7 @@ async function validateCurrentSession(
       sessionId: row.session.id,
       userAgent: row.session.userAgent,
       isSuperAdmin,
-      user: synced.user,
+      user: synced,
     });
   });
 }

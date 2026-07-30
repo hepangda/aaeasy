@@ -25,6 +25,7 @@ const discoveryDocument = {
 function env(overrides: Partial<OidcEnv> = {}): OidcEnv {
   return {
     APP_URL: 'http://localhost:5173',
+    ENVIRONMENT: 'development',
     OIDC_ISSUER: 'https://auth-staging.pangda.app',
     OIDC_CLIENT_ID: 'aaeasy',
     OIDC_CLIENT_SECRET: 'client-secret',
@@ -115,6 +116,14 @@ describe('oidcConfig', () => {
     const withoutEnvironment = env({ OIDC_ISSUER: 'http://localhost:17001' });
     delete withoutEnvironment.ENVIRONMENT;
     expect(() => oidcConfig(withoutEnvironment)).toThrow('OIDC_NOT_CONFIGURED');
+  });
+
+  // APP_URL feeds redirectUri, which is handed to the identity provider. A
+  // deployed Worker must not be able to redirect the code back to plaintext.
+  it('rejects a plaintext APP_URL in production', () => {
+    expect(() =>
+      oidcConfig(env({ APP_URL: 'http://localhost:5173', ENVIRONMENT: 'production' })),
+    ).toThrow('OIDC_NOT_CONFIGURED');
   });
 
   it('still rejects a non-loopback plaintext issuer outside production', () => {
