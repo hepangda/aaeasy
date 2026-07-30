@@ -2,6 +2,11 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { Select } from '@/components/ui/select';
+import {
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from '@/components/ui/dropdown-menu';
 import { setMemberRoleAction } from '@/spa/actions/groups';
 import { showI18nError } from '@/lib/ui/toast';
 
@@ -9,6 +14,35 @@ type Role = 'OWNER' | 'MANAGER' | 'MEMBER' | 'VIEWER';
 type EditableRole = Exclude<Role, 'OWNER'>;
 
 const EDITABLE_ROLES: EditableRole[] = ['MANAGER', 'MEMBER', 'VIEWER'];
+
+/** Optimistic role state shared by the inline select and the menu variant. */
+function useRoleSetter(groupId: string, memberId: string, currentRole: Role) {
+  const router = useRouter();
+  const t = useTranslations();
+  const [role, setRole] = useState<Role>(currentRole);
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setRole(currentRole);
+  }, [currentRole]);
+
+  function change(next: EditableRole) {
+    if (next === role) return;
+    const previous = role;
+    setRole(next);
+    startTransition(async () => {
+      const res = await setMemberRoleAction({ groupId, memberId, role: next });
+      if (!res.ok) {
+        setRole(previous);
+        showI18nError(t, res.error ?? 'errors.unknown');
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  return { role, pending, change };
+}
 
 /**
  * Inline role selector for a linked member. Renders a static role label
@@ -27,14 +61,8 @@ export function MemberRoleControl({
   currentRole: Role;
   editable: boolean;
 }) {
-  const router = useRouter();
   const t = useTranslations();
-  const [role, setRole] = useState<Role>(currentRole);
-  const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    setRole(currentRole);
-  }, [currentRole]);
+  const { role, pending, change } = useRoleSetter(groupId, memberId, currentRole);
 
   // OWNER badge or non-editable: render label only.
   if (!editable || currentRole === 'OWNER') {
@@ -45,28 +73,13 @@ export function MemberRoleControl({
     );
   }
 
-  function onChange(next: EditableRole) {
-    if (next === role) return;
-    const previous = role;
-    setRole(next);
-    startTransition(async () => {
-      const res = await setMemberRoleAction({ groupId, memberId, role: next });
-      if (!res.ok) {
-        setRole(previous);
-        showI18nError(t, res.error ?? 'errors.unknown');
-        return;
-      }
-      router.refresh();
-    });
-  }
-
   return (
     <span className="flex items-center gap-1">
       <Select
         aria-label={t('members.role_label')}
         value={role}
         disabled={pending}
-        onChange={(e) => onChange(e.target.value as EditableRole)}
+        onChange={(e) => change(e.target.value as EditableRole)}
         className="h-9 px-2 py-0 text-xs"
       >
         {EDITABLE_ROLES.map((r) => (
@@ -76,5 +89,34 @@ export function MemberRoleControl({
         ))}
       </Select>
     </span>
+  );
+}
+
+/** Same control as a labelled radio group inside an overflow menu. */
+export function MemberRoleMenuSection({
+  groupId,
+  memberId,
+  currentRole,
+}: {
+  groupId: string;
+  memberId: string;
+  currentRole: Role;
+}) {
+  const t = useTranslations();
+  const { role, pending, change } = useRoleSetter(groupId, memberId, currentRole);
+
+  return (
+    <>
+      <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+        {t('members.role_label')}
+      </DropdownMenuLabel>
+      <DropdownMenuRadioGroup value={role} onValueChange={(next) => change(next as EditableRole)}>
+        {EDITABLE_ROLES.map((r) => (
+          <DropdownMenuRadioItem key={r} value={r} disabled={pending}>
+            {t(`members.role.${r}` as never)}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </>
   );
 }

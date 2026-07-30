@@ -88,6 +88,8 @@ export function AccountBindingDialog({
   existingLinks,
   pendingInvitations,
   baseUrl,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   groupId: string;
   memberId: string;
@@ -96,11 +98,21 @@ export function AccountBindingDialog({
   existingLinks: ExistingShareLink[];
   pendingInvitations: MemberPendingInvitationRow[];
   baseUrl: string;
+  /**
+   * Supply `open`/`onOpenChange` to drive the dialog from elsewhere (e.g. an
+   * overflow menu item, which unmounts as soon as it is selected). The
+   * built-in trigger button is then omitted.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations();
   const router = useRouter();
   const confirmDialog = useConfirm();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const controlled = controlledOpen !== undefined;
+  const open = controlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = controlled ? (onOpenChange ?? (() => {})) : setUncontrolledOpen;
   const [role, setRole] = useState<InvitationRole>('MEMBER');
   const [tab, setTab] = useState<'bind' | 'sent'>('bind');
   const [method, setMethod] = useState<'invite' | 'link'>('invite');
@@ -112,17 +124,19 @@ export function AccountBindingDialog({
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={() => setOpen(true)}
-        aria-label={t('binding.button_label')}
-        title={t('binding.button_label')}
-      >
-        <LinkIcon />
-        {sentCount > 0 && <span className="ml-1 text-xs">{sentCount}</span>}
-      </Button>
+      {controlled ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setOpen(true)}
+          aria-label={t('binding.button_label')}
+          title={t('binding.button_label')}
+        >
+          <LinkIcon />
+          {sentCount > 0 && <span className="ml-1 text-xs">{sentCount}</span>}
+        </Button>
+      )}
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
