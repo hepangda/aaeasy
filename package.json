@@ -25,8 +25,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:adopt": "tsx scripts/adopt-drizzle.ts",
-    "db:studio": "drizzle-kit studio",
-    "r2:migrate": "tsx scripts/migrate-receipts-to-r2.ts"
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@aaeasy/contracts": "workspace:*",

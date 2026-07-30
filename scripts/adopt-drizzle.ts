@@ -22,7 +22,6 @@ const expectedTables = [
   'members',
   'passkey_credentials',
   'password_credentials',
-  'receipts',
   'sessions',
   'settlement_entries',
   'settlements',

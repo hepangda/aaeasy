@@ -39,10 +39,6 @@ async function main() {
     failures.push('set env.production.vars.ENVIRONMENT to production');
   }
 
-  const receipts = production.r2_buckets?.find((binding) => binding.binding === 'RECEIPTS');
-  if (!receipts?.bucket_name || /replace/iu.test(receipts.bucket_name)) {
-    failures.push('set env.production.r2_buckets[RECEIPTS].bucket_name');
-  }
   if (production.browser?.binding !== 'BROWSER') {
     failures.push('configure the production BROWSER binding');
   }

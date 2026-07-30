@@ -7,7 +7,7 @@ import { GroupLiveRefresher } from '@/components/group/group-live-refresher';
 import { MembersPanel } from '@/components/group/members-panel';
 import { SettingsPanel } from '@/components/group/settings-panel';
 import type { OwnerCandidate } from '@/components/group/transfer-ownership-button';
-import { ExpenseReceiptFeed } from '@/components/ledger/expense-feed';
+import { ExpenseFeed } from '@/components/ledger/expense-feed';
 import { LedgerPageHeader } from '@/components/ledger/ledger-page-header';
 import { LedgerSummaryTable } from '@/components/ledger/ledger-summary-table';
 import { ExportMenu } from '@/components/settle/export-menu';
@@ -180,7 +180,7 @@ export function GroupDetailPage() {
                   {draftsForCaller.length > 0 ? (
                     <DraftFillPanel groupId={groupId} drafts={draftsForCaller} />
                   ) : null}
-                  <ExpenseReceiptFeed
+                  <ExpenseFeed
                     groupId={groupId}
                     expenses={expensePage.slice}
                     totalItems={expenses.length}

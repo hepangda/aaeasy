@@ -20,12 +20,7 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      include: [
-        'src/lib/**/*.ts',
-        'packages/core/src/**/*.ts',
-        'worker/src/auth/access.ts',
-        'worker/src/storage/receipts.ts',
-      ],
+      include: ['src/lib/**/*.ts', 'packages/core/src/**/*.ts', 'worker/src/auth/access.ts'],
       reporter: ['text', 'html'],
     },
   },

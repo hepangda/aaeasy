@@ -301,25 +301,6 @@ export const expenseSplits = pgTable(
   ],
 );
 
-export const receipts = pgTable(
-  'receipts',
-  {
-    id: text('id').primaryKey(),
-    expenseId: text('expenseId')
-      .notNull()
-      .references(() => expenses.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    objectKey: text('objectKey').notNull(),
-    mime: text('mime').notNull(),
-    sizeBytes: integer('sizeBytes').notNull(),
-    uploadedById: text('uploadedById').references(() => users.id, {
-      onDelete: 'set null',
-      onUpdate: 'cascade',
-    }),
-    createdAt: timestampColumn('createdAt').notNull().defaultNow(),
-  },
-  (table) => [index('receipts_expenseId_idx').on(table.expenseId)],
-);
-
 export const fxRateCache = pgTable(
   'fx_rate_cache',
   {
@@ -423,7 +404,6 @@ export const expensesRelations = relations(expenses, ({ many, one }) => ({
     references: [members.id],
   }),
   splits: many(expenseSplits),
-  receipts: many(receipts),
 }));
 
 export const expenseSplitsRelations = relations(expenseSplits, ({ one }) => ({

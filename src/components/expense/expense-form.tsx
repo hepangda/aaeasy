@@ -1,10 +1,9 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '@/compat/navigation';
 import { useTranslations } from 'use-intl';
-import { Minus, Paperclip, Plus, Sparkles, TriangleAlert, X } from 'lucide-react';
+import { Minus, Plus, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,14 +27,8 @@ import { computeSplit } from '@/lib/split';
 import { formatMinor, isCurrencyCode, minorUnits } from '@/lib/money';
 import { mergeAiRows, type CurrentSnapshot } from '@/lib/expenses/ai-schema';
 import { useAiParseStream } from '@/lib/expenses/use-ai-parse-stream';
-import {
-  ALLOWED_RECEIPT_TYPES,
-  MAX_AI_IMAGE_BYTES,
-  MAX_RECEIPT_BYTES,
-} from '@/lib/expenses/receipt-constraints';
 
 type Member = { id: string; displayName: string };
-type AiImageContext = { name: string; mime: string; dataUrl: string };
 
 interface Props {
   groupId: string;
@@ -466,111 +459,13 @@ export function ExpenseForm({
     return JSON.stringify(state);
   }, [rows]);
 
-  // ─── Receipt staging ────────────────────────────────────────────────
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [uploadingReceipts, setUploadingReceipts] = useState(false);
-  const [receiptAiPrompt, setReceiptAiPrompt] = useState<AiImageContext | null>(null);
-  const [receiptAiPending, setReceiptAiPending] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Navigate away once the action reports success.
   const navigatedRef = useRef(false);
-  const pendingFilesRef = useRef<File[]>([]);
-  const receiptControlsLocked = pending || uploadingReceipts || state.ok;
-
-  async function fileToDataUrl(file: File): Promise<string> {
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') resolve(reader.result);
-        else reject(new Error('BAD_READER_RESULT'));
-      };
-      reader.onerror = () => reject(new Error('FILE_READ_FAILED'));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function addFiles(picked: FileList | null) {
-    if (!picked || receiptControlsLocked) return;
-    const next: File[] = [...pendingFiles];
-    let firstImageForAi: File | null = null;
-    for (const f of Array.from(picked)) {
-      if (f.size > MAX_RECEIPT_BYTES) {
-        errorToast(t('expenses.file_too_large'));
-        continue;
-      }
-      if (!ALLOWED_RECEIPT_TYPES.has(f.type)) {
-        errorToast(t('expenses.unsupported_type'));
-        continue;
-      }
-      if (!firstImageForAi && f.type.startsWith('image/')) firstImageForAi = f;
-      next.push(f);
-    }
-    setPendingFiles(next);
-    pendingFilesRef.current = next;
-    if (fileInputRef.current) fileInputRef.current.value = '';
-
-    // Ask once per pick-batch using the app modal. If accepted, we submit
-    // directly to AI instead of merely attaching the image for later.
-    if (firstImageForAi) {
-      if (firstImageForAi.size > MAX_AI_IMAGE_BYTES) {
-        errorToast(t('expenses.ai_image_too_large'));
-      } else {
-        try {
-          const dataUrl = await fileToDataUrl(firstImageForAi);
-          setReceiptAiPrompt({
-            name: firstImageForAi.name,
-            mime: firstImageForAi.type,
-            dataUrl,
-          });
-        } catch {
-          errorToast(t('errors.ai_failed'));
-        }
-      }
-    }
-  }
-
-  function removeFile(idx: number) {
-    if (receiptControlsLocked) return;
-    setPendingFiles((cur) => {
-      const next = cur.filter((_, i) => i !== idx);
-      pendingFilesRef.current = next;
-      return next;
-    });
-  }
-
-  // After the action succeeds, upload staged files and navigate.
   useEffect(() => {
     if (!state.ok || !state.expenseId || navigatedRef.current) return;
     navigatedRef.current = true;
-    const expenseId = state.expenseId;
-    const filesToUpload = [...pendingFilesRef.current];
-    let cancelled = false;
-    (async () => {
-      let failedUploads = 0;
-      if (filesToUpload.length > 0) {
-        setUploadingReceipts(true);
-        for (const file of filesToUpload) {
-          if (cancelled) return;
-          try {
-            const uploadRes = await fetch(`/api/groups/${groupId}/expenses/${expenseId}/receipts`, {
-              method: 'POST',
-              headers: { 'Content-Type': file.type },
-              body: file,
-            });
-            if (!uploadRes.ok) failedUploads += 1;
-          } catch {
-            failedUploads += 1;
-          }
-        }
-      }
-      if (!cancelled) {
-        if (failedUploads > 0) errorToast(t('expenses.upload_failed'));
-        router.push(`/groups/${groupId}`);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [state.ok, state.expenseId, groupId, router, t]);
+    router.push(`/groups/${groupId}`);
+  }, [state.ok, state.expenseId, groupId, router]);
 
   // NOTE: on touch devices `NumericInput` renders readOnly (it drives a custom
   // keypad), and readOnly controls are excluded from HTML constraint
@@ -578,12 +473,11 @@ export function ExpenseForm({
   // The gate below is therefore the *only* thing stopping an empty amount, and
   // must stay explicit rather than relying on the browser.
   const amountMissing = !isDraftMode && totalMinor === null;
-  const submitDisabled =
-    pending || uploadingReceipts || amountMissing || (!isDraftMode && !sumMatchesTotal);
+  const submitDisabled = pending || amountMissing || (!isDraftMode && !sumMatchesTotal);
 
   // Why the submit button is inert, phrased for the user. Null when it isn't.
   const blockingReason = (() => {
-    if (isDraftMode || pending || uploadingReceipts) return null;
+    if (isDraftMode || pending) return null;
     if (anyParseError) return t('errors.invalid_amount');
     if (totalMinor === null) return t('expenses.amount_required');
     if (!sumMatchesTotal) {
@@ -604,7 +498,6 @@ export function ExpenseForm({
   const [aiText, setAiText] = useState('');
   const [aiReasoning, setAiReasoning] = useState<string | null>(null);
   const [aiAmbiguousHint, setAiAmbiguousHint] = useState<string | null>(null);
-  const [aiImage, setAiImage] = useState<AiImageContext | null>(null);
 
   function setFieldValue(name: string, value: string) {
     const el = formRef.current?.elements.namedItem(name) as
@@ -749,40 +642,22 @@ export function ExpenseForm({
   const aiPending = aiStream.pending;
 
   async function runAiParse(opts?: {
-    image?: AiImageContext;
     textOverride?: string;
     setLoading?: (loading: boolean) => void;
   }) {
-    const image = opts?.image ?? aiImage;
     const text = (opts?.textOverride ?? aiText).trim();
-    if (!text && !image) return;
+    if (!text) return;
     setAiReasoning(null);
     setAiAmbiguousHint(null);
     opts?.setLoading?.(true);
     try {
       await aiStream.start({
         text,
-        images: image
-          ? [{ name: image.name, mime: image.mime, dataUrl: image.dataUrl }]
-          : undefined,
         current: buildCurrentSnapshot(),
       });
     } finally {
       opts?.setLoading?.(false);
     }
-  }
-
-  async function confirmReceiptAi() {
-    if (!receiptAiPrompt) return;
-    const prompt = aiText.trim() || t('expenses.ai_receipt_prompt_text');
-    if (!aiText.trim()) setAiText(prompt);
-    setAiOpen(true);
-    await runAiParse({
-      image: receiptAiPrompt,
-      textOverride: prompt,
-      setLoading: setReceiptAiPending,
-    });
-    setReceiptAiPrompt(null);
   }
 
   return (
@@ -804,40 +679,6 @@ export function ExpenseForm({
       <input type="hidden" name="isDraft" value={isDraftMode ? 'true' : 'false'} />
       {defaults && <input type="hidden" name="expenseId" value={defaults.expenseId} />}
       {defaults && <input type="hidden" name="expectedVersion" value={defaults.version ?? 0} />}
-
-      <Dialog
-        open={receiptAiPrompt !== null}
-        onClose={() => {
-          if (!receiptAiPending) setReceiptAiPrompt(null);
-        }}
-        title={t('expenses.ai_receipt_dialog_title')}
-        className="max-w-sm"
-      >
-        <div className="flex flex-col gap-3">
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            {t('expenses.ai_receipt_dialog_desc')}
-          </p>
-          {receiptAiPrompt && (
-            <div className="bg-secondary/40 flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-              <Paperclip className="text-muted-foreground size-4 shrink-0" />
-              <span className="truncate">{receiptAiPrompt.name}</span>
-            </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setReceiptAiPrompt(null)}
-              disabled={receiptAiPending}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button type="button" onClick={confirmReceiptAi} disabled={receiptAiPending}>
-              {receiptAiPending ? t('expenses.ai_running') : t('expenses.ai_run')}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
 
       {/* ─── Top tools: AI assist + draft mode ─────────────────────
           Keep both controls in the same row and same button style. The
@@ -891,30 +732,12 @@ export function ExpenseForm({
                   setAiText('');
                   setAiReasoning(null);
                   setAiAmbiguousHint(null);
-                  setAiImage(null);
                 }}
                 aria-label={t('expenses.clear')}
               >
                 <X className="size-3.5" />
               </Button>
             </div>
-            {aiImage && (
-              <div className="bg-background/60 flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-xs">
-                <span className="text-muted-foreground truncate">
-                  {t('expenses.ai_image_in_context', { name: aiImage.name })}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-5"
-                  onClick={() => setAiImage(null)}
-                  aria-label={t('expenses.clear')}
-                >
-                  <X className="size-3" />
-                </Button>
-              </div>
-            )}
             <Textarea
               rows={2}
               maxLength={1000}
@@ -943,7 +766,7 @@ export function ExpenseForm({
                   type="button"
                   size="sm"
                   onClick={() => runAiParse()}
-                  disabled={aiPending || (aiText.trim().length === 0 && !aiImage)}
+                  disabled={aiPending || aiText.trim().length === 0}
                 >
                   {aiPending ? t('expenses.ai_streaming') : t('expenses.ai_run')}
                 </Button>
@@ -953,10 +776,10 @@ export function ExpenseForm({
         </div>
       )}
 
-      {/* ─── Row 2: Amount | Currency | Payer | Attach receipts ────
-          Mobile: amount + currency share one row, then payer + attach
-          stack below. Desktop keeps the original four-column row. */}
-      <section className="bg-sunken mt-5 flex flex-col gap-4 border-y px-5 py-6 sm:mt-6 sm:grid sm:grid-cols-[1.35fr_auto_1fr_auto] sm:items-end sm:px-8 sm:py-7">
+      {/* ─── Row 2: Amount | Currency | Payer ──────────────────────
+          Mobile: amount + currency share one row, then payer below.
+          Desktop keeps them on a single three-column row. */}
+      <section className="bg-sunken mt-5 flex flex-col gap-4 border-y px-5 py-6 sm:mt-6 sm:grid sm:grid-cols-[1.35fr_auto_1fr] sm:items-end sm:px-8 sm:py-7">
         {!isDraftMode && (
           <div className="grid gap-2 sm:contents">
             <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
@@ -1026,27 +849,6 @@ export function ExpenseForm({
               </Select>
             )}
           </div>
-          <div className="flex items-end">
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,application/pdf"
-              className="hidden"
-              disabled={receiptControlsLocked}
-              onChange={(e) => addFiles(e.target.files)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={receiptControlsLocked}
-              aria-label={t('expenses.attach_receipts')}
-            >
-              <Paperclip />
-              <span className="hidden sm:inline">{t('expenses.attach_receipts')}</span>
-            </Button>
-          </div>
         </div>
       </section>
 
@@ -1088,40 +890,6 @@ export function ExpenseForm({
             precision={6}
             keypadTitle={t('expenses.fx_rate_override')}
           />
-        </div>
-      )}
-
-      {pendingFiles.length > 0 && (
-        <div className="mx-5 flex flex-col gap-1 sm:mx-8">
-          {pendingFiles.length > 0 && (
-            <ul className="flex flex-col gap-1">
-              {pendingFiles.map((f, i) => (
-                <li
-                  key={i}
-                  className="bg-muted/40 flex items-center justify-between gap-2 rounded-md px-3 py-1.5 text-sm"
-                >
-                  <span className="truncate">
-                    <Paperclip className="mr-1 inline size-3" />
-                    {f.name}
-                    <span className="text-muted-foreground ml-2 font-mono text-xs tabular-nums">
-                      {(f.size / 1024).toFixed(1)} KB
-                    </span>
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-6"
-                    onClick={() => removeFile(i)}
-                    disabled={receiptControlsLocked}
-                    aria-label={t('expenses.remove_receipt')}
-                  >
-                    <X className="size-3" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       )}
 
@@ -1369,13 +1137,11 @@ export function ExpenseForm({
             className="w-full sm:w-auto sm:min-w-40"
             {...(isDraftMode ? { formNoValidate: true } : {})}
           >
-            {uploadingReceipts
-              ? t('expenses.uploading_receipts')
-              : pending
-                ? t('expenses.submitting')
-                : isDraftMode
-                  ? t('expenses.submit_draft')
-                  : t('expenses.submit')}
+            {pending
+              ? t('expenses.submitting')
+              : isDraftMode
+                ? t('expenses.submit_draft')
+                : t('expenses.submit')}
           </Button>
         </div>
       </div>

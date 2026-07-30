@@ -6,7 +6,6 @@ import {
   groupMemberships,
   groups,
   members,
-  receipts,
   settlementEntries,
   users,
 } from '@aaeasy/db/schema';
@@ -55,10 +54,10 @@ export async function loadLedger(db: Executor, groupId: string) {
     .where(and(eq(expenses.groupId, groupId), isNull(expenses.deletedAt)))
     .orderBy(desc(expenses.occurredAt), desc(expenses.createdAt));
   const expenseIds = expenseRows.map((expense) => expense.id);
-  const [splitRows, receiptRows] = await Promise.all([
+  const splitRows =
     expenseIds.length === 0
-      ? Promise.resolve([])
-      : db
+      ? []
+      : await db
           .select({
             id: expenseSplits.id,
             expenseId: expenseSplits.expenseId,
@@ -66,34 +65,13 @@ export async function loadLedger(db: Executor, groupId: string) {
             shareMinor: expenseSplits.shareMinor,
           })
           .from(expenseSplits)
-          .where(inArray(expenseSplits.expenseId, expenseIds)),
-    expenseIds.length === 0
-      ? Promise.resolve([])
-      : db
-          .select({
-            id: receipts.id,
-            expenseId: receipts.expenseId,
-            mime: receipts.mime,
-            sizeBytes: receipts.sizeBytes,
-            createdAt: receipts.createdAt,
-          })
-          .from(receipts)
-          .where(inArray(receipts.expenseId, expenseIds))
-          .orderBy(asc(receipts.createdAt)),
-  ]);
+          .where(inArray(expenseSplits.expenseId, expenseIds));
   const splitsByExpense = new Map<string, typeof splitRows>();
   for (const split of splitRows) {
     const list = splitsByExpense.get(split.expenseId) ?? [];
     list.push(split);
     splitsByExpense.set(split.expenseId, list);
   }
-  const receiptsByExpense = new Map<string, typeof receiptRows>();
-  for (const receipt of receiptRows) {
-    const list = receiptsByExpense.get(receipt.expenseId) ?? [];
-    list.push(receipt);
-    receiptsByExpense.set(receipt.expenseId, list);
-  }
-
   const entryRows = await db
     .select({
       id: settlementEntries.id,
@@ -112,7 +90,6 @@ export async function loadLedger(db: Executor, groupId: string) {
   const ledgerExpenses = expenseRows.map((expense) => ({
     ...expense,
     splits: splitsByExpense.get(expense.id) ?? [],
-    receipts: receiptsByExpense.get(expense.id) ?? [],
   }));
   const rawSummary = computeLedgerSummary(group.defaultCurrency, memberRows, ledgerExpenses);
   const adjusted = new Map(rawSummary.map((row) => [row.memberId, row.netMinorInGroup]));
@@ -150,11 +127,6 @@ export function serializeLedger(ledger: NonNullable<Awaited<ReturnType<typeof lo
         id: split.id,
         memberId: split.memberId,
         shareMinor: split.shareMinor.toString(),
-      })),
-      receipts: expense.receipts.map((receipt) => ({
-        id: receipt.id,
-        mime: receipt.mime,
-        sizeBytes: receipt.sizeBytes,
       })),
       createdAt: expense.createdAt.toISOString(),
       updatedAt: expense.updatedAt.toISOString(),

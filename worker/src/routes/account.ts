@@ -4,7 +4,6 @@ import {
   groupMemberships,
   groups,
   members,
-  receipts,
   settlementEntries,
   users,
 } from '@aaeasy/db/schema';
@@ -15,7 +14,6 @@ import type { AppEnv } from '../app-env';
 import { buildOidcLogoutUrl, revokeOidcRefreshToken } from '../auth/oidc';
 import { clearCurrentSessionCookie, currentOidcTokens, requireUser } from '../auth/session';
 import { bumpGroupRevision, scheduleGroupEvent } from '../realtime/events';
-import { deleteReceiptObjects } from '../storage/receipts';
 
 export const accountRoutes = new Hono<AppEnv>();
 
@@ -153,16 +151,6 @@ accountRoutes.delete('/account', async (c) => {
     .select({ groupId: groupMemberships.groupId })
     .from(groupMemberships)
     .where(and(eq(groupMemberships.userId, session.user.id), eq(groupMemberships.role, 'OWNER')));
-  const ownedGroupIds = owned.map((ownedGroup) => ownedGroup.groupId);
-  const storedReceipts =
-    ownedGroupIds.length === 0
-      ? []
-      : await c.var.db
-          .select({ objectKey: receipts.objectKey })
-          .from(receipts)
-          .innerJoin(expenses, eq(expenses.id, receipts.expenseId))
-          .where(inArray(expenses.groupId, ownedGroupIds));
-
   await c.var.db.transaction(async (tx) => {
     for (const ownedGroup of owned) {
       const groupExpenseIds = tx
@@ -179,21 +167,6 @@ accountRoutes.delete('/account', async (c) => {
   });
   clearCurrentSessionCookie(c);
 
-  if (storedReceipts.length > 0) {
-    c.executionCtx.waitUntil(
-      deleteReceiptObjects(
-        c.env.RECEIPTS,
-        storedReceipts.map((receipt) => receipt.objectKey),
-      ).catch((error) =>
-        console.error(
-          JSON.stringify({
-            message: 'receipt cleanup failed',
-            error: error instanceof Error ? error.message : String(error),
-          }),
-        ),
-      ),
-    );
-  }
   if (oidcTokens) {
     c.executionCtx.waitUntil(
       revokeOidcRefreshToken(c.env, oidcTokens.refreshToken).catch((error) =>

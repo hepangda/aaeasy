@@ -90,7 +90,6 @@ export interface GroupEvent {
     | 'expense.created'
     | 'expense.updated'
     | 'expense.deleted'
-    | 'receipt.changed'
     | 'member.changed'
     | 'group.updated'
     | 'settlement.changed';

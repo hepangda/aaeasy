@@ -236,7 +236,7 @@ export async function parseExpenseWithAi(
     input.images.length === 0
       ? text
       : [
-          { type: 'text' as const, text: text || 'Read the receipt and extract expense fields.' },
+          { type: 'text' as const, text: text || 'Read the image and extract expense fields.' },
           ...input.images.map((image) => ({
             type: 'image_url' as const,
             image_url: { url: image.dataUrl },

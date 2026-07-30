@@ -42,12 +42,6 @@
       "new_sqlite_classes": ["RateLimiter"],
     },
   ],
-  "r2_buckets": [
-    {
-      "binding": "RECEIPTS",
-      "bucket_name": "aaeasy-receipts",
-    },
-  ],
   "browser": {
     "binding": "BROWSER",
   },
@@ -90,12 +84,6 @@
           },
         ],
       },
-      "r2_buckets": [
-        {
-          "binding": "RECEIPTS",
-          "bucket_name": "aaeasy-receipts",
-        },
-      ],
       "browser": {
         "binding": "BROWSER",
       },

@@ -4,7 +4,7 @@
 
 ## 1. 前置条件
 
-- Cloudflare 账户已启用 Workers、Durable Objects、R2 和 Browser Run。
+- Cloudflare 账户已启用 Workers、Durable Objects 和 Browser Run。
 - 已有可从公网 TLS 访问的 PostgreSQL；推荐 Neon。
 - 已安装 Node.js 22.12+ 和 pnpm 10+。
 - `pnpm exec wrangler whoami` 能看到目标 Cloudflare 账户。
@@ -62,17 +62,7 @@ pnpm exec wrangler hyperdrive create aaeasy-production \
 
 本地开发的 `localConnectionString` 只在顶层配置中使用，生产 environment 不继承它。Hyperdrive 本地模式不会启用云端连接池和 query cache；需要验证真实行为时可单独使用 remote development，但会操作远端数据。参见 [Hyperdrive local development](https://developers.cloudflare.com/hyperdrive/configuration/local-development/)。
 
-## 4. 创建 R2 bucket
-
-```sh
-pnpm exec wrangler r2 bucket create aaeasy-receipts --location apac
-```
-
-如果使用其他名称，同步修改 `env.production.r2_buckets`。bucket 必须保持私有，不要配置公开开发域名。Worker 的 `RECEIPTS` binding 是唯一读写入口。
-
-旧 Vercel Blob 或其他对象存储的迁移见 [`../migration/data-cutover.md`](../migration/data-cutover.md)。
-
-## 5. 配置 Pangda Auth
+## 4. 配置 Pangda Auth
 
 AAEasy 只接受以下两个 issuer：
 
@@ -116,7 +106,7 @@ http://localhost:5173/
 
 KeyForge 只在创建 client 时返回一次明文 secret。staging secret 写入本机 `.dev.vars`，production secret 写入 Worker secret，不能提交到仓库。KeyForge 的 `sub` 必须与现有 AAEasy `users.id` 相同；KeyForge alias 通过标准 OIDC `preferred_username` claim 同步到 AAEasy `users.username`；`admins` group 是 AAEasy 超级管理员权限的唯一来源。alias 在 KeyForge 变更后，会在 AAEasy 下次会话重新校验时同步。
 
-## 6. 配置生产变量
+## 5. 配置生产变量
 
 在 `wrangler.jsonc` 的 `env.production.vars` 中设置：
 
@@ -130,7 +120,7 @@ KeyForge 只在创建 client 时返回一次明文 secret。staging secret 写�
 
 Vite 的 Cloudflare environment 在**构建时**选择，而不是 deploy 时选择。仓库的 `pnpm build` 已设置 `CLOUDFLARE_ENV=production`；不要用裸 `vite build` 替代生产构建。
 
-## 7. 配置 secrets
+## 6. 配置 secrets
 
 至少配置 KeyForge client secret 和独立的 OIDC session encryption secret：
 
@@ -155,7 +145,7 @@ pnpm exec wrangler secret put AI_ENABLE_IMAGE_CONTEXT --env production
 
 不要设置旧的 `DATABASE_URL`、`NEXT_PUBLIC_*` 或 `BLOB_READ_WRITE_TOKEN` Worker secrets；运行时不再使用它们。
 
-## 8. 构建与部署
+## 7. 构建与部署
 
 ```sh
 pnpm check
@@ -176,7 +166,7 @@ pnpm build
 pnpm exec wrangler deploy --dry-run
 ```
 
-## 9. 域名与上线检查
+## 8. 域名与上线检查
 
 在 Cloudflare Dashboard 给 Worker 绑定最终 custom domain。域名必须与 `APP_URL` 完全一致；更改后重新部署。
 
@@ -191,26 +181,38 @@ curl -fsS https://aaeasy.pangda.app/api/health
 3. 创建账本、费用和分摊；
 4. 两个浏览器同时打开账本，确认 WebSocket 自动刷新；
 5. 只读 / 可写分享权限；
-6. 图片和 PDF 小票上传、查看、删除；
-7. CSV 导出；
-8. 中文、多页 PDF 导出；
-9. 结算、重开、成员转移和 AAEasy 数据删除（KeyForge 账号应保留）。
+6. CSV 导出；
+7. 中文、多页 PDF 导出；
+8. 结算、重开、成员转移和 AAEasy 数据删除（KeyForge 账号应保留）。
 
 Browser Run 已预装 Noto CJK 和 WenQuanYi Zen Hei，当前 PDF CSS 优先使用 `Noto Sans CJK SC`，无需自带字体或 Container。参见 [supported fonts](https://developers.cloudflare.com/browser-run/reference/supported-fonts/)。
 
 常规 `pnpm dev` 不连接远程 browser。需要在本地验证真实 PDF 时，先确认 Wrangler 已登录，再运行 `pnpm dev:pdf`；该命令会把 `BROWSER` binding 临时设为 remote，并消耗目标账户 Browser Run 配额。
 
-## 10. 监控与运维
+## 9. 监控与运维
 
 - Wrangler 已启用 Workers observability 和 source maps。
-- 关注 Worker 5xx、Hyperdrive origin errors、DO exceptions、R2 errors 和 Browser Run 429。
+- 关注 Worker 5xx、Hyperdrive origin errors、DO exceptions 和 Browser Run 429。
 - PDF 429 会返回 `Retry-After`；不要由客户端紧密重试。
 - `GroupRoom` 只保存最近 256 个 revision events。断线超过窗口时客户端收到 `resync` 并重新拉取 PostgreSQL 快照。
-- R2 删除采用数据库提交后异步删除；应定期做数据库 `objectKey` 与 bucket inventory 的孤儿对象审计。
+
+## 10. 下线小票功能后的清理（一次性）
+
+小票功能已移除。`0003_drop_receipts` 会删掉 `receipts` 表，但 **R2 中的对象不会被自动删除** —— Worker 已不再持有 `RECEIPTS` binding，无法在迁移里清理。表一旦删除，`objectKey` 索引也随之消失，因此请在执行迁移**之前**先导出一份对象清单备查，确认无需保留后再删除整个 bucket：
+
+```sh
+# 1. 迁移前：留存清单（可选，但删表后无法再关联回费用）
+psql "$DATABASE_URL" -c '\copy (SELECT "objectKey" FROM receipts) TO STDOUT' > receipts-objectkeys.txt
+
+# 2. 确认无需保留后，删除 bucket 内全部对象并移除 bucket
+pnpm exec wrangler r2 bucket delete aaeasy-receipts
+```
+
+`wrangler r2 bucket delete` 要求 bucket 为空；对象较多时先用 `wrangler r2 object delete` 或在 Dashboard 配置一条 lifecycle rule 批量过期。
 
 ## 11. 回滚
 
 - DNS 切换前保留旧应用只读版本和数据库备份。
+- `0003_drop_receipts` 不可逆：小票表与 R2 对象删除后无法恢复，回滚到含小票功能的版本必须同时恢复迁移前数据库和 bucket。
 - OIDC migration 会删除本地密码、Passkey、挑战、注册白名单并清空旧 AAEasy session；旧版本应用无法在该 schema 上恢复登录。上线前必须保留数据库备份，若需回滚旧版本必须同时恢复迁移前数据库。
-- 一旦新 Worker 接受 R2 小票上传，旧 Vercel Blob 应用无法读取这些新对象；回滚前必须暂停小票上传或把新增对象反向复制。
 - DO 或 Browser Run 故障不要求回滚数据库：前者只影响实时刷新，后者只影响 PDF。

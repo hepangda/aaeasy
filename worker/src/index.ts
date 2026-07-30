@@ -12,7 +12,6 @@ import { expenseRoutes } from './routes/expenses';
 import { exportRoutes } from './routes/export';
 import { groupRoutes } from './routes/groups';
 import { realtimeRoutes } from './routes/realtime';
-import { receiptRoutes } from './routes/receipts';
 import { settlementRoutes } from './routes/settlements';
 
 export { GroupRoom } from './durable-objects/group-room';
@@ -48,7 +47,6 @@ app.route('/api', expenseRoutes);
 app.route('/api', exportRoutes);
 app.route('/api', groupRoutes);
 app.route('/api', realtimeRoutes);
-app.route('/api', receiptRoutes);
 app.route('/api', settlementRoutes);
 
 app.notFound((c) => c.json({ error: 'NOT_FOUND' }, 404));

@@ -125,7 +125,6 @@ export interface LedgerExpense {
   isDraft: boolean;
   version: number;
   splits: Array<{ id: string; memberId: string; shareMinor: bigint }>;
-  receipts: Array<{ id: string; mime: string; sizeBytes: number }>;
   createdAt: Date;
   updatedAt: Date;
 }

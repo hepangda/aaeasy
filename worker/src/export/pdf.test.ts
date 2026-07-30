@@ -46,7 +46,6 @@ describe('ledger PDF HTML', () => {
           lockedBySettlementId: null,
           version: 1,
           splits: [{ id: 'split', expenseId: 'expense', memberId: 'member', shareMinor: 100n }],
-          receipts: [],
         },
       ],
       summary: [

@@ -23,7 +23,7 @@ function usage(): never {
 
 Options:
   --text <text>       Prompt text to send. Default: ${DEFAULT_TEXT}
-  --image <path>      Optional image file to send as receipt context.
+  --image <path>      Optional image file to send as visual context.
   --runs <n>          Number of requests to run. Default: 1
   --timeout <ms>      Per-request timeout in ms. Default: 30000
   --model <name>      Override AI_MODEL from .env.
@@ -35,7 +35,7 @@ Examples:
   pnpm ai:speed
   pnpm ai:speed -- --runs 3
   pnpm ai:speed -- --text "昨天火锅 328 元 李雷付"
-  pnpm ai:speed -- --image ./receipt.jpg --timeout 60000
+  pnpm ai:speed -- --image ./photo.jpg --timeout 60000
 `);
   process.exit(0);
 }

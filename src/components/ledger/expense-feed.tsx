@@ -1,9 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
-import { MoreHorizontal, Pencil, ReceiptText, StickyNote } from 'lucide-react';
+import { Pencil, ReceiptText, StickyNote } from 'lucide-react';
 import { useLocale, useTranslations } from 'use-intl';
 import Link from '@/compat/link';
-import { DeleteExpenseMenuItem } from '@/components/expense/delete-expense-button';
-import { ReceiptActionsButton } from '@/components/expense/receipt-actions-button';
+import { DeleteExpenseButton } from '@/components/expense/delete-expense-button';
 import { SplitBadge } from '@/components/expense/split-badge';
 import { LedgerMemberAvatar } from '@/components/ledger/member-avatar';
 import { Button } from '@/components/ui/button';
@@ -11,12 +10,6 @@ import { Pagination } from '@/components/ui/pagination';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { Card, CardHeader } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { formatMoney } from '@/lib/money';
 import { splitInputStateSchema } from '@/lib/split/input-state';
 import { classifyPersistedSplit } from '@/lib/split/intent';
@@ -104,8 +97,8 @@ function ExpenseFeedItem({
 
   return (
     <li className="group hover:bg-accent/35 flex items-center gap-3 px-5 py-3.5 transition-colors sm:px-6">
-      {/* The payer's avatar replaces what used to be an identical receipt icon
-          on every single row — 36px of pure decoration. This carries real
+      {/* The payer's avatar replaces what used to be an identical icon on
+          every single row — 36px of pure decoration. This carries real
           information (who paid) and doubles as the scanning anchor. */}
       {payer ? (
         <LedgerMemberAvatar member={payer} size="md" className="mt-0.5 shrink-0" />
@@ -153,38 +146,34 @@ function ExpenseFeedItem({
           : formatMoney(expense.amountMinor, expense.currency, locale)}
       </p>
 
-      {/* Row actions stay visually recessive until the row is engaged with. */}
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 md:opacity-60">
-        <ReceiptActionsButton
-          groupId={groupId}
-          expenseId={expense.id}
-          receipts={expense.receipts}
-          canEdit={editable}
-        />
+      {/* Edit and delete sit directly on the row rather than behind an overflow
+          menu — with receipts gone there are only two actions, and the rule
+          against a row of icon buttons only bites at three.
+
+          Below `md` they stay fully opaque: there is no hover on touch, so the
+          old `opacity-0` default left the only path to edit/delete invisible
+          yet tappable. On pointer devices they recede until the row is
+          engaged. */}
+      <div className="flex shrink-0 items-center gap-0.5 transition-opacity md:opacity-60 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
         {editable ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" size="icon" variant="ghost" aria-label={t('common.actions')}>
-                <MoreHorizontal />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild className="gap-2">
-                <Link href={`/groups/${groupId}/expenses/${expense.id}/edit`}>
-                  <Pencil className="size-4" aria-hidden="true" />
-                  {t('common.edit')}
-                </Link>
-              </DropdownMenuItem>
-              <DeleteExpenseMenuItem groupId={groupId} expenseId={expense.id} />
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <>
+            <Button asChild type="button" size="icon" variant="ghost">
+              <Link
+                href={`/groups/${groupId}/expenses/${expense.id}/edit`}
+                aria-label={t('common.edit')}
+              >
+                <Pencil />
+              </Link>
+            </Button>
+            <DeleteExpenseButton groupId={groupId} expenseId={expense.id} />
+          </>
         ) : null}
       </div>
     </li>
   );
 }
 
-export function ExpenseReceiptFeed({
+export function ExpenseFeed({
   groupId,
   expenses,
   totalItems,
