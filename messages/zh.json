@@ -306,6 +306,7 @@
     "settle_button": "归档账本",
     "settle_confirm_desc": "将锁定 {count} 笔费用并归档账本。归档后不能新增或编辑费用，但仍可记录转账；所有者可以稍后重新打开。",
     "settle_confirm_title": "归档这个账本？",
+    "settle_desc": "归档后费用不可再新增或编辑，但仍可记录转账；所有者可以稍后重新打开。",
     "settle_disabled_reason": "暂无可结算的账目，请先记一笔",
     "settle_draft_warning": "未补全的 {count} 笔草稿将被删除。",
     "suggested": "待转账",
@@ -315,6 +316,7 @@
   },
   "export": {
     "csv": "导出 CSV",
+    "desc": "下载这个账本的 PDF 或 CSV 副本。",
     "exporting": "正在导出…",
     "failed": "导出失败，请重试",
     "pdf": "导出 PDF",

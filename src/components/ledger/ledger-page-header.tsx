@@ -1,36 +1,19 @@
-import type { ReactNode } from 'react';
-import { MoreHorizontal } from 'lucide-react';
 import { useTranslations } from 'use-intl';
 import Link from '@/router/link';
 import type { LedgerMember } from '@/spa/types';
 import { LedgerMemberStack } from '@/components/ledger/member-avatar';
-import { Button } from '@/components/ui/button';
 import { Eyebrow } from '@/components/ui/eyebrow';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 export function LedgerPageHeader({
   name,
   currency,
   members,
   archived,
-  primaryAction,
-  overflowActions,
 }: {
   name: string;
   currency: string;
   members: LedgerMember[];
   archived: boolean;
-  /**
-   * The page's most consequential action. Rendered as a peer of the title
-   * rather than hidden behind the overflow — "Settle" used to live in the
-   * unlabelled `⋯` menu at the same level as Export.
-   */
-  primaryAction?: ReactNode;
-  overflowActions?: ReactNode;
 }) {
   const t = useTranslations();
 
@@ -49,7 +32,7 @@ export function LedgerPageHeader({
         <span className="text-foreground truncate">{name}</span>
       </nav>
 
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-col gap-2.5 sm:gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
             <h1 className="font-display text-foreground truncate text-3xl leading-none font-bold tracking-[-0.04em] sm:text-4xl">
@@ -70,32 +53,6 @@ export function LedgerPageHeader({
             </Eyebrow>
           </div>
         </div>
-
-        {primaryAction || overflowActions ? (
-          <div className="flex shrink-0 items-center gap-2">
-            {primaryAction}
-            {overflowActions ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label={t('common.actions')}
-                  >
-                    <MoreHorizontal className="size-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="flex min-w-56 flex-col gap-2 p-2.5 [&_button]:w-full [&>div]:w-full"
-                >
-                  {overflowActions}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-          </div>
-        ) : null}
       </div>
     </header>
   );

@@ -306,6 +306,7 @@
     "settle_button": "Archive group",
     "settle_confirm_desc": "This locks {count} expenses and archives the group. Expenses can’t be added or edited, but transfers can still be recorded. The owner can reopen it later.",
     "settle_confirm_title": "Archive this group?",
+    "settle_desc": "Archiving locks expenses from being added or edited; transfers can still be recorded and the owner can reopen later.",
     "settle_disabled_reason": "Nothing to settle — add an expense first",
     "settle_draft_warning": "{count, plural, one {# unfinished draft will be deleted.} other {# unfinished drafts will be deleted.}}",
     "suggested": "Transfers to make",
@@ -315,6 +316,7 @@
   },
   "export": {
     "csv": "Export CSV",
+    "desc": "Download a PDF or CSV copy of this ledger.",
     "exporting": "Exporting…",
     "failed": "Couldn't export the ledger — please try again",
     "pdf": "Export PDF",

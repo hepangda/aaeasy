@@ -10,11 +10,8 @@ import type { OwnerCandidate } from '@/components/group/transfer-ownership-butto
 import { ExpenseFeed } from '@/components/ledger/expense-feed';
 import { LedgerPageHeader } from '@/components/ledger/ledger-page-header';
 import { LedgerSummaryTable } from '@/components/ledger/ledger-summary-table';
-import { ExportMenu } from '@/components/settle/export-menu';
 import { SettlementStatus } from '@/components/settle/settlement-status';
-import { SettleButton } from '@/components/settle/settle-button';
 import { TransfersPanel } from '@/components/settle/transfers-panel';
-import { GroupShareDialog } from '@/components/share/group-share-dialog';
 import type { ExistingShareLink } from '@/components/share/types';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/tabs';
@@ -129,29 +126,6 @@ export function GroupDetailPage() {
         currency={group.defaultCurrency}
         members={members}
         archived={isArchived}
-        primaryAction={
-          access.canSettle && !isArchived ? (
-            <SettleButton
-              groupId={groupId}
-              openExpenseCount={openExpenseCount}
-              draftExpenseCount={draftExpenseCount}
-            />
-          ) : undefined
-        }
-        overflowActions={
-          (canManage && access.kind === 'user') || access.kind === 'user' ? (
-            <>
-              {canManage && access.kind === 'user' ? (
-                <GroupShareDialog
-                  groupId={groupId}
-                  existingLinks={existingShareLinks.filter((link) => link.memberId === null)}
-                  baseUrl={window.location.origin}
-                />
-              ) : null}
-              {access.kind === 'user' ? <ExportMenu groupId={groupId} /> : null}
-            </>
-          ) : undefined
-        }
       />
 
       {isSuperAdminBypass ? (
@@ -286,6 +260,12 @@ export function GroupDetailPage() {
                   isArchived={isArchived}
                   settlementId={detail.data.latestSettlementId ?? undefined}
                   ownerCandidates={ownerCandidates}
+                  canShare={canManage && access.kind === 'user'}
+                  canExport={access.kind === 'user'}
+                  shareLinks={existingShareLinks.filter((link) => link.memberId === null)}
+                  baseUrl={window.location.origin}
+                  openExpenseCount={openExpenseCount}
+                  draftExpenseCount={draftExpenseCount}
                 />
               ),
             },
