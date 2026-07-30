@@ -5,6 +5,7 @@ import {
   BookOpenText,
   ChevronLeft,
   ChevronsUpDown,
+  LayoutGrid,
   Plus,
   ReceiptText,
   Settings,
@@ -149,16 +150,30 @@ function GroupSwitcher({
       {open && (
         <div
           role="menu"
-          className="border-border bg-popover shadow-lifted absolute top-[calc(100%+0.5rem)] left-0 z-50 max-h-80 w-64 overflow-y-auto rounded-xl border p-1.5"
+          className="border-border bg-popover shadow-lifted absolute top-[calc(100%+0.5rem)] left-0 z-50 flex w-64 flex-col rounded-xl border p-1.5"
         >
-          <Eyebrow className="px-2 py-1.5">{t('groups.current_ledgers')}</Eyebrow>
-          <ul className="flex flex-col gap-0.5">
-            {currentGroups.map((group) => (
-              <li key={group.id}>
-                <GroupNavLink group={group} active={group.id === currentGroupId} />
-              </li>
-            ))}
-          </ul>
+          {/* Only the ledger list scrolls: capping the whole popover would push
+              "view all ledgers" off-screen for anyone with many ledgers, which
+              is exactly when that escape hatch matters most. */}
+          <div className="max-h-72 overflow-y-auto">
+            <Eyebrow className="px-2 py-1.5">{t('groups.current_ledgers')}</Eyebrow>
+            <ul className="flex flex-col gap-0.5">
+              {currentGroups.map((group) => (
+                <li key={group.id}>
+                  <GroupNavLink group={group} active={group.id === currentGroupId} />
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="border-border/70 mt-1.5 border-t pt-1.5">
+            <Link
+              href="/groups"
+              className="text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors"
+            >
+              <LayoutGrid className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate">{t('groups.view_all_ledgers')}</span>
+            </Link>
+          </div>
         </div>
       )}
     </div>
@@ -432,6 +447,15 @@ export function AppLayout() {
   const isExpenseComposer = /^\/groups\/[^/]+\/expenses\/(?:new|[^/]+\/edit)$/.test(
     location.pathname,
   );
+  // The bottom nav carries a ledger's own tabs, so it only earns its space on a
+  // ledger page. The ledger list, the new-ledger form and the account page have
+  // nothing to put in it, and the composer is a focus mode that supplies its own
+  // fixed bar.
+  const hideBottomNav =
+    isExpenseComposer ||
+    location.pathname === '/groups' ||
+    location.pathname === '/groups/new' ||
+    location.pathname.startsWith('/account');
 
   if (session.isPending) {
     return (
@@ -517,12 +541,12 @@ export function AppLayout() {
           tabIndex={-1}
           className={cn(
             'flex min-h-[calc(100svh-3.5rem)] flex-col focus-visible:outline-hidden lg:min-h-svh lg:pb-0',
-            !isExpenseComposer && 'pb-bottom-nav',
+            !hideBottomNav && 'pb-bottom-nav',
           )}
         >
           <Outlet />
         </main>
-        {isExpenseComposer ? null : (
+        {hideBottomNav ? null : (
           <MobileBottomNav
             pathname={location.pathname}
             hash={location.hash}

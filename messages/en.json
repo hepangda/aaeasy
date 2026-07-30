@@ -141,6 +141,7 @@
   },
   "groups": {
     "my_groups": "My groups",
+    "view_all_ledgers": "View all ledgers",
     "new_group": "New group",
     "empty": "You haven't created any groups yet. Create one to start tracking expenses.",
     "empty_title": "No groups yet",

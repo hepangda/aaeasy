@@ -78,6 +78,18 @@ export function SettingsPanel({
         </Card>
       ) : null}
 
+      {canReopen ? (
+        <Card as="section" padding="body" className="flex flex-col gap-3">
+          <SectionHeader
+            title={t('expenses.reopen_title')}
+            description={t('expenses.reopen_desc')}
+          />
+          <div>
+            <ReopenSettlementButton settlementId={settlementId!} />
+          </div>
+        </Card>
+      ) : null}
+
       {canShare ? (
         <Card as="section" padding="body" className="flex flex-col gap-3">
           <SectionHeader
@@ -107,18 +119,6 @@ export function SettingsPanel({
           />
           <div>
             <TransferOwnershipButton groupId={groupId} candidates={ownerCandidates} />
-          </div>
-        </Card>
-      ) : null}
-
-      {canReopen ? (
-        <Card as="section" padding="body" className="flex flex-col gap-3">
-          <SectionHeader
-            title={t('expenses.reopen_title')}
-            description={t('expenses.reopen_desc')}
-          />
-          <div>
-            <ReopenSettlementButton settlementId={settlementId!} />
           </div>
         </Card>
       ) : null}

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { cn } from '@/lib/utils';
 
@@ -45,7 +45,6 @@ export function Tabs({
   const hashTab = hashAliases[rawHashTab] ?? rawHashTab;
   const active = tabs.some((tab) => tab.id === hashTab) ? hashTab : fallback;
   const [visited, setVisited] = useState<Set<string>>(() => new Set([active]));
-  const previousActive = useRef(active);
   const tabId = (id: string) => `${idPrefix}-tab-${id}`;
   const panelId = (id: string) => `${idPrefix}-tabpanel-${id}`;
 
@@ -68,18 +67,6 @@ export function Tabs({
       return next;
     });
   }, [active]);
-
-  useEffect(() => {
-    const changed = previousActive.current !== active;
-    previousActive.current = active;
-    if (!changed || !alsoInBottomNav || !window.matchMedia('(max-width: 1023px)').matches) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      document.getElementById(`${idPrefix}-tabpanel-${active}`)?.scrollIntoView({ block: 'start' });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [active, alsoInBottomNav, idPrefix]);
 
   function activate(id: string) {
     void navigate(

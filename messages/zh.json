@@ -141,6 +141,7 @@
   },
   "groups": {
     "my_groups": "我的账本",
+    "view_all_ledgers": "查看所有账本",
     "new_group": "新建账本",
     "empty": "还没有创建账本。创建一个开始记账吧。",
     "empty_title": "还没有账本",
