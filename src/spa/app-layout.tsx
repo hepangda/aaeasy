@@ -481,17 +481,13 @@ export function AppLayout() {
 
   // The composer is a focus mode: it drops the bottom nav (which would stack a
   // second fixed bar under the form's own submit bar, and could only show the
-  // global destinations since the group tabs are unreachable mid-entry) and
-  // leads with an explicit back link to the group it belongs to.
-  const backHref = isExpenseComposer
-    ? `/groups/${routeGroupId}`
-    : location.pathname === '/groups/new'
-      ? '/groups'
-      : undefined;
+  // global destinations since the group tabs are unreachable mid-entry). The
+  // header keeps naming the group so the user does not lose that context; the
+  // way out is the Back button in the form's own bottom bar.
+  const backHref = location.pathname === '/groups/new' ? '/groups' : undefined;
 
-  const headerTitle = isExpenseComposer
-    ? t('expenses.add')
-    : location.pathname === '/groups/new'
+  const headerTitle =
+    location.pathname === '/groups/new'
       ? t('groups.new_group')
       : routeGroupId
         ? groupName
@@ -506,7 +502,7 @@ export function AppLayout() {
         <DesktopHeader
           displayName={user.displayName}
           groups={groupList}
-          currentGroupId={isExpenseComposer ? '' : routeGroupId}
+          currentGroupId={routeGroupId}
           groupName={groupName}
         />
         <MobileHeader
@@ -514,7 +510,7 @@ export function AppLayout() {
           backHref={backHref}
           title={headerTitle}
           groups={groupList}
-          currentGroupId={isExpenseComposer ? '' : routeGroupId}
+          currentGroupId={routeGroupId}
         />
         <main
           id={MAIN_CONTENT_ID}

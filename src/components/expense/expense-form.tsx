@@ -1,5 +1,6 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '@/router/navigation';
+import Link from '@/router/link';
 import { useTranslations } from 'use-intl';
 import { Minus, Plus, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -1133,19 +1134,27 @@ export function ExpenseForm({
               {blockingReason}
             </p>
           )}
-          <Button
-            type="submit"
-            disabled={submitDisabled}
-            size="lg"
-            className="w-full sm:w-auto sm:min-w-40"
-            {...(isDraftMode ? { formNoValidate: true } : {})}
-          >
-            {pending
-              ? t('expenses.submitting')
-              : isDraftMode
-                ? t('expenses.submit_draft')
-                : t('expenses.submit')}
-          </Button>
+          {/* Leaving the composer is a bottom-bar action on mobile rather than a
+              header back link, so the header can keep naming the group instead
+              of the form. Save keeps the lion's share of the width. */}
+          <div className="flex items-center gap-2 sm:contents">
+            <Button asChild type="button" variant="outline" size="lg" className="sm:hidden">
+              <Link href={`/groups/${groupId}`}>{t('common.back')}</Link>
+            </Button>
+            <Button
+              type="submit"
+              disabled={submitDisabled}
+              size="lg"
+              className="flex-1 sm:w-auto sm:min-w-40 sm:flex-none"
+              {...(isDraftMode ? { formNoValidate: true } : {})}
+            >
+              {pending
+                ? t('expenses.submitting')
+                : isDraftMode
+                  ? t('expenses.submit_draft')
+                  : t('expenses.submit')}
+            </Button>
+          </div>
         </div>
       </div>
     </form>
