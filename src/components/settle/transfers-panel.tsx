@@ -194,16 +194,13 @@ export function TransfersPanel({
                 s.fromMemberId === boundMemberId ||
                 s.toMemberId === boundMemberId;
               return (
-                <li
-                  key={i}
-                  className="flex flex-col items-stretch gap-2.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
+                <li key={i} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
                     <span className="min-w-0 truncate font-semibold">{s.fromName}</span>
-                    <ArrowRight className="text-muted-foreground size-4" />
+                    <ArrowRight className="text-muted-foreground size-4 shrink-0" />
                     <span className="min-w-0 truncate font-semibold">{s.toName}</span>
                   </span>
-                  <span className="flex items-center justify-between gap-3 sm:justify-end">
+                  <span className="flex shrink-0 items-center gap-2">
                     <span className="font-mono whitespace-nowrap tabular-nums">{s.amountText}</span>
                     {canEdit && involves && (
                       <Button
@@ -212,10 +209,15 @@ export function TransfersPanel({
                         variant="outline"
                         onClick={() => execute(s)}
                         disabled={pending}
-                        className="border-positive/50 text-positive-ink hover:bg-positive/10 hover:text-positive-ink"
+                        // Below `sm` the label is dropped and the check mark
+                        // carries the action: two names, an amount and a
+                        // four-character button do not fit on 375px, and the
+                        // names are what makes the row readable.
+                        aria-label={t('settlements.execute')}
+                        className="border-positive/50 text-positive-ink hover:bg-positive/10 hover:text-positive-ink max-sm:size-9 max-sm:px-0"
                       >
                         <Check data-icon="inline-start" />
-                        {t('settlements.execute')}
+                        <span className="max-sm:sr-only">{t('settlements.execute')}</span>
                       </Button>
                     )}
                   </span>
