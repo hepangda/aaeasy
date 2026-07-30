@@ -1,5 +1,5 @@
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from '@/compat/navigation';
+import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { ArrowRight, Check, ChevronDown, Copy, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';

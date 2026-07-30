@@ -49,7 +49,7 @@ PostgreSQL 是业务数据的唯一事实来源。DO 不保存完整账本，只
 - 让同一 Hono Worker 统一处理 API、WebSocket 和 PDF；
 - 避免为了兼容旧框架继续维护 OpenNext 适配层。
 
-现有组件通过小型 React Router compatibility helpers 迁移，随后 compatibility 文件也已使用中性命名，不依赖 Next runtime。
+现有组件通过 `src/router/` 下的小型 React Router helpers 迁移，不依赖 Next runtime。
 
 ## 数据层
 

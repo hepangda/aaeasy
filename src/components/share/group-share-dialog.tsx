@@ -1,5 +1,5 @@
 import { useState, useTransition } from 'react';
-import { useRouter } from '@/compat/navigation';
+import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { Copy, Forward, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

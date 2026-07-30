@@ -1,5 +1,5 @@
 import { useEffect, useState, useTransition, type FormEvent } from 'react';
-import { useRouter } from '@/compat/navigation';
+import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import {
   AtSign,

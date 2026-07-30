@@ -1,6 +1,6 @@
 import { useCallback, useTransition } from 'react';
 import { useTranslations } from 'use-intl';
-import { useRouter } from '@/compat/navigation';
+import { useRouter } from '@/router/navigation';
 import { useConfirm, type ConfirmOptions } from '@/components/ui/confirm-dialog';
 import { showI18nError, successToast } from '@/lib/ui/toast';
 

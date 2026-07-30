@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { Pencil, ReceiptText, StickyNote } from 'lucide-react';
 import { useLocale, useTranslations } from 'use-intl';
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import { DeleteExpenseButton } from '@/components/expense/delete-expense-button';
 import { SplitBadge } from '@/components/expense/split-badge';
 import { LedgerMemberAvatar } from '@/components/ledger/member-avatar';

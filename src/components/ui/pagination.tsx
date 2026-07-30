@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslations } from 'use-intl';
-import { useRouter, usePathname, useSearchParams } from '@/compat/navigation';
+import { useRouter, usePathname, useSearchParams } from '@/router/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -42,7 +42,7 @@ export function Pagination({
     // Preserve the hash (tab state) so paginating doesn't kick the user to
     // a different tab.
     const hash = typeof window !== 'undefined' ? window.location.hash : '';
-    router.push(`${pathname}${qs ? `?${qs}` : ''}${hash}`, { scroll: false });
+    router.push(`${pathname}${qs ? `?${qs}` : ''}${hash}`);
   }
 
   return (

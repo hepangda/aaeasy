@@ -1,5 +1,5 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from '@/compat/navigation';
+import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { Minus, Plus, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';

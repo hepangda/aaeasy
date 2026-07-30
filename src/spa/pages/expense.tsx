@@ -1,4 +1,4 @@
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, useParams } from 'react-router';
 import { useTranslations } from 'use-intl';

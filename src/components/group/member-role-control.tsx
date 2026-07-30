@@ -1,5 +1,5 @@
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from '@/compat/navigation';
+import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { Select } from '@/components/ui/select';
 import { setMemberRoleAction } from '@/spa/actions/groups';

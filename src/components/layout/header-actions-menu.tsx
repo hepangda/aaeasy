@@ -1,4 +1,4 @@
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import { useTransition } from 'react';
 import { useLocale, useTranslations } from 'use-intl';
 import { Check, Languages, Laptop, LogIn, LogOut, Menu, Moon, Sun, User } from 'lucide-react';

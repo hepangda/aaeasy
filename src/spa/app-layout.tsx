@@ -1,4 +1,4 @@
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRightLeft,

@@ -1,4 +1,4 @@
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import { Navigate, useParams, useSearchParams } from 'react-router';
 import { useFormatter, useLocale, useTranslations } from 'use-intl';
 import { Plus } from 'lucide-react';

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'use-intl';
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import { Button } from '@/components/ui/button';
 import { safeInternalPath } from '../navigation';
 import { LoadingPage } from '../page-state';

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useTranslations } from 'use-intl';
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import type { LedgerMember } from '@/spa/types';
 import { LedgerMemberStack } from '@/components/ledger/member-avatar';
 import { Button } from '@/components/ui/button';

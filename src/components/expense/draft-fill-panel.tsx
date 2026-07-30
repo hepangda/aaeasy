@@ -9,7 +9,7 @@
  */
 
 import { useState, useTransition } from 'react';
-import { useRouter } from '@/compat/navigation';
+import { useRouter } from '@/router/navigation';
 import { useTranslations, useFormatter } from 'use-intl';
 import { Button } from '@/components/ui/button';
 import { NumericInput } from '@/components/ui/numeric-input';

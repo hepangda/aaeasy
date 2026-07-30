@@ -1,4 +1,4 @@
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import { ArrowRight, ReceiptText } from 'lucide-react';
 import { Navigate } from 'react-router';
 import { useTranslations } from 'use-intl';

@@ -6,20 +6,11 @@ export function useRouter() {
   const navigate = useNavigate();
   return useMemo(
     () => ({
-      push(href: string, _options?: { scroll?: boolean }) {
+      push(href: string) {
         navigate(href);
-      },
-      replace(href: string) {
-        navigate(href, { replace: true });
-      },
-      back() {
-        navigate(-1);
       },
       refresh() {
         refreshQueries();
-      },
-      prefetch() {
-        return Promise.resolve();
       },
     }),
     [navigate],
@@ -32,14 +23,4 @@ export function usePathname(): string {
 
 export function useSearchParams(): URLSearchParams {
   return useRouterSearchParams()[0];
-}
-
-export function redirect(href: string): never {
-  window.location.replace(href);
-  throw new Error('REDIRECT');
-}
-
-export function notFound(): never {
-  window.location.replace('/404');
-  throw new Error('NOT_FOUND');
 }

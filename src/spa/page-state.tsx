@@ -1,4 +1,4 @@
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import { useLocation } from 'react-router';
 import { useTranslations } from 'use-intl';
 import { ArrowLeft, CircleAlert, RefreshCw } from 'lucide-react';

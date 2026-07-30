@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import Link from '@/compat/link';
+import Link from '@/router/link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
