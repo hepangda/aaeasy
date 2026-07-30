@@ -10,10 +10,10 @@ import { Pagination } from '@/components/ui/pagination';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { Card, CardHeader } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatMoney } from '@/lib/money';
-import { splitInputStateSchema } from '@/lib/split/input-state';
+import { formatMoney } from '@aaeasy/core/money';
+import { splitInputStateSchema } from '@aaeasy/core/split-input-state';
 import { classifyPersistedSplit } from '@/lib/split/intent';
-import { splitRuleSchema } from '@/lib/split/types';
+import { splitRuleSchema } from '@aaeasy/core/split-types';
 import type { LedgerExpense, LedgerMember } from '@/spa/types';
 
 interface DateGroup {

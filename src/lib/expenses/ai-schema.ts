@@ -5,8 +5,8 @@
  */
 
 import { z } from 'zod';
-import { isCurrencyCode } from '@/lib/money';
-import type { SplitInputRow } from '@/lib/split/input-state';
+import { isCurrencyCode } from '@aaeasy/core/money';
+import type { SplitInputRow } from '@aaeasy/core/split-input-state';
 
 export type AiParseErrorCode =
   | 'NOT_CONFIGURED'

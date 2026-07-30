@@ -1,16 +1,9 @@
 CREATE TYPE "public"."AuditActorType" AS ENUM('USER', 'SHARE');--> statement-breakpoint
-CREATE TYPE "public"."AuthChallengeType" AS ENUM('REG', 'AUTH');--> statement-breakpoint
 CREATE TYPE "public"."GroupRole" AS ENUM('OWNER', 'MANAGER', 'MEMBER', 'VIEWER');--> statement-breakpoint
 CREATE TYPE "public"."GroupStatus" AS ENUM('ACTIVE', 'ARCHIVED');--> statement-breakpoint
 CREATE TYPE "public"."InvitationStatus" AS ENUM('PENDING', 'ACCEPTED', 'REJECTED', 'CANCELED', 'EXPIRED');--> statement-breakpoint
 CREATE TYPE "public"."ShareScope" AS ENUM('READ', 'WRITE');--> statement-breakpoint
 CREATE TYPE "public"."SplitRuleType" AS ENUM('EQUAL', 'SUBSET', 'WEIGHTED');--> statement-breakpoint
-CREATE TABLE "allowed_usernames" (
-	"username" text PRIMARY KEY NOT NULL,
-	"createdAt" timestamp (3) DEFAULT now() NOT NULL,
-	"createdById" text
-);
---> statement-breakpoint
 CREATE TABLE "audit_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"groupId" text NOT NULL,
@@ -20,15 +13,6 @@ CREATE TABLE "audit_logs" (
 	"targetType" text NOT NULL,
 	"targetId" text NOT NULL,
 	"diffJson" jsonb,
-	"createdAt" timestamp (3) DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "auth_challenges" (
-	"id" text PRIMARY KEY NOT NULL,
-	"type" "AuthChallengeType" NOT NULL,
-	"challenge" text NOT NULL,
-	"userId" text,
-	"expiresAt" timestamp (3) NOT NULL,
 	"createdAt" timestamp (3) DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -58,7 +42,8 @@ CREATE TABLE "expenses" (
 	"createdAt" timestamp (3) DEFAULT now() NOT NULL,
 	"updatedAt" timestamp (3) NOT NULL,
 	"deletedAt" timestamp (3),
-	"lockedBySettlementId" text
+	"lockedBySettlementId" text,
+	"version" integer DEFAULT 1 NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "fx_rate_cache" (
@@ -101,7 +86,8 @@ CREATE TABLE "groups" (
 	"createdById" text,
 	"createdAt" timestamp (3) DEFAULT now() NOT NULL,
 	"updatedAt" timestamp (3) NOT NULL,
-	"deletedAt" timestamp (3)
+	"deletedAt" timestamp (3),
+	"revision" bigint DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "members" (
@@ -114,36 +100,6 @@ CREATE TABLE "members" (
 	"createdAt" timestamp (3) DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "passkey_credentials" (
-	"id" text PRIMARY KEY NOT NULL,
-	"userId" text NOT NULL,
-	"publicKey" "bytea" NOT NULL,
-	"counter" bigint NOT NULL,
-	"transports" text[] DEFAULT ARRAY[]::text[],
-	"deviceLabel" text,
-	"createdAt" timestamp (3) DEFAULT now() NOT NULL,
-	"lastUsedAt" timestamp (3)
-);
---> statement-breakpoint
-CREATE TABLE "password_credentials" (
-	"id" text PRIMARY KEY NOT NULL,
-	"userId" text NOT NULL,
-	"passwordHash" text NOT NULL,
-	"label" text,
-	"createdAt" timestamp (3) DEFAULT now() NOT NULL,
-	"lastUsedAt" timestamp (3)
-);
---> statement-breakpoint
-CREATE TABLE "receipts" (
-	"id" text PRIMARY KEY NOT NULL,
-	"expenseId" text NOT NULL,
-	"objectKey" text NOT NULL,
-	"mime" text NOT NULL,
-	"sizeBytes" integer NOT NULL,
-	"uploadedById" text,
-	"createdAt" timestamp (3) DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "sessions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"tokenHash" text NOT NULL,
@@ -151,6 +107,9 @@ CREATE TABLE "sessions" (
 	"expiresAt" timestamp (3) NOT NULL,
 	"userAgent" text,
 	"ipHash" text,
+	"oidcTokens" text NOT NULL,
+	"oidcValidatedAt" timestamp (3) NOT NULL,
+	"isSuperAdmin" boolean DEFAULT false NOT NULL,
 	"createdAt" timestamp (3) DEFAULT now() NOT NULL,
 	"lastSeenAt" timestamp (3) DEFAULT now() NOT NULL
 );
@@ -203,14 +162,13 @@ CREATE TABLE "users" (
 	"id" text PRIMARY KEY NOT NULL,
 	"displayName" text NOT NULL,
 	"username" text,
-	"passwordHash" text,
-	"isSuperAdmin" boolean DEFAULT false NOT NULL,
+	"email" text,
+	"picture" text,
 	"createdAt" timestamp (3) DEFAULT now() NOT NULL,
 	"updatedAt" timestamp (3) NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_groupId_groups_id_fk" FOREIGN KEY ("groupId") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "auth_challenges" ADD CONSTRAINT "auth_challenges_userId_users_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "expense_splits" ADD CONSTRAINT "expense_splits_expenseId_expenses_id_fk" FOREIGN KEY ("expenseId") REFERENCES "public"."expenses"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "expense_splits" ADD CONSTRAINT "expense_splits_memberId_members_id_fk" FOREIGN KEY ("memberId") REFERENCES "public"."members"("id") ON DELETE restrict ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "expenses" ADD CONSTRAINT "expenses_groupId_groups_id_fk" FOREIGN KEY ("groupId") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
@@ -226,10 +184,6 @@ ALTER TABLE "group_memberships" ADD CONSTRAINT "group_memberships_groupId_groups
 ALTER TABLE "groups" ADD CONSTRAINT "groups_createdById_users_id_fk" FOREIGN KEY ("createdById") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "members" ADD CONSTRAINT "members_groupId_groups_id_fk" FOREIGN KEY ("groupId") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "members" ADD CONSTRAINT "members_linkedUserId_users_id_fk" FOREIGN KEY ("linkedUserId") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "passkey_credentials" ADD CONSTRAINT "passkey_credentials_userId_users_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "password_credentials" ADD CONSTRAINT "password_credentials_userId_users_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "receipts" ADD CONSTRAINT "receipts_expenseId_expenses_id_fk" FOREIGN KEY ("expenseId") REFERENCES "public"."expenses"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "receipts" ADD CONSTRAINT "receipts_uploadedById_users_id_fk" FOREIGN KEY ("uploadedById") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_users_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "settlement_entries" ADD CONSTRAINT "settlement_entries_groupId_groups_id_fk" FOREIGN KEY ("groupId") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "settlement_entries" ADD CONSTRAINT "settlement_entries_fromMemberId_members_id_fk" FOREIGN KEY ("fromMemberId") REFERENCES "public"."members"("id") ON DELETE restrict ON UPDATE cascade;--> statement-breakpoint
@@ -243,8 +197,6 @@ ALTER TABLE "share_links" ADD CONSTRAINT "share_links_createdById_users_id_fk" F
 ALTER TABLE "share_sessions" ADD CONSTRAINT "share_sessions_shareLinkId_share_links_id_fk" FOREIGN KEY ("shareLinkId") REFERENCES "public"."share_links"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 CREATE INDEX "audit_logs_groupId_createdAt_idx" ON "audit_logs" USING btree ("groupId","createdAt");--> statement-breakpoint
 CREATE INDEX "audit_logs_targetType_targetId_idx" ON "audit_logs" USING btree ("targetType","targetId");--> statement-breakpoint
-CREATE INDEX "auth_challenges_userId_idx" ON "auth_challenges" USING btree ("userId");--> statement-breakpoint
-CREATE INDEX "auth_challenges_expiresAt_idx" ON "auth_challenges" USING btree ("expiresAt");--> statement-breakpoint
 CREATE INDEX "expense_splits_memberId_idx" ON "expense_splits" USING btree ("memberId");--> statement-breakpoint
 CREATE UNIQUE INDEX "expense_splits_expenseId_memberId_key" ON "expense_splits" USING btree ("expenseId","memberId");--> statement-breakpoint
 CREATE INDEX "expenses_groupId_occurredAt_idx" ON "expenses" USING btree ("groupId","occurredAt");--> statement-breakpoint
@@ -261,9 +213,6 @@ CREATE INDEX "groups_createdById_idx" ON "groups" USING btree ("createdById");--
 CREATE INDEX "groups_deletedAt_idx" ON "groups" USING btree ("deletedAt");--> statement-breakpoint
 CREATE INDEX "members_groupId_idx" ON "members" USING btree ("groupId");--> statement-breakpoint
 CREATE INDEX "members_linkedUserId_idx" ON "members" USING btree ("linkedUserId");--> statement-breakpoint
-CREATE INDEX "passkey_credentials_userId_idx" ON "passkey_credentials" USING btree ("userId");--> statement-breakpoint
-CREATE INDEX "password_credentials_userId_idx" ON "password_credentials" USING btree ("userId");--> statement-breakpoint
-CREATE INDEX "receipts_expenseId_idx" ON "receipts" USING btree ("expenseId");--> statement-breakpoint
 CREATE UNIQUE INDEX "sessions_tokenHash_key" ON "sessions" USING btree ("tokenHash");--> statement-breakpoint
 CREATE INDEX "sessions_userId_idx" ON "sessions" USING btree ("userId");--> statement-breakpoint
 CREATE INDEX "sessions_expiresAt_idx" ON "sessions" USING btree ("expiresAt");--> statement-breakpoint

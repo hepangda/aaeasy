@@ -1,5 +1,5 @@
-import type { SplitInputState } from '@/lib/split/input-state';
-import type { SplitRule } from '@/lib/split/types';
+import type { SplitInputState } from '@aaeasy/core/split-input-state';
+import type { SplitRule } from '@aaeasy/core/split-types';
 import { actionRequest, formString } from '@/spa/api';
 
 export type ExpenseActionState = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeSplit, SplitError } from './index';
-import type { SplitRule } from './types';
+import { computeSplit, SplitError } from './split';
+import type { SplitRule } from './split-types';
 
 function totalOf(m: Map<string, bigint>): bigint {
   let s = 0n;

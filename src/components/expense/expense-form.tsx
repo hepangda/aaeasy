@@ -21,10 +21,10 @@ import {
 import { errorToast, showI18nError, successToast } from '@/lib/ui/toast';
 import { describeSplitIntent } from '@/lib/split/intent';
 import { distribute, parseMajorMinor, parseSignedMajorMinor } from '@/lib/split/allocate';
-import type { SplitRule } from '@/lib/split/types';
-import type { SplitInputState, SplitInputRow } from '@/lib/split/input-state';
-import { computeSplit } from '@/lib/split';
-import { formatMinor, isCurrencyCode, minorUnits } from '@/lib/money';
+import type { SplitRule } from '@aaeasy/core/split-types';
+import type { SplitInputState, SplitInputRow } from '@aaeasy/core/split-input-state';
+import { computeSplit } from '@aaeasy/core/split';
+import { formatMinor, isCurrencyCode, minorUnits } from '@aaeasy/core/money';
 import { mergeAiRows, type CurrentSnapshot } from '@/lib/expenses/ai-schema';
 import { useAiParseStream } from '@/lib/expenses/use-ai-parse-stream';
 

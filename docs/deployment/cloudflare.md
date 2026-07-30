@@ -22,18 +22,11 @@ Browser Run Free 当前提供每天 10 分钟、每账户 3 个并发 browser se
 
 若使用 Neon，为 Hyperdrive 复制 **未启用 Neon connection pooling** 的连接串。Hyperdrive 已负责连接池，不要再套一层 Neon pooler。参见 [Hyperdrive 连接 Neon](https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-database-providers/neon/)。
 
-全新数据库：
+应用 schema：
 
 ```sh
 export DIRECT_DATABASE_URL='postgresql://migration-role:...@.../aaeasy?sslmode=require'
 pnpm db:migrate
-```
-
-既有 AAEasy 数据库：
-
-```sh
-export DIRECT_DATABASE_URL='postgresql://migration-role:...@.../aaeasy?sslmode=require'
-pnpm db:adopt -- --yes
 ```
 
 不要把生产连接串放进 `wrangler.jsonc`。Worker 只读取 `env.HYPERDRIVE.connectionString`。
@@ -201,23 +194,7 @@ Browser Run 已预装 Noto CJK 和 WenQuanYi Zen Hei，当前 PDF CSS 优先使�
 - PDF 429 会返回 `Retry-After`；不要由客户端紧密重试。
 - `GroupRoom` 只保存最近 256 个 revision events。断线超过窗口时客户端收到 `resync` 并重新拉取 PostgreSQL 快照。
 
-## 10. 下线小票功能后的清理（一次性）
+## 10. 回滚
 
-小票功能已移除。`0003_drop_receipts` 会删掉 `receipts` 表，但 **R2 中的对象不会被自动删除** —— Worker 已不再持有 `RECEIPTS` binding，无法在迁移里清理。表一旦删除，`objectKey` 索引也随之消失，因此请在执行迁移**之前**先导出一份对象清单备查，确认无需保留后再删除整个 bucket：
-
-```sh
-# 1. 迁移前：留存清单（可选，但删表后无法再关联回费用）
-psql "$DATABASE_URL" -c '\copy (SELECT "objectKey" FROM receipts) TO STDOUT' > receipts-objectkeys.txt
-
-# 2. 确认无需保留后，删除 bucket 内全部对象并移除 bucket
-pnpm exec wrangler r2 bucket delete aaeasy-receipts
-```
-
-`wrangler r2 bucket delete` 要求 bucket 为空；对象较多时先用 `wrangler r2 object delete` 或在 Dashboard 配置一条 lifecycle rule 批量过期。
-
-## 11. 回滚
-
-- DNS 切换前保留旧应用只读版本和数据库备份。
-- `0003_drop_receipts` 不可逆：小票表与 R2 对象删除后无法恢复，回滚到含小票功能的版本必须同时恢复迁移前数据库和 bucket。
-- OIDC migration 会删除本地密码、Passkey、挑战、注册白名单并清空旧 AAEasy session；旧版本应用无法在该 schema 上恢复登录。上线前必须保留数据库备份，若需回滚旧版本必须同时恢复迁移前数据库。
+- 切换 DNS 前保留数据库备份。
 - DO 或 Browser Run 故障不要求回滚数据库：前者只影响实时刷新，后者只影响 PDF。

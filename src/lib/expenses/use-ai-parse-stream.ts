@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AiParseErrorCode, ParseFieldName, CurrentSnapshot } from '@/lib/expenses/ai-schema';
-import type { SplitInputRow } from '@/lib/split/input-state';
+import type { SplitInputRow } from '@aaeasy/core/split-input-state';
 
 export interface AiImage {
   name: string;

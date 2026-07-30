@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js';
-import { classifySplit, type SplitClass } from './classify';
-import type { SplitInputRow, SplitInputState } from './input-state';
-import type { SplitRule } from './types';
+import { classifySplit, type SplitClass } from '@aaeasy/core/split-classify';
+import type { SplitInputRow, SplitInputState } from '@aaeasy/core/split-input-state';
+import type { SplitRule } from '@aaeasy/core/split-types';
 
 type IntentRow = Pick<SplitInputRow, 'memberId' | 'checked' | 'shares' | 'extraText'>;
 

@@ -10,7 +10,7 @@ import {
   minorUnits,
   parseAmountToMinor,
   sumBig,
-} from './index';
+} from './money';
 
 describe('minorUnits', () => {
   it('defaults to 2', () => {

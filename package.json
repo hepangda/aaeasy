@@ -25,7 +25,6 @@
     "cf:typegen": "wrangler types --env production --env-file /dev/null && prettier --write worker-configuration.d.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:adopt": "tsx scripts/adopt-drizzle.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

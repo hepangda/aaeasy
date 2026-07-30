@@ -3,7 +3,7 @@ import { LedgerMemberAvatar } from '@/components/ledger/member-avatar';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { toneForAmount } from '@/components/ui/amount-row';
-import { formatMoney } from '@/lib/money';
+import { formatMoney } from '@aaeasy/core/money';
 import { cn } from '@/lib/utils';
 import type { HydratedLedger, LedgerMember } from '@/spa/types';
 

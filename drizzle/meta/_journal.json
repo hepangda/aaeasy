@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1783881036975,
+      "when": 1785395166074,
       "tag": "0000_baseline",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1783881037399,
-      "tag": "0001_cloudflare-revisions",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1784105531538,
-      "tag": "0002_lucky_sentinels",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1785382358375,
-      "tag": "0003_drop_receipts",
       "breakpoints": true
     }
   ]

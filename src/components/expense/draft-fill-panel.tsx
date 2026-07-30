@@ -16,7 +16,7 @@ import { NumericInput } from '@/components/ui/numeric-input';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { fillDraftsAction } from '@/spa/actions/expenses';
 import { showI18nError, successToast } from '@/lib/ui/toast';
-import { formatMinor, minorUnits } from '@/lib/money';
+import { formatMinor, minorUnits } from '@aaeasy/core/money';
 
 export interface DraftRow {
   expenseId: string;

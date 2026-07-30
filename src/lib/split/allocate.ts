@@ -1,5 +1,5 @@
 import Decimal from 'decimal.js';
-import { parseAmountToMinor } from '@/lib/money';
+import { parseAmountToMinor } from '@aaeasy/core/money';
 
 /**
  * Pure money helpers for the split editor. Extracted from `expense-form.tsx`

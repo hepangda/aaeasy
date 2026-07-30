@@ -15,6 +15,7 @@ export default defineConfig({
     include: [
       'src/**/*.{test,spec}.{ts,tsx}',
       'packages/contracts/src/**/*.{test,spec}.ts',
+      'packages/core/src/**/*.{test,spec}.ts',
       'packages/db/src/**/*.{test,spec}.ts',
       'worker/src/**/*.{test,spec}.ts',
     ],

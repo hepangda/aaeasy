@@ -4,7 +4,6 @@ type EnvironmentConfig = {
   name?: string;
   vars?: Record<string, string>;
   hyperdrive?: Array<{ binding?: string; id?: string }>;
-  r2_buckets?: Array<{ binding?: string; bucket_name?: string }>;
   browser?: { binding?: string };
   durable_objects?: { bindings?: Array<{ name?: string; class_name?: string }> };
 };
@@ -13,13 +12,45 @@ type WranglerConfig = {
   env?: { production?: EnvironmentConfig };
 };
 
+// wrangler.jsonc is JSONC: it may carry comments and trailing commas, which
+// JSON.parse rejects. Strip both while leaving string literals untouched.
+function stripJsonc(source: string): string {
+  let output = '';
+  let index = 0;
+  while (index < source.length) {
+    const char = source[index];
+    if (char === '"') {
+      const start = index;
+      index += 1;
+      while (index < source.length && source[index] !== '"') {
+        index += source[index] === '\\' ? 2 : 1;
+      }
+      index += 1;
+      output += source.slice(start, index);
+      continue;
+    }
+    if (char === '/' && source[index + 1] === '/') {
+      while (index < source.length && source[index] !== '\n') index += 1;
+      continue;
+    }
+    if (char === '/' && source[index + 1] === '*') {
+      const end = source.indexOf('*/', index + 2);
+      index = end === -1 ? source.length : end + 2;
+      continue;
+    }
+    output += char;
+    index += 1;
+  }
+  return output.replace(/,(?=\s*[}\]])/gu, '');
+}
+
 async function main() {
   const source = await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
   let config: WranglerConfig;
   try {
-    config = JSON.parse(source) as WranglerConfig;
+    config = JSON.parse(stripJsonc(source)) as WranglerConfig;
   } catch {
-    throw new Error('wrangler.jsonc must remain valid JSON so deployment validation can parse it');
+    throw new Error('wrangler.jsonc must remain valid JSONC so deployment validation can parse it');
   }
 
   const production = config.env?.production;

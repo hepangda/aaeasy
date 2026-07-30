@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { addSettlementEntryAction, deleteSettlementEntryAction } from '@/spa/actions/settlements';
 import { showI18nError } from '@/lib/ui/toast';
-import { formatMinor, minorUnits } from '@/lib/money';
+import { formatMinor, minorUnits } from '@aaeasy/core/money';
 
 export interface MemberLite {
   id: string;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classifyPersistedSplit, describeSplitIntent } from './intent';
-import type { SplitInputState } from './input-state';
+import type { SplitInputState } from '@aaeasy/core/split-input-state';
 
 const rows = (
   values: Array<[memberId: string, checked: boolean, shares: string, extraText?: string]>,

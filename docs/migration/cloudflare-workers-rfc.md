@@ -3,8 +3,8 @@
 ## 状态
 
 - 实施状态：代码迁移已完成；生产资源 ID、最终域名和数据切流由部署阶段填写。
-- 最近更新：2026-07-15。
-- 明确移除：Next.js、Prisma、PostgreSQL `LISTEN/NOTIFY`、Vercel Blob、React PDF、ExcelJS / XLSX、生产 Container。
+- 最近更新：2026-07-30。
+- 明确移除：Next.js、Prisma、PostgreSQL `LISTEN/NOTIFY`、Vercel Blob、React PDF、ExcelJS / XLSX、生产 Container、小票（receipts）与 R2。
 - 保留：React UI、匿名分享、AI 流式解析、CSV、PDF、PWA；登录统一迁移到 Pangda Auth OIDC。
 
 ## 架构决策
@@ -16,7 +16,6 @@
 - 数据库：PostgreSQL；推荐 Neon，Worker 统一通过 Hyperdrive 连接。
 - ORM：Drizzle ORM + Postgres.js。
 - 实时：每个账本一个 Durable Object，使用 WebSocket Hibernation API。
-- 文件：私有 R2 bucket，Worker 负责鉴权、限流、上传和下载。
 - PDF：Cloudflare Browser Run Puppeteer binding，把专用 HTML/CSS 打印为 PDF。
 - 限流：RateLimiter Durable Object。
 - 身份：Pangda Auth / KeyForge OIDC authorization code + S256 PKCE；AAEasy 不保存登录凭据。
@@ -33,7 +32,6 @@ flowchart LR
   Room --> RoomStorage["DO Storage: recent revision events"]
   Worker -->|"Postgres.js"| Hyperdrive["Hyperdrive"]
   Hyperdrive --> Neon["PostgreSQL / Neon"]
-  Worker -->|"private object I/O"| R2["R2 receipts"]
   Worker -->|"HTML to PDF"| BrowserRun["Browser Run"]
   Worker -->|"LLM stream"| AIGateway["AI Gateway / provider"]
   Browser -->|"OIDC authorization code + PKCE"| Auth["Pangda Auth"]
@@ -48,24 +46,16 @@ PostgreSQL 是业务数据的唯一事实来源。DO 不保存完整账本，只
 
 - 删除 Server Actions、RSC 和 `next/*` 导航耦合；
 - 用稳定的 JSON DTO 明确 bigint、decimal 和 date 序列化；
-- 让同一 Hono Worker 统一处理 API、WebSocket、R2 和 PDF；
+- 让同一 Hono Worker 统一处理 API、WebSocket 和 PDF；
 - 避免为了兼容旧框架继续维护 OpenNext 适配层。
 
 现有组件通过小型 React Router compatibility helpers 迁移，随后 compatibility 文件也已使用中性命名，不依赖 Next runtime。
 
 ## 数据层
 
-`packages/db/src/schema.ts` 当前定义 15 张 Drizzle PostgreSQL 表。迁移目录包含：
+`packages/db/src/schema.ts` 当前定义 14 张 Drizzle PostgreSQL 表。迁移目录只包含 `0000_baseline.sql`（可从空数据库建立完整 schema）以及对应的 Drizzle snapshot 和 journal。
 
-- `0000_baseline.sql`：可从空数据库建立完整 schema；
-- `0001_cloudflare-revisions.sql`：增加 `groups.revision` 和 `expenses.version`；
-- `0002_lucky_sentinels.sql`：保留业务用户 ID，删除本地凭据/注册表并把 session 切换为加密 OIDC token set；
-- Drizzle snapshots 和 journal。
-
-两种数据库路径：
-
-1. 新库运行 `pnpm db:migrate`；
-2. 既有 Prisma schema 运行 `pnpm db:adopt -- --yes`，验证表后登记 baseline。
+数据库通过 `pnpm db:migrate` 应用 schema。
 
 Worker 在每次请求中创建独立的 Postgres.js / Drizzle client，不在全局作用域缓存连接。边缘连接会随请求结束自动清理，底层数据库连接复用由 Hyperdrive 负责。
 
@@ -93,7 +83,6 @@ type GroupEvent = {
     | 'expense.created'
     | 'expense.updated'
     | 'expense.deleted'
-    | 'receipt.changed'
     | 'member.changed'
     | 'group.updated'
     | 'settlement.changed';
@@ -111,18 +100,6 @@ type GroupEvent = {
 - WebSocket 断线采用 jittered exponential backoff 重连，并发送 heartbeat。
 
 数据库提交和 DO publish 不存在跨存储事务。若 publish 失败，后续连接会发现 revision 缺口并 resync；API 写入本身不回滚。
-
-## R2 小票
-
-- 文件上限 5 MiB，允许 JPEG、PNG、WebP、GIF、HEIC 和 PDF。
-- Worker 对 request body 做流式上限检查，避免无 `Content-Length` 时读入超大 body。
-- object key 使用 `groups/{groupId}/expenses/{expenseId}/{random}.{ext}`。
-- R2 先写、数据库后写；数据库失败时删除刚写入的对象。
-- 删除 receipt 时先提交数据库，再通过 `waitUntil` 删除 R2 object。
-- 删除拥有者账号时一次性事务删除数据库数据，并分批清理关联 R2 objects。
-- bucket 始终私有，下载必须通过 Worker 的 group access check。
-
-旧对象按数据库 `receipts.objectKey` 原样复制。仓库提供 provider-neutral JSONL importer，详见 [`data-cutover.md`](data-cutover.md)。
 
 ## PDF 与 CSV
 
@@ -158,21 +135,18 @@ worker/src/routes/    Hono API
 worker/src/auth/      OIDC、服务端 session、group access、claim
 worker/src/durable-objects/
 worker/src/export/    CSV 与 Browser Run PDF
-worker/src/storage/   R2 key、body limit、批量清理
 packages/core/        money、split、ledger、settle 纯函数
 packages/contracts/   Zod 输入、DTO、事件协议
 packages/db/          Drizzle schema 和 Hyperdrive client
-drizzle/              baseline、revision migration、metadata
+drizzle/              baseline migration 与 metadata
 ```
 
 ## 实施结果
 
 - React SPA、Hono API、Drizzle 数据层、Pangda Auth OIDC、分享、邀请、结算、AI、PWA 已迁移。
 - `GroupRoom` 和 `RateLimiter` Durable Objects 已实现并配置 migrations。
-- PostgreSQL 新库 migration 与旧 schema adoption 均在临时数据库验证通过。
-- R2 raw upload、鉴权下载、删除和账号级对象清理已实现。
 - Browser Run PDF 和 Worker-native CSV 已实现。
-- Next、Prisma、Vercel Blob、React PDF、ExcelJS、`pg` 和生产 Dockerfile 已移除。
-- 类型检查、ESLint、107+ Vitest tests、Vite production build 和 Wrangler dry-run 已接入。
+- Next、Prisma、Vercel Blob、React PDF、ExcelJS、`pg`、R2 小票和生产 Dockerfile 已移除。
+- 类型检查、ESLint、Vitest、Vite production build 和 Wrangler dry-run 已接入。
 
-生产上线只剩外部状态：创建真实 Hyperdrive / R2、在两个 KeyForge 环境注册 AAEasy resource/client、设置 secrets、复制生产数据和切域名。执行手册见 [`../deployment/cloudflare.md`](../deployment/cloudflare.md) 与 [`data-cutover.md`](data-cutover.md)。
+生产上线只剩外部状态：创建真实 Hyperdrive、在 KeyForge 注册 AAEasy resource/client、设置 secrets 和切域名。执行手册见 [`../deployment/cloudflare.md`](../deployment/cloudflare.md)。

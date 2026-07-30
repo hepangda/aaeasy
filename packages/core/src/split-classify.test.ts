@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { classifySplit } from './classify';
-import type { SplitRule } from './types';
+import { classifySplit } from './split-classify';
+import type { SplitRule } from './split-types';
 
 describe('classifySplit', () => {
   it('SOLO when only one person owes', () => {

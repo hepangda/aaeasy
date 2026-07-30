@@ -12,7 +12,6 @@ flowchart LR
   DO --> DOStore["DO Storage: revision event history"]
   Worker -->|"postgres.js"| Hyperdrive["Cloudflare Hyperdrive"]
   Hyperdrive --> Postgres["PostgreSQL / Neon"]
-  Worker -->|"私有对象"| R2["R2 receipts"]
   Worker -->|"HTML + CSS"| BrowserRun["Cloudflare Browser Run"]
   Worker -->|"OpenAI-compatible API"| AI["AI Gateway / model provider"]
   Browser -->|"OIDC authorization code + PKCE"| Auth["Pangda Auth / KeyForge"]
@@ -26,12 +25,11 @@ flowchart LR
 | 数据 | Drizzle ORM + Postgres.js + Hyperdrive；推荐 Neon 作为托管 PostgreSQL |
 | 实时 | Durable Objects + WebSocket Hibernation；不再使用 PostgreSQL `LISTEN/NOTIFY` |
 | 登录 | Pangda Auth（KeyForge）OIDC authorization code + PKCE；应用只保留加密的服务端会话 |
-| 附件 | 私有 R2，由 Worker 做权限检查和流式下载 |
 | 导出 | CSV + Cloudflare Browser Run PDF；**不再提供 XLSX** |
 | 国际化 | `use-intl`，中文 / English |
 | 测试 | Vitest、TypeScript、ESLint、Wrangler dry-run |
 
-已移除 Next.js、Prisma、`pg` 实时通知、Vercel Blob、React PDF、ExcelJS 和生产容器镜像。
+已移除 Next.js、Prisma、`pg` 实时通知、Vercel Blob、React PDF、ExcelJS、小票附件（R2）和生产容器镜像。
 
 ## 本地运行
 
@@ -77,28 +75,22 @@ pnpm dev:wrangler
 
 ## 数据库
 
-全新数据库直接运行：
+应用 schema：
 
 ```sh
 pnpm db:migrate
 ```
 
-从旧 Prisma schema 原地接管已有数据库时，先备份并冻结旧应用写入，再运行：
+`drizzle/0000_baseline.sql` 是唯一的 migration，可从空库建立完整 schema。
 
-```sh
-pnpm db:adopt -- --yes
-```
-
-`db:adopt` 会验证迁移前的 19 张表、登记 Drizzle baseline，随后应用 Cloudflare revision 与 Pangda Auth OIDC migrations；业务用户 ID 和账本关系保留，本地凭据及旧会话被移除。完整切流流程见 [`docs/migration/data-cutover.md`](docs/migration/data-cutover.md)。
-
-旧 Prisma 连接串中的 `schema=public` 会由迁移工具自动移除；Postgres.js 会把该参数误当成 PostgreSQL server 配置，因此不要在新的 `.env` 中继续使用它。
+连接串中的 `schema=public` 会由迁移工具自动移除；Postgres.js 会把该参数误当成 PostgreSQL server 配置，因此不要在 `.env` 中使用它。
 
 ## Cloudflare 部署
 
 生产配置位于 `wrangler.jsonc` 的 `env.production`。部署前必须替换：
 
 - `HYPERDRIVE` 的全零占位 ID；
-- 如有需要，R2 bucket 名称和 PDF 启动间隔。
+- 如有需要，PDF 启动间隔。
 
 然后在 `auth.pangda.app` 创建生产 OAuth client、配置 Worker secrets 并执行：
 
@@ -106,7 +98,7 @@ pnpm db:adopt -- --yes
 pnpm deploy
 ```
 
-`pnpm build` 会显式设置 `CLOUDFLARE_ENV=production`，确保 Vite 生成的扁平 Wrangler 配置使用生产 binding。`pnpm deploy` 还会先运行配置检查，避免把本地 Hyperdrive、R2 或 `localhost` origin 部署到生产。
+`pnpm build` 会显式设置 `CLOUDFLARE_ENV=production`，确保 Vite 生成的扁平 Wrangler 配置使用生产 binding。`pnpm deploy` 还会先运行配置检查，避免把本地 Hyperdrive 或 `localhost` origin 部署到生产。
 
 资源创建、secret、域名、Browser Run 配额和上线检查详见 [`docs/deployment/cloudflare.md`](docs/deployment/cloudflare.md)。
 
@@ -139,13 +131,13 @@ pnpm r2:migrate -- --help
 
 ```text
 src/                  React SPA、页面、组件和客户端 action wrappers
-worker/src/           Hono API、Durable Objects、R2、PDF、认证
+worker/src/           Hono API、Durable Objects、PDF、认证
 packages/contracts/   API schema 与 DTO
 packages/core/        金额、分摊、账本与清算纯函数
 packages/db/          Drizzle schema 和 Postgres.js client
-drizzle/              可从空库执行的 SQL migrations
-scripts/              DB 接管、配置检查、R2 对象迁移
-docs/                 架构、部署和数据切流手册
+drizzle/              可从空库执行的 baseline migration
+scripts/              配置检查、本地登录初始化、AI 基准测试
+docs/                 架构与部署手册
 ```
 
 ## 安全边界
@@ -154,7 +146,6 @@ docs/                 架构、部署和数据切流手册
 - AAEasy 不接收或保存密码、Passkey 等登录凭据；浏览器登录只能跳转到 Pangda Auth。
 - OIDC state、nonce 与 PKCE verifier 使用短期加密 Cookie；访问、刷新和 ID token 使用服务端 AES-GCM 加密后保存。
 - KeyForge 用户禁用、授权撤销和 `admins` 组变化会在会话重新校验时生效；AI、成员搜索和 PDF 继续由 Durable Object 限流。
-- R2 bucket 保持私有；对象 URL 不直接暴露，上传和下载都经 Worker。
 - 分享访客不能导出完整账本；只读分享不能写费用。
 - 费用写入使用 `version` 乐观锁，账本事件使用单调 `revision` 自愈断线缺口。
 - CSV 会转义 RFC 4180 特殊字符并中和 spreadsheet formula injection。

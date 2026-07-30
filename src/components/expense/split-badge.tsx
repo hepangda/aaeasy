@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslations } from 'use-intl';
-import type { SplitClass } from '@/lib/split/classify';
+import type { SplitClass } from '@aaeasy/core/split-classify';
 import { FloatingPanel } from '@/components/ui/floating-panel';
 
 export interface SharePill {

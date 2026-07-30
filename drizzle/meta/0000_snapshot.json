@@ -1,41 +1,9 @@
 {
-  "id": "3808de84-afa0-4c9f-b6be-8eafcf954967",
+  "id": "5618412c-7ec2-4b32-b38f-284869e9a933",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.allowed_usernames": {
-      "name": "allowed_usernames",
-      "schema": "",
-      "columns": {
-        "username": {
-          "name": "username",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "createdById": {
-          "name": "createdById",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.audit_logs": {
       "name": "audit_logs",
       "schema": "",
@@ -147,98 +115,6 @@
           "tableFrom": "audit_logs",
           "tableTo": "groups",
           "columnsFrom": ["groupId"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "cascade"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.auth_challenges": {
-      "name": "auth_challenges",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "AuthChallengeType",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "challenge": {
-          "name": "challenge",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "userId": {
-          "name": "userId",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "expiresAt": {
-          "name": "expiresAt",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "auth_challenges_userId_idx": {
-          "name": "auth_challenges_userId_idx",
-          "columns": [
-            {
-              "expression": "userId",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "auth_challenges_expiresAt_idx": {
-          "name": "auth_challenges_expiresAt_idx",
-          "columns": [
-            {
-              "expression": "expiresAt",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "auth_challenges_userId_users_id_fk": {
-          "name": "auth_challenges_userId_users_id_fk",
-          "tableFrom": "auth_challenges",
-          "tableTo": "users",
-          "columnsFrom": ["userId"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
@@ -463,6 +339,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
         }
       },
       "indexes": {
@@ -989,6 +872,13 @@
           "type": "timestamp (3)",
           "primaryKey": false,
           "notNull": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
         }
       },
       "indexes": {
@@ -1147,262 +1037,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.passkey_credentials": {
-      "name": "passkey_credentials",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "userId": {
-          "name": "userId",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "publicKey": {
-          "name": "publicKey",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "counter": {
-          "name": "counter",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transports": {
-          "name": "transports",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "ARRAY[]::text[]"
-        },
-        "deviceLabel": {
-          "name": "deviceLabel",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "lastUsedAt": {
-          "name": "lastUsedAt",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "passkey_credentials_userId_idx": {
-          "name": "passkey_credentials_userId_idx",
-          "columns": [
-            {
-              "expression": "userId",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "passkey_credentials_userId_users_id_fk": {
-          "name": "passkey_credentials_userId_users_id_fk",
-          "tableFrom": "passkey_credentials",
-          "tableTo": "users",
-          "columnsFrom": ["userId"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "cascade"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.password_credentials": {
-      "name": "password_credentials",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "userId": {
-          "name": "userId",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "passwordHash": {
-          "name": "passwordHash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "lastUsedAt": {
-          "name": "lastUsedAt",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "password_credentials_userId_idx": {
-          "name": "password_credentials_userId_idx",
-          "columns": [
-            {
-              "expression": "userId",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "password_credentials_userId_users_id_fk": {
-          "name": "password_credentials_userId_users_id_fk",
-          "tableFrom": "password_credentials",
-          "tableTo": "users",
-          "columnsFrom": ["userId"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "cascade"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.receipts": {
-      "name": "receipts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "expenseId": {
-          "name": "expenseId",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "objectKey": {
-          "name": "objectKey",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mime": {
-          "name": "mime",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sizeBytes": {
-          "name": "sizeBytes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "uploadedById": {
-          "name": "uploadedById",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "receipts_expenseId_idx": {
-          "name": "receipts_expenseId_idx",
-          "columns": [
-            {
-              "expression": "expenseId",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "receipts_expenseId_expenses_id_fk": {
-          "name": "receipts_expenseId_expenses_id_fk",
-          "tableFrom": "receipts",
-          "tableTo": "expenses",
-          "columnsFrom": ["expenseId"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "cascade"
-        },
-        "receipts_uploadedById_users_id_fk": {
-          "name": "receipts_uploadedById_users_id_fk",
-          "tableFrom": "receipts",
-          "tableTo": "users",
-          "columnsFrom": ["uploadedById"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "cascade"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.sessions": {
       "name": "sessions",
       "schema": "",
@@ -1442,6 +1076,25 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "oidcTokens": {
+          "name": "oidcTokens",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "oidcValidatedAt": {
+          "name": "oidcValidatedAt",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isSuperAdmin": {
+          "name": "isSuperAdmin",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "createdAt": {
           "name": "createdAt",
@@ -2064,18 +1717,17 @@
           "primaryKey": false,
           "notNull": false
         },
-        "passwordHash": {
-          "name": "passwordHash",
+        "email": {
+          "name": "email",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "isSuperAdmin": {
-          "name": "isSuperAdmin",
-          "type": "boolean",
+        "picture": {
+          "name": "picture",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": false
+          "notNull": false
         },
         "createdAt": {
           "name": "createdAt",
@@ -2121,11 +1773,6 @@
       "name": "AuditActorType",
       "schema": "public",
       "values": ["USER", "SHARE"]
-    },
-    "public.AuthChallengeType": {
-      "name": "AuthChallengeType",
-      "schema": "public",
-      "values": ["REG", "AUTH"]
     },
     "public.GroupRole": {
       "name": "GroupRole",
