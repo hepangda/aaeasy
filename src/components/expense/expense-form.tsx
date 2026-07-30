@@ -1134,11 +1134,11 @@ export function ExpenseForm({
               {blockingReason}
             </p>
           )}
-          {/* Leaving the composer is a bottom-bar action on mobile rather than a
-              header back link, so the header can keep naming the group instead
-              of the form. Save keeps the lion's share of the width. */}
+          {/* Leaving the composer is a bottom-bar action at every width rather
+              than a header back link, so the header can keep naming the group
+              instead of the form. Save keeps the lion's share of the width. */}
           <div className="flex items-center gap-2 sm:contents">
-            <Button asChild type="button" variant="outline" size="lg" className="sm:hidden">
+            <Button asChild type="button" variant="outline" size="lg">
               <Link href={`/groups/${groupId}`}>{t('common.back')}</Link>
             </Button>
             <Button

@@ -53,11 +53,7 @@ export function NewExpensePage() {
   }));
   return (
     <PageShell>
-      <PageHeader
-        title={t('expenses.add')}
-        description={t('expenses.form_intro')}
-        backLink={{ href: `/groups/${groupId}`, label: detail.data.group.name }}
-      />
+      <PageHeader title={t('expenses.add')} description={t('expenses.form_intro')} />
       <ExpenseForm
         groupId={groupId}
         groupCurrency={detail.data.group.defaultCurrency}
@@ -140,11 +136,7 @@ export function EditExpensePage() {
 
   return (
     <PageShell>
-      <PageHeader
-        title={t('expenses.edit')}
-        description={t('expenses.form_intro_edit')}
-        backLink={{ href: `/groups/${groupId}`, label: detail.data.group.name }}
-      />
+      <PageHeader title={t('expenses.edit')} description={t('expenses.form_intro_edit')} />
       <ExpenseForm
         groupId={groupId}
         groupCurrency={detail.data.group.defaultCurrency}
