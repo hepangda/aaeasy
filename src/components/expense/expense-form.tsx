@@ -598,8 +598,15 @@ export function ExpenseForm({
       )}
 
       {/* ─── Split rule ──────────────── */}
+      {/* A rendered `legend` is painted *on* the fieldset's top border, which
+          left the label straddling the card and the tinted box. The legend
+          stays for assistive tech; the visible heading is an ordinary first
+          line inside the box. */}
       <fieldset className="bg-sunken-strong mx-5 mb-6 grid gap-4 rounded-lg border p-4 sm:mx-8 sm:p-5">
-        <legend className="px-2 text-sm font-semibold">{t('expenses.split_rule')}</legend>
+        <legend className="sr-only">{t('expenses.split_rule')}</legend>
+        <p className="text-sm font-semibold" aria-hidden="true">
+          {t('expenses.split_rule')}
+        </p>
 
         <details
           className="group"
