@@ -317,9 +317,7 @@ function MobileNavItem({
 
 /**
  * The bottom nav keeps a stable shape: it always shows the three global
- * destinations, and adds group-scoped items only while inside a group. It no
- * longer disappears on the expense composer — that route instead gets a back
- * affordance in the header, so there is always a way out.
+ * destinations, and adds group-scoped items only while inside a group.
  */
 function MobileBottomNav({
   pathname,
@@ -481,8 +479,10 @@ export function AppLayout() {
   const groupList = groups.data?.groups ?? [];
   const groupName = group.data?.group?.name;
 
-  // The composer is a focus mode: it keeps the bottom nav (so the user is never
-  // stranded) but leads with an explicit back link to the group it belongs to.
+  // The composer is a focus mode: it drops the bottom nav (which would stack a
+  // second fixed bar under the form's own submit bar, and could only show the
+  // global destinations since the group tabs are unreachable mid-entry) and
+  // leads with an explicit back link to the group it belongs to.
   const backHref = isExpenseComposer
     ? `/groups/${routeGroupId}`
     : location.pathname === '/groups/new'
@@ -519,15 +519,20 @@ export function AppLayout() {
         <main
           id={MAIN_CONTENT_ID}
           tabIndex={-1}
-          className="pb-bottom-nav flex min-h-[calc(100svh-3.5rem)] flex-col focus-visible:outline-hidden lg:min-h-svh lg:pb-0"
+          className={cn(
+            'flex min-h-[calc(100svh-3.5rem)] flex-col focus-visible:outline-hidden lg:min-h-svh lg:pb-0',
+            !isExpenseComposer && 'pb-bottom-nav',
+          )}
         >
           <Outlet />
         </main>
-        <MobileBottomNav
-          pathname={location.pathname}
-          hash={location.hash}
-          groupId={isExpenseComposer ? '' : routeGroupId}
-        />
+        {isExpenseComposer ? null : (
+          <MobileBottomNav
+            pathname={location.pathname}
+            hash={location.hash}
+            groupId={routeGroupId}
+          />
+        )}
       </div>
       <ServiceWorkerRegister />
     </>

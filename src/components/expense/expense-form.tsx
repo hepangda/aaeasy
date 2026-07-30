@@ -664,7 +664,7 @@ export function ExpenseForm({
     <form
       action={formAction}
       ref={formRef}
-      className="bg-card relative flex w-full flex-col overflow-hidden rounded-2xl border pb-28 md:pb-0"
+      className="bg-card relative flex w-full flex-col overflow-hidden rounded-2xl border pb-36 md:pb-0"
     >
       <input type="hidden" name="groupId" value={groupId} />
       {/* Only submit a splitRule when we actually have a materialized split.
@@ -1115,7 +1115,10 @@ export function ExpenseForm({
         />
       </div>
 
-      <div className="bg-card/95 bottom-nav-offset fixed inset-x-0 z-30 border-t px-4 py-3 backdrop-blur-lg md:sticky md:inset-x-auto md:bottom-0 md:z-10 md:px-8 md:py-4">
+      {/* On mobile the bar is pinned to the viewport bottom; the form reserves
+          matching space below the last field (see `pb-36` on the form) so
+          nothing ends up underneath it. From `md` up it rides in normal flow. */}
+      <div className="bg-card/95 pb-safe-3 fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3 backdrop-blur-lg md:static md:z-10 md:px-8 md:pt-4 md:pb-4">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           {/* The reason Save is disabled must be visible *here*. It used to live
               only inside the split editor, which defaults to collapsed — so a

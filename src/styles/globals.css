@@ -233,12 +233,6 @@
     padding-bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 
-  /* Sit a fixed element directly on top of the bottom nav rather than under it.
-     Used by the expense composer's submit bar. */
-  .bottom-nav-offset {
-    bottom: calc(4rem + env(safe-area-inset-bottom));
-  }
-
   @keyframes flow-dash {
     to {
       stroke-dashoffset: -28;
