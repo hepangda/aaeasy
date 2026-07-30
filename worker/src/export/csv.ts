@@ -25,8 +25,7 @@ export function createLedgerCsv(ledger: Ledger): string {
   const memberById = new Map(ledger.members.map((member) => [member.id, member]));
   const currency = ledger.group.defaultCurrency;
   const expenses = ledger.expenses.filter(
-    (expense) =>
-      !expense.isDraft && expense.amountMinor !== null && expense.fxRateToGroupCurrency !== null,
+    (expense) => expense.amountMinor !== null && expense.fxRateToGroupCurrency !== null,
   );
 
   lines.push('# 费用明细 / Expenses');

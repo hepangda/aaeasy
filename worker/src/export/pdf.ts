@@ -65,9 +65,7 @@ function labels(locale: string) {
 export function renderLedgerHtml(ledger: Ledger, locale: string): string {
   const text = labels(locale);
   const memberById = new Map(ledger.members.map((member) => [member.id, member]));
-  const activeExpenses = ledger.expenses.filter(
-    (expense) => !expense.isDraft && expense.amountMinor !== null,
-  );
+  const activeExpenses = ledger.expenses.filter((expense) => expense.amountMinor !== null);
   const expenseRows = activeExpenses
     .map((expense) => {
       const splitText = expense.splits

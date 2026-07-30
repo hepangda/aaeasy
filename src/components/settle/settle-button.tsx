@@ -9,11 +9,9 @@ import { settleAction } from '@/spa/actions/settlements';
 export function SettleButton({
   groupId,
   openExpenseCount,
-  draftExpenseCount,
 }: {
   groupId: string;
   openExpenseCount: number;
-  draftExpenseCount: number;
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
@@ -45,13 +43,7 @@ export function SettleButton({
         onSubmit={() => void run()}
         submitLabel={t('settlements.do_settle')}
         pending={pending}
-      >
-        {draftExpenseCount > 0 && (
-          <p className="text-destructive-ink text-sm" role="alert">
-            {t('settlements.settle_draft_warning', { count: draftExpenseCount })}
-          </p>
-        )}
-      </FormDialog>
+      />
     </>
   );
 }

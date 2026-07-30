@@ -296,13 +296,6 @@
           "notNull": false,
           "default": "ARRAY[]::text[]"
         },
-        "isDraft": {
-          "name": "isDraft",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "createdByUserId": {
           "name": "createdByUserId",
           "type": "text",

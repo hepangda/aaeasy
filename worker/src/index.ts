@@ -6,7 +6,6 @@ import type { AppEnv } from './app-env';
 import { handleApiError } from './lib/errors';
 import { apiSecureHeaders } from './middleware/secure-headers';
 import { accountRoutes } from './routes/account';
-import { aiRoutes } from './routes/ai';
 import { authRoutes } from './routes/auth';
 import { expenseRoutes } from './routes/expenses';
 import { exportRoutes } from './routes/export';
@@ -37,7 +36,6 @@ app.get('/api/health', async (c) => {
 });
 
 app.route('/api', accountRoutes);
-app.route('/api', aiRoutes);
 app.route('/api', authRoutes);
 app.route('/api', expenseRoutes);
 app.route('/api', exportRoutes);

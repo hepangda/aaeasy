@@ -161,7 +161,6 @@ export function EditExpensePage() {
             expense.currency === detail.data.group.defaultCurrency
               ? null
               : expense.fxRateToGroupCurrency,
-          isDraft: expense.isDraft,
         }}
       />
     </PageShell>

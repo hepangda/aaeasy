@@ -53,7 +53,6 @@ settlementRoutes.post('/groups/:groupId/settlements', async (c) => {
         eq(expenses.groupId, groupId),
         isNull(expenses.deletedAt),
         isNull(expenses.lockedBySettlementId),
-        eq(expenses.isDraft, false),
       ),
     )
     .orderBy(asc(expenses.occurredAt));
@@ -132,21 +131,6 @@ settlementRoutes.post('/groups/:groupId/settlements', async (c) => {
         version: sql`${expenses.version} + 1`,
       })
       .where(inArray(expenses.id, expenseIds));
-    await tx
-      .update(expenses)
-      .set({
-        deletedAt: now,
-        updatedAt: now,
-        version: sql`${expenses.version} + 1`,
-      })
-      .where(
-        and(
-          eq(expenses.groupId, groupId),
-          isNull(expenses.deletedAt),
-          isNull(expenses.lockedBySettlementId),
-          eq(expenses.isDraft, true),
-        ),
-      );
     await tx.update(groups).set({ status: 'ARCHIVED' }).where(eq(groups.id, groupId));
     await tx.insert(auditLogs).values({
       id: createId(),

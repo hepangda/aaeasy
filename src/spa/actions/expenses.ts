@@ -26,7 +26,6 @@ function body(formData: FormData) {
       .split(',')
       .map((tag) => tag.trim())
       .filter(Boolean),
-    isDraft: formString(formData, 'isDraft') === 'true',
   };
 }
 
@@ -59,20 +58,5 @@ export async function updateExpenseAction(
 export async function softDeleteExpenseAction(input: { groupId: string; expenseId: string }) {
   return actionRequest(`/api/groups/${input.groupId}/expenses/${input.expenseId}`, {
     method: 'DELETE',
-  });
-}
-
-export async function fillDraftsAction(input: {
-  groupId: string;
-  items: Array<{ expenseId: string; amount: string }>;
-}) {
-  return actionRequest<{
-    ok: boolean;
-    error?: string;
-    filled?: string[];
-    failed?: Array<{ expenseId: string; error: string }>;
-  }>(`/api/groups/${input.groupId}/expenses/fill-drafts`, {
-    method: 'POST',
-    body: JSON.stringify({ items: input.items }),
   });
 }

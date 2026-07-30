@@ -260,7 +260,6 @@ export const expenses = pgTable(
     tags: text('tags')
       .array()
       .default(sql`ARRAY[]::text[]`),
-    isDraft: boolean('isDraft').notNull().default(false),
     createdByUserId: text('createdByUserId').references(() => users.id, {
       onDelete: 'set null',
       onUpdate: 'cascade',

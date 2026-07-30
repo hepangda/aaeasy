@@ -2,7 +2,6 @@ import Link from '@/router/link';
 import { Navigate, useParams, useSearchParams } from 'react-router';
 import { useFormatter, useLocale, useTranslations } from 'use-intl';
 import { Plus } from 'lucide-react';
-import { DraftFillPanel, type DraftRow } from '@/components/expense/draft-fill-panel';
 import { GroupLiveRefresher } from '@/components/group/group-live-refresher';
 import { MembersPanel } from '@/components/group/members-panel';
 import { SettingsPanel } from '@/components/group/settings-panel';
@@ -58,27 +57,7 @@ export function GroupDetailPage() {
   const isArchived = group.status === 'ARCHIVED';
   const canWrite = !isArchived && access.canWriteExpense;
   const canMarkPaid = access.canWriteExpense;
-  const openExpenseCount = expenses.filter(
-    (expense) => !expense.lockedBySettlementId && !expense.isDraft,
-  ).length;
-  const draftExpenseCount = expenses.filter(
-    (expense) => !expense.lockedBySettlementId && expense.isDraft,
-  ).length;
-  const draftsForCaller: DraftRow[] = expenses
-    .filter(
-      (expense) =>
-        expense.isDraft &&
-        !expense.lockedBySettlementId &&
-        (boundMemberId === null || expense.payerMemberId === boundMemberId) &&
-        canWrite,
-    )
-    .map((expense) => ({
-      expenseId: expense.id,
-      title: expense.title,
-      occurredAt: expense.occurredAt,
-      currency: expense.currency,
-      payerName: memberById.get(expense.payerMemberId)?.displayName ?? '?',
-    }));
+  const openExpenseCount = expenses.filter((expense) => !expense.lockedBySettlementId).length;
   const expensePage = getPageSlice(
     expenses,
     searchParams.get('ep') ?? undefined,
@@ -151,9 +130,6 @@ export function GroupDetailPage() {
               badge: openExpenseCount || undefined,
               content: (
                 <section className="flex min-w-0 flex-col gap-4">
-                  {draftsForCaller.length > 0 ? (
-                    <DraftFillPanel groupId={groupId} drafts={draftsForCaller} />
-                  ) : null}
                   <ExpenseFeed
                     groupId={groupId}
                     expenses={expensePage.slice}
@@ -265,7 +241,6 @@ export function GroupDetailPage() {
                   shareLinks={existingShareLinks.filter((link) => link.memberId === null)}
                   baseUrl={window.location.origin}
                   openExpenseCount={openExpenseCount}
-                  draftExpenseCount={draftExpenseCount}
                 />
               ),
             },

@@ -2,7 +2,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '@/router/navigation';
 import Link from '@/router/link';
 import { useTranslations } from 'use-intl';
-import { Minus, Plus, Sparkles, TriangleAlert, X } from 'lucide-react';
+import { Minus, Plus, TriangleAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -19,15 +19,13 @@ import {
   updateExpenseAction,
   type ExpenseActionState,
 } from '@/spa/actions/expenses';
-import { errorToast, showI18nError, successToast } from '@/lib/ui/toast';
+import { showI18nError } from '@/lib/ui/toast';
 import { describeSplitIntent } from '@/lib/split/intent';
 import { distribute, parseMajorMinor, parseSignedMajorMinor } from '@/lib/split/allocate';
 import type { SplitRule } from '@aaeasy/core/split-types';
-import type { SplitInputState, SplitInputRow } from '@aaeasy/core/split-input-state';
+import type { SplitInputState } from '@aaeasy/core/split-input-state';
 import { computeSplit } from '@aaeasy/core/split';
-import { formatMinor, isCurrencyCode, minorUnits } from '@aaeasy/core/money';
-import { mergeAiRows, type CurrentSnapshot } from '@/lib/expenses/ai-schema';
-import { useAiParseStream } from '@/lib/expenses/use-ai-parse-stream';
+import { formatMinor, minorUnits } from '@aaeasy/core/money';
 
 type Member = { id: string; displayName: string };
 
@@ -54,8 +52,6 @@ interface Props {
      *  reconstruction from `splitRule` when null (legacy rows). */
     splitInputState: SplitInputState | null;
     fxRateOverride?: string | null;
-    /** True if the existing expense is a DRAFT (no amount yet). */
-    isDraft?: boolean;
   };
 }
 
@@ -206,16 +202,7 @@ export function ExpenseForm({
 
   // ─── Top-level fields (controlled so split logic can react) ─────────
   const [currency, setCurrency] = useState(defaults?.currency ?? groupCurrency);
-  const [amountText, setAmountText] = useState(defaults?.amountText ?? ''); // DRAFT mode: hides the amount / fx / split UI entirely. The action layer
-  // sees `isDraft=true` and persists the row without an amount, leaving the
-  // payer to fill it in later via the group page's quick-fill panel.
-  //
-  // For an existing materialized expense we never offer the toggle (would
-  // amount to a destructive "demote"); for a new entry, default OFF.
-  const lockedNonDraft = !!defaults && defaults.isDraft === false;
-  const [isDraftMode, setIsDraftMode] = useState<boolean>(
-    lockedNonDraft ? false : (defaults?.isDraft ?? false),
-  );
+  const [amountText, setAmountText] = useState(defaults?.amountText ?? '');
   const currencyPrecision = minorUnits(currency);
   const amountPlaceholder = formatMinor(0n, currency);
   // Parse the total amount in real time. `null` = invalid input.
@@ -473,12 +460,12 @@ export function ExpenseForm({
   // validation — so `required` on the amount field never fires on a phone.
   // The gate below is therefore the *only* thing stopping an empty amount, and
   // must stay explicit rather than relying on the browser.
-  const amountMissing = !isDraftMode && totalMinor === null;
-  const submitDisabled = pending || amountMissing || (!isDraftMode && !sumMatchesTotal);
+  const amountMissing = totalMinor === null;
+  const submitDisabled = pending || amountMissing || !sumMatchesTotal;
 
   // Why the submit button is inert, phrased for the user. Null when it isn't.
   const blockingReason = (() => {
-    if (isDraftMode || pending) return null;
+    if (pending) return null;
     if (anyParseError) return t('errors.invalid_amount');
     if (totalMinor === null) return t('expenses.amount_required');
     if (!sumMatchesTotal) {
@@ -490,176 +477,7 @@ export function ExpenseForm({
     return null;
   })();
 
-  // ─── AI-assisted parsing ───────────────────────────────
-  // The user types a free-form sentence; we POST it to the streaming parse
-  // endpoint and apply each field as it arrives. The user always sees the
-  // result before saving — AI never auto-submits.
   const formRef = useRef<HTMLFormElement>(null);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiText, setAiText] = useState('');
-  const [aiReasoning, setAiReasoning] = useState<string | null>(null);
-  const [aiAmbiguousHint, setAiAmbiguousHint] = useState<string | null>(null);
-
-  function setFieldValue(name: string, value: string) {
-    const el = formRef.current?.elements.namedItem(name) as
-      | HTMLInputElement
-      | HTMLTextAreaElement
-      | HTMLSelectElement
-      | null;
-    if (!el) return;
-    el.value = value;
-    flashElement(el);
-  }
-
-  function flashElement(el: HTMLElement) {
-    el.classList.remove('ai-flash');
-    void el.offsetWidth;
-    el.classList.add('ai-flash');
-    setTimeout(() => el.classList.remove('ai-flash'), 700);
-  }
-
-  // Snapshot the current form state for edit-mode AI calls so the model
-  // sees the values it's being asked to adjust.
-  function buildCurrentSnapshot(): CurrentSnapshot | undefined {
-    if (!defaults) return undefined;
-    const titleEl = formRef.current?.elements.namedItem('title') as HTMLInputElement | null;
-    const dateEl = formRef.current?.elements.namedItem('occurredAt') as HTMLInputElement | null;
-    const payerEl = formRef.current?.elements.namedItem('payerMemberId') as
-      | HTMLSelectElement
-      | HTMLInputElement
-      | null;
-    const noteEl = formRef.current?.elements.namedItem('note') as HTMLTextAreaElement | null;
-    const fxEl = formRef.current?.elements.namedItem('fxRateOverride') as HTMLInputElement | null;
-    return {
-      title: titleEl?.value || null,
-      occurredAt: dateEl?.value || null,
-      currency,
-      amount: isDraftMode ? null : amountText || null,
-      payerMemberId: lockedPayerMemberId ?? payerEl?.value ?? null,
-      note: noteEl?.value || null,
-      isDraft: isDraftMode,
-      fxRateOverride: fxEl?.value || null,
-      splitRows: isDraftMode
-        ? undefined
-        : rows.map((r) => ({
-            memberId: r.memberId,
-            checked: r.checked,
-            shares: r.shares,
-            extraText: r.extraText,
-          })),
-    };
-  }
-
-  const aiStream = useAiParseStream({
-    groupId,
-    onField: (name, value) => {
-      switch (name) {
-        case 'title':
-          if (typeof value === 'string') setFieldValue('title', value);
-          return;
-        case 'occurredAt':
-          if (typeof value === 'string') setFieldValue('occurredAt', value);
-          return;
-        case 'currency':
-          if (typeof value === 'string') {
-            const nextCurrency = value.trim().toUpperCase();
-            if (isCurrencyCode(nextCurrency)) setCurrency(nextCurrency);
-          }
-          return;
-        case 'amount':
-          if (typeof value === 'string' && !isDraftMode) {
-            setAmountText(value);
-          }
-          return;
-        case 'payerMemberId':
-          if (
-            typeof value === 'string' &&
-            !lockedPayerMemberId &&
-            members.some((m) => m.id === value)
-          ) {
-            setFieldValue('payerMemberId', value);
-          }
-          return;
-        case 'note':
-          if (typeof value === 'string') setFieldValue('note', value);
-          return;
-        case 'isDraft':
-          if (typeof value === 'boolean' && !lockedNonDraft) {
-            setIsDraftMode(value);
-          }
-          return;
-        case 'fxRateOverride':
-          if (typeof value === 'string') {
-            setFieldValue('fxRateOverride', value);
-          }
-          return;
-        case 'reasoning':
-          if (typeof value === 'string') setAiReasoning(value);
-          return;
-        case 'ambiguousHint':
-          if (typeof value === 'string') setAiAmbiguousHint(value);
-          return;
-        case 'tags':
-          // Tags are not surfaced in the UI yet; ignore.
-          return;
-      }
-    },
-    onSplit: (_mode, aiRows: SplitInputRow[]) => {
-      if (isDraftMode) return;
-      setRows((cur) => mergeAiRows(cur, aiRows));
-      successToast(t('expenses.ai_split_updated'));
-    },
-    onMeta: ({ payerName, participants }) => {
-      if (payerName) {
-        successToast(t('expenses.ai_unresolved_payer', { name: payerName }));
-      }
-      if (participants && participants.length > 0) {
-        successToast(
-          t('expenses.ai_unresolved_participants', {
-            names: participants.join(', '),
-          }),
-        );
-      }
-    },
-    onError: (code, detail) => {
-      if (detail && code !== 'IMAGE_UNSUPPORTED') errorToast(detail);
-      showI18nError(
-        t,
-        code === 'NOT_CONFIGURED'
-          ? 'errors.ai_not_configured'
-          : code === 'IMAGE_UNSUPPORTED'
-            ? 'errors.ai_image_unsupported'
-            : code === 'RATE_LIMITED'
-              ? 'errors.rate_limited'
-              : code === 'TIMEOUT'
-                ? 'errors.ai_timeout'
-                : code === 'STREAM_INTERRUPTED'
-                  ? 'expenses.ai_stream_interrupted'
-                  : 'errors.ai_failed',
-      );
-    },
-  });
-
-  const aiPending = aiStream.pending;
-
-  async function runAiParse(opts?: {
-    textOverride?: string;
-    setLoading?: (loading: boolean) => void;
-  }) {
-    const text = (opts?.textOverride ?? aiText).trim();
-    if (!text) return;
-    setAiReasoning(null);
-    setAiAmbiguousHint(null);
-    opts?.setLoading?.(true);
-    try {
-      await aiStream.start({
-        text,
-        current: buildCurrentSnapshot(),
-      });
-    } finally {
-      opts?.setLoading?.(false);
-    }
-  }
 
   return (
     <form
@@ -668,163 +486,44 @@ export function ExpenseForm({
       className="bg-card relative flex w-full flex-col overflow-hidden rounded-2xl border pb-36 md:pb-0"
     >
       <input type="hidden" name="groupId" value={groupId} />
-      {/* Only submit a splitRule when we actually have a materialized split.
-          In DRAFT mode the row amounts are all zero, which would fail the
-          EXACT-rule "min 1 amount" validation server-side. */}
-      {!isDraftMode && (
-        <>
-          <input type="hidden" name="splitRule" value={ruleJson} />
-          <input type="hidden" name="splitInputState" value={splitInputStateJson} />
-        </>
-      )}
-      <input type="hidden" name="isDraft" value={isDraftMode ? 'true' : 'false'} />
+      <input type="hidden" name="splitRule" value={ruleJson} />
+      <input type="hidden" name="splitInputState" value={splitInputStateJson} />
       {defaults && <input type="hidden" name="expenseId" value={defaults.expenseId} />}
       {defaults && <input type="hidden" name="expectedVersion" value={defaults.version ?? 0} />}
-
-      {/* ─── Top tools: AI assist + draft mode ─────────────────────
-          Keep both controls in the same row and same button style. The
-          draft button is hidden when editing an already-materialized
-          expense to avoid an accidental "demote-to-draft". */}
-      <div className="flex flex-wrap items-center gap-2 px-5 pt-5 sm:px-8 sm:pt-6">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setAiOpen((open) => !open)}
-          aria-expanded={aiOpen}
-          className={aiOpen ? 'bg-secondary' : undefined}
-        >
-          <Sparkles className="size-4" /> {t('expenses.ai_open')}
-        </Button>
-        {!lockedNonDraft && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsDraftMode((v) => !v)}
-            aria-pressed={isDraftMode}
-            className={isDraftMode ? 'bg-secondary' : undefined}
-            title={t('expenses.draft_mode_hint')}
-          >
-            {t('expenses.draft_mode_label')}
-          </Button>
-        )}
-      </div>
-
-      {/* ─── AI assist panel ───────────────────────────────────────
-          A collapsible textarea that POSTs the user's description to
-          the parse endpoint and applies the returned suggestion to the
-          form fields. The user always reviews before saving. */}
-      {aiOpen && (
-        <div className="flex flex-col gap-2 px-5 pt-3 sm:px-8">
-          <div className="bg-sunken flex flex-col gap-3 rounded-lg border p-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
-                <Sparkles className="size-4" />{' '}
-                {defaults ? t('expenses.ai_describe_edit_title') : t('expenses.ai_title')}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-6"
-                onClick={() => {
-                  setAiOpen(false);
-                  setAiText('');
-                  setAiReasoning(null);
-                  setAiAmbiguousHint(null);
-                }}
-                aria-label={t('expenses.clear')}
-              >
-                <X className="size-3.5" />
-              </Button>
-            </div>
-            <Textarea
-              rows={2}
-              maxLength={1000}
-              value={aiText}
-              onChange={(e) => setAiText(e.target.value)}
-              placeholder={
-                defaults ? t('expenses.ai_placeholder_edit') : t('expenses.ai_placeholder')
-              }
-            />
-            {aiAmbiguousHint && (
-              <p className="bg-signal/20 text-signal-foreground dark:text-signal rounded-lg px-2.5 py-1.5 text-xs">
-                {aiAmbiguousHint}
-              </p>
-            )}
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-muted-foreground text-xs">
-                {aiReasoning ?? t('expenses.ai_hint')}
-              </p>
-              <div className="flex items-center gap-2">
-                {aiPending && (
-                  <Button type="button" size="sm" variant="outline" onClick={() => aiStream.stop()}>
-                    {t('expenses.ai_stop')}
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => runAiParse()}
-                  disabled={aiPending || aiText.trim().length === 0}
-                >
-                  {aiPending ? t('expenses.ai_streaming') : t('expenses.ai_run')}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ─── Row 2: Amount | Currency | Payer ──────────────────────
           Mobile: amount + currency share one row, then payer below.
           Desktop keeps them on a single three-column row. */}
       <section className="bg-sunken mt-5 flex flex-col gap-4 border-y px-5 py-6 sm:mt-6 sm:grid sm:grid-cols-[1.35fr_auto_1fr] sm:items-end sm:px-8 sm:py-7">
-        {!isDraftMode && (
-          <div className="grid gap-2 sm:contents">
-            <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
-              <div className="grid gap-2">
-                <Label htmlFor="amount">{t('expenses.amount')}</Label>
-                <NumericInput
-                  id="amount"
-                  name="amount"
-                  required
-                  placeholder={amountPlaceholder}
-                  value={amountText}
-                  onChange={(e) => setAmountText(e.target.value)}
-                  precision={currencyPrecision}
-                  keypadTitle={t('expenses.amount')}
-                  variant="display"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="currency">{t('expenses.currency')}</Label>
-                <CurrencySelect
-                  id="currency"
-                  name="currency"
-                  value={currency}
-                  preferredCurrency={groupCurrency}
-                  onChange={(event) => setCurrency(event.target.value)}
-                  className="w-24 font-mono sm:w-40"
-                />
-              </div>
+        <div className="grid gap-2 sm:contents">
+          <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
+            <div className="grid gap-2">
+              <Label htmlFor="amount">{t('expenses.amount')}</Label>
+              <NumericInput
+                id="amount"
+                name="amount"
+                required
+                placeholder={amountPlaceholder}
+                value={amountText}
+                onChange={(e) => setAmountText(e.target.value)}
+                precision={currencyPrecision}
+                keypadTitle={t('expenses.amount')}
+                variant="display"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="currency">{t('expenses.currency')}</Label>
+              <CurrencySelect
+                id="currency"
+                name="currency"
+                value={currency}
+                preferredCurrency={groupCurrency}
+                onChange={(event) => setCurrency(event.target.value)}
+                className="w-24 font-mono sm:w-40"
+              />
             </div>
           </div>
-        )}
-        {isDraftMode && (
-          <div className="grid gap-2">
-            <Label htmlFor="currency">{t('expenses.currency')}</Label>
-            <CurrencySelect
-              id="currency"
-              name="currency"
-              value={currency}
-              preferredCurrency={groupCurrency}
-              onChange={(event) => setCurrency(event.target.value)}
-              className="w-40 font-mono"
-            />
-          </div>
-        )}
+        </div>
         <div className="grid grid-cols-[1fr_auto] gap-3 sm:contents">
           <div className="grid gap-2">
             <Label htmlFor="payerMemberId">{t('expenses.payer')}</Label>
@@ -880,7 +579,7 @@ export function ExpenseForm({
         </div>
       </section>
 
-      {!isDraftMode && currency !== groupCurrency && (
+      {currency !== groupCurrency && (
         <div className="mx-5 grid gap-2 sm:mx-8">
           <Label htmlFor="fxRateOverride">{t('expenses.fx_rate_override')}</Label>
           <NumericInput
@@ -894,215 +593,213 @@ export function ExpenseForm({
         </div>
       )}
 
-      {/* ─── Split rule (hidden in DRAFT mode) ──────────────── */}
-      {!isDraftMode && (
-        <fieldset className="bg-sunken-strong mx-5 mb-6 grid gap-4 rounded-lg border p-4 sm:mx-8 sm:p-5">
-          <legend className="px-2 text-sm font-semibold">{t('expenses.split_rule')}</legend>
+      {/* ─── Split rule ──────────────── */}
+      <fieldset className="bg-sunken-strong mx-5 mb-6 grid gap-4 rounded-lg border p-4 sm:mx-8 sm:p-5">
+        <legend className="px-2 text-sm font-semibold">{t('expenses.split_rule')}</legend>
 
-          <details
-            className="group"
-            open={splitEditorOpen}
-            onToggle={(event) => setSplitEditorOpen(event.currentTarget.open)}
-          >
-            <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center gap-3 rounded-md p-1 focus-visible:ring-2 focus-visible:outline-hidden [&::-webkit-details-marker]:hidden">
-              <span className="flex shrink-0 -space-x-1.5">
-                {activeSplitRows.slice(0, 4).map(({ row }) => {
-                  const member = members.find((candidate) => candidate.id === row.memberId);
-                  return (
-                    <span
-                      key={row.memberId}
-                      className="bg-secondary text-secondary-foreground ring-background grid size-7 place-items-center rounded-full font-mono text-[10px] font-bold ring-2"
-                      aria-hidden
-                    >
-                      {member?.displayName.trim().slice(0, 1).toUpperCase() || '?'}
-                    </span>
-                  );
-                })}
-                {activeSplitRows.length > 4 ? (
+        <details
+          className="group"
+          open={splitEditorOpen}
+          onToggle={(event) => setSplitEditorOpen(event.currentTarget.open)}
+        >
+          <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center gap-3 rounded-md p-1 focus-visible:ring-2 focus-visible:outline-hidden [&::-webkit-details-marker]:hidden">
+            <span className="flex shrink-0 -space-x-1.5">
+              {activeSplitRows.slice(0, 4).map(({ row }) => {
+                const member = members.find((candidate) => candidate.id === row.memberId);
+                return (
                   <span
-                    className="bg-muted text-muted-foreground ring-background grid size-7 place-items-center rounded-full font-mono text-[9px] font-bold ring-2"
+                    key={row.memberId}
+                    className="bg-secondary text-secondary-foreground ring-background grid size-7 place-items-center rounded-full font-mono text-[10px] font-bold ring-2"
                     aria-hidden
                   >
-                    +{activeSplitRows.length - 4}
+                    {member?.displayName.trim().slice(0, 1).toUpperCase() || '?'}
                   </span>
-                ) : null}
-              </span>
-              <span className="min-w-0 flex-1">
-                <strong className="block text-sm">{splitSummaryTitle}</strong>
-                <span className="text-muted-foreground mt-0.5 block text-xs">
-                  {splitSummaryDetail}
+                );
+              })}
+              {activeSplitRows.length > 4 ? (
+                <span
+                  className="bg-muted text-muted-foreground ring-background grid size-7 place-items-center rounded-full font-mono text-[9px] font-bold ring-2"
+                  aria-hidden
+                >
+                  +{activeSplitRows.length - 4}
                 </span>
+              ) : null}
+            </span>
+            <span className="min-w-0 flex-1">
+              <strong className="block text-sm">{splitSummaryTitle}</strong>
+              <span className="text-muted-foreground mt-0.5 block text-xs">
+                {splitSummaryDetail}
               </span>
-              <span className="text-primary-ink text-xs font-semibold group-open:hidden">
-                {t('expenses.adjust_split')}
-              </span>
-              <span className="text-muted-foreground hidden text-xs font-semibold group-open:inline">
-                {t('expenses.collapse_split')}
-              </span>
-            </summary>
+            </span>
+            <span className="text-primary-ink text-xs font-semibold group-open:hidden">
+              {t('expenses.adjust_split')}
+            </span>
+            <span className="text-muted-foreground hidden text-xs font-semibold group-open:inline">
+              {t('expenses.collapse_split')}
+            </span>
+          </summary>
 
-            <div className="mt-4 flex flex-col gap-4 border-t pt-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={btnToggleAll}>
-                  {rows.every((r) => r.checked)
-                    ? t('expenses.btn_deselect_all')
-                    : t('expenses.btn_select_all')}
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={btnEqualSplitAll}>
-                  {t('expenses.btn_equal_split_all')}
-                </Button>
-              </div>
+          <div className="mt-4 flex flex-col gap-4 border-t pt-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={btnToggleAll}>
+                {rows.every((r) => r.checked)
+                  ? t('expenses.btn_deselect_all')
+                  : t('expenses.btn_select_all')}
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={btnEqualSplitAll}>
+                {t('expenses.btn_equal_split_all')}
+              </Button>
+            </div>
 
-              {/* One tree at every width. Below `md` each member is a stacked
-                  card with its own inline labels; at `md` the same blocks align
-                  into columns under a shared grid template. The previous dual
-                  render duplicated every field across a table and a card list. */}
-              <div
-                aria-hidden="true"
-                className="text-muted-foreground hidden gap-3 px-2.5 pb-1 md:grid md:grid-cols-[2.75rem_minmax(0,1fr)_8rem_6rem_7rem_7rem] md:items-end"
-              >
-                <span />
-                <Eyebrow as="span">{t('expenses.col_member')}</Eyebrow>
-                <Eyebrow as="span" className="text-center">
-                  {t('expenses.col_shares')}
-                </Eyebrow>
-                <Eyebrow as="span" className="text-right">
-                  {t('expenses.col_base')}
-                </Eyebrow>
-                <Eyebrow as="span" className="text-right">
-                  {t('expenses.col_extra')}
-                </Eyebrow>
-                <Eyebrow as="span" className="text-right">
-                  {t('expenses.col_subtotal')}
-                </Eyebrow>
-              </div>
+            {/* One tree at every width. Below `md` each member is a stacked
+                card with its own inline labels; at `md` the same blocks align
+                into columns under a shared grid template. The previous dual
+                render duplicated every field across a table and a card list. */}
+            <div
+              aria-hidden="true"
+              className="text-muted-foreground hidden gap-3 px-2.5 pb-1 md:grid md:grid-cols-[2.75rem_minmax(0,1fr)_8rem_6rem_7rem_7rem] md:items-end"
+            >
+              <span />
+              <Eyebrow as="span">{t('expenses.col_member')}</Eyebrow>
+              <Eyebrow as="span" className="text-center">
+                {t('expenses.col_shares')}
+              </Eyebrow>
+              <Eyebrow as="span" className="text-right">
+                {t('expenses.col_base')}
+              </Eyebrow>
+              <Eyebrow as="span" className="text-right">
+                {t('expenses.col_extra')}
+              </Eyebrow>
+              <Eyebrow as="span" className="text-right">
+                {t('expenses.col_subtotal')}
+              </Eyebrow>
+            </div>
 
-              <ul className="flex flex-col gap-2 md:gap-0">
-                {rows.map((r, i) => {
-                  const m = members.find((x) => x.id === r.memberId);
-                  if (!m) return null;
-                  const finalMinor = perMemberFinal[i]!;
-                  const hasContribution = r.checked || finalMinor > 0n;
-                  const baseShown = r.checked ? r.baseText || formatMinor(0n, currency) : null;
-                  return (
-                    <li
-                      key={r.memberId}
-                      className={cn(
-                        'flex flex-col gap-2 rounded-md border p-2.5',
-                        'md:grid md:grid-cols-[2.75rem_minmax(0,1fr)_8rem_6rem_7rem_7rem] md:items-center md:gap-3 md:rounded-none md:border-0 md:border-t md:px-2.5 md:py-1.5',
-                        r.checked ? 'bg-card' : 'bg-muted/30 md:bg-transparent',
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5 md:contents">
-                        <Checkbox
-                          checked={r.checked}
-                          onChange={(e) => setChecked(r.memberId, e.target.checked)}
-                          aria-label={t('expenses.member_field', {
+            <ul className="flex flex-col gap-2 md:gap-0">
+              {rows.map((r, i) => {
+                const m = members.find((x) => x.id === r.memberId);
+                if (!m) return null;
+                const finalMinor = perMemberFinal[i]!;
+                const hasContribution = r.checked || finalMinor > 0n;
+                const baseShown = r.checked ? r.baseText || formatMinor(0n, currency) : null;
+                return (
+                  <li
+                    key={r.memberId}
+                    className={cn(
+                      'flex flex-col gap-2 rounded-md border p-2.5',
+                      'md:grid md:grid-cols-[2.75rem_minmax(0,1fr)_8rem_6rem_7rem_7rem] md:items-center md:gap-3 md:rounded-none md:border-0 md:border-t md:px-2.5 md:py-1.5',
+                      r.checked ? 'bg-card' : 'bg-muted/30 md:bg-transparent',
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 md:contents">
+                      <Checkbox
+                        checked={r.checked}
+                        onChange={(e) => setChecked(r.memberId, e.target.checked)}
+                        aria-label={t('expenses.member_field', {
+                          name: m.displayName,
+                          field: t('expenses.split_rule'),
+                        })}
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                        {m.displayName}
+                      </span>
+                      {/* Subtotal sits beside the name on mobile, but in the
+                          last column on desktop — hence the two renders of a
+                          single value, not of a whole row. */}
+                      <span className="text-right font-mono text-sm whitespace-nowrap tabular-nums md:order-last">
+                        {hasContribution ? (
+                          <>
+                            <span className="text-muted-foreground mr-1 text-xs md:hidden">
+                              {currency}
+                            </span>
+                            {formatMinor(finalMinor, currency)}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 md:contents">
+                      <div className="flex flex-col gap-1 md:block">
+                        <Eyebrow as="span" className="md:hidden">
+                          {t('expenses.col_shares')}
+                        </Eyebrow>
+                        <SharesStepper
+                          value={r.shares}
+                          disabled={!r.checked}
+                          onChange={(v) => setShares(r.memberId, v)}
+                          onBump={(d) => bumpShares(r.memberId, d)}
+                          decLabel={t('expenses.shares_dec')}
+                          incLabel={t('expenses.shares_inc')}
+                          label={t('expenses.member_field', {
                             name: m.displayName,
-                            field: t('expenses.split_rule'),
+                            field: t('expenses.col_shares'),
                           })}
                         />
-                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                          {m.displayName}
-                        </span>
-                        {/* Subtotal sits beside the name on mobile, but in the
-                            last column on desktop — hence the two renders of a
-                            single value, not of a whole row. */}
-                        <span className="text-right font-mono text-sm whitespace-nowrap tabular-nums md:order-last">
-                          {hasContribution ? (
-                            <>
-                              <span className="text-muted-foreground mr-1 text-xs md:hidden">
-                                {currency}
-                              </span>
-                              {formatMinor(finalMinor, currency)}
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 md:contents">
-                        <div className="flex flex-col gap-1 md:block">
-                          <Eyebrow as="span" className="md:hidden">
-                            {t('expenses.col_shares')}
-                          </Eyebrow>
-                          <SharesStepper
-                            value={r.shares}
-                            disabled={!r.checked}
-                            onChange={(v) => setShares(r.memberId, v)}
-                            onBump={(d) => bumpShares(r.memberId, d)}
-                            decLabel={t('expenses.shares_dec')}
-                            incLabel={t('expenses.shares_inc')}
-                            label={t('expenses.member_field', {
-                              name: m.displayName,
-                              field: t('expenses.col_shares'),
-                            })}
-                          />
-                        </div>
+                      <span className="text-muted-foreground hidden text-right font-mono text-sm tabular-nums md:block">
+                        {baseShown ?? '—'}
+                      </span>
 
-                        <span className="text-muted-foreground hidden text-right font-mono text-sm tabular-nums md:block">
-                          {baseShown ?? '—'}
-                        </span>
-
-                        <div className="flex flex-col gap-1 md:block">
-                          <Eyebrow as="span" className="md:hidden">
-                            {t('expenses.col_extra')}
-                          </Eyebrow>
-                          <ExtraInput
-                            value={r.extraText}
-                            onChange={(v) => updateRow(r.memberId, { extraText: v })}
-                            precision={currencyPrecision}
-                            clearLabel={t('expenses.clear')}
-                            label={t('expenses.member_field', {
-                              name: m.displayName,
-                              field: t('expenses.col_extra'),
-                            })}
-                          />
-                        </div>
+                      <div className="flex flex-col gap-1 md:block">
+                        <Eyebrow as="span" className="md:hidden">
+                          {t('expenses.col_extra')}
+                        </Eyebrow>
+                        <ExtraInput
+                          value={r.extraText}
+                          onChange={(v) => updateRow(r.memberId, { extraText: v })}
+                          precision={currencyPrecision}
+                          clearLabel={t('expenses.clear')}
+                          label={t('expenses.member_field', {
+                            name: m.displayName,
+                            field: t('expenses.col_extra'),
+                          })}
+                        />
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
 
-              <div className="border-border flex items-center justify-between gap-3 border-t pt-2 text-sm">
-                <span className="text-muted-foreground text-xs">{t('expenses.split_total')}</span>
-                <span className="flex items-baseline gap-3 font-mono tabular-nums">
-                  <span className="text-muted-foreground text-xs">
-                    {totalMinor !== null ? formatMinor(totalMinor, currency) : '—'}
-                  </span>
-                  <span
-                    className={
-                      sumMatchesTotal
-                        ? 'text-positive-ink'
-                        : totalMinor === null
-                          ? 'text-muted-foreground'
-                          : 'text-destructive-ink'
-                    }
-                  >
-                    {formatMinor(sumMinor, currency)} {currency}
-                  </span>
+            <div className="border-border flex items-center justify-between gap-3 border-t pt-2 text-sm">
+              <span className="text-muted-foreground text-xs">{t('expenses.split_total')}</span>
+              <span className="flex items-baseline gap-3 font-mono tabular-nums">
+                <span className="text-muted-foreground text-xs">
+                  {totalMinor !== null ? formatMinor(totalMinor, currency) : '—'}
                 </span>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                {totalMinor !== null && !sumMatchesTotal && !anyParseError && (
-                  <p className="text-destructive-ink text-xs">
-                    {t('expenses.split_diff', {
-                      diff: `${diffMinor < 0n ? '+' : ''}${formatMinor(-diffMinor, currency)}`,
-                      currency,
-                    })}
-                  </p>
-                )}
-                {anyParseError && (
-                  <p className="text-destructive-ink text-xs">{t('errors.invalid_amount')}</p>
-                )}
-              </div>
+                <span
+                  className={
+                    sumMatchesTotal
+                      ? 'text-positive-ink'
+                      : totalMinor === null
+                        ? 'text-muted-foreground'
+                        : 'text-destructive-ink'
+                  }
+                >
+                  {formatMinor(sumMinor, currency)} {currency}
+                </span>
+              </span>
             </div>
-          </details>
-        </fieldset>
-      )}
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {totalMinor !== null && !sumMatchesTotal && !anyParseError && (
+                <p className="text-destructive-ink text-xs">
+                  {t('expenses.split_diff', {
+                    diff: `${diffMinor < 0n ? '+' : ''}${formatMinor(-diffMinor, currency)}`,
+                    currency,
+                  })}
+                </p>
+              )}
+              {anyParseError && (
+                <p className="text-destructive-ink text-xs">{t('errors.invalid_amount')}</p>
+              )}
+            </div>
+          </div>
+        </details>
+      </fieldset>
 
       {/* ─── Note ─────────────────────────────────────────────────── */}
       <div className="mx-5 mb-5 grid gap-2 sm:mx-8 sm:mb-7">
@@ -1146,13 +843,8 @@ export function ExpenseForm({
               disabled={submitDisabled}
               size="lg"
               className="flex-1 sm:w-auto sm:min-w-40 sm:flex-none"
-              {...(isDraftMode ? { formNoValidate: true } : {})}
             >
-              {pending
-                ? t('expenses.submitting')
-                : isDraftMode
-                  ? t('expenses.submit_draft')
-                  : t('expenses.submit')}
+              {pending ? t('expenses.submitting') : t('expenses.submit')}
             </Button>
           </div>
         </div>

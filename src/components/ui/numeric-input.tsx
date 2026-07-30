@@ -19,6 +19,41 @@ export interface NumericInputProps extends Omit<
   variant?: InputVariant;
 }
 
+/**
+ * Keep a typed value to digits (plus one decimal point, and a leading minus
+ * when allowed). The mobile path already constrains input by construction —
+ * it renders a custom keypad — but on desktop the field is a real text input,
+ * so letters, spaces and stray separators would otherwise reach the parser and
+ * surface as a validation error instead of simply never being typeable.
+ */
+function sanitizeNumeric(
+  raw: string,
+  {
+    allowDecimal,
+    precision,
+    allowNegative,
+  }: {
+    allowDecimal: boolean;
+    precision: number;
+    allowNegative: boolean;
+  },
+): string {
+  const negative = allowNegative && raw.trimStart().startsWith('-');
+  let digits = raw.replace(/[^\d.]/g, '');
+  const firstDot = digits.indexOf('.');
+  if (!allowDecimal || precision === 0) {
+    digits = digits.replace(/\./g, '');
+  } else if (firstDot !== -1) {
+    digits =
+      digits.slice(0, firstDot + 1) +
+      digits
+        .slice(firstDot + 1)
+        .replace(/\./g, '')
+        .slice(0, precision);
+  }
+  return (negative ? '-' : '') + digits;
+}
+
 function useCoarsePointer() {
   const [coarse, setCoarse] = React.useState(false);
   React.useEffect(() => {
@@ -77,9 +112,17 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
       inputMode ?? (mode === 'integer' ? 'numeric' : 'decimal');
 
     const desktopOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (!isControlled) setInternal(e.target.value);
-      onValueChange?.(e.target.value);
-      onChange?.({ target: { value: e.target.value, name } });
+      const next = sanitizeNumeric(e.target.value, {
+        allowDecimal: mode !== 'integer',
+        precision,
+        allowNegative: Boolean(allowNegative),
+      });
+      // Rewrite the DOM value too: an uncontrolled input keeps whatever was
+      // typed otherwise, so a rejected character would linger on screen.
+      if (e.target.value !== next) e.target.value = next;
+      if (!isControlled) setInternal(next);
+      onValueChange?.(next);
+      onChange?.({ target: { value: next, name } });
     };
 
     if (!coarse) {

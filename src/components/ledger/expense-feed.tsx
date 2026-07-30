@@ -140,17 +140,8 @@ function ExpenseFeedItem({
             with the title above or the amount to the right. */}
         <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
           <span className="truncate">{payer?.displayName ?? '?'}</span>
-          {!expense.isDraft ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <SplitBadge kind={kind} shares={shares} interactive={!asMenu} />
-            </>
-          ) : null}
-          {expense.isDraft ? (
-            <Eyebrow as="span" variant="chip" tone="signal" mono className="shrink-0">
-              {t('expenses.draft_badge')}
-            </Eyebrow>
-          ) : null}
+          <span aria-hidden="true">·</span>
+          <SplitBadge kind={kind} shares={shares} interactive={!asMenu} />
           {expense.tags.length > 0 ? (
             <span className="truncate">· {expense.tags.join(' · ')}</span>
           ) : null}

@@ -36,7 +36,6 @@ CREATE TABLE "expenses" (
 	"splitRule" jsonb,
 	"splitInputState" jsonb,
 	"tags" text[] DEFAULT ARRAY[]::text[],
-	"isDraft" boolean DEFAULT false NOT NULL,
 	"createdByUserId" text,
 	"createdByShareLinkId" text,
 	"createdAt" timestamp (3) DEFAULT now() NOT NULL,

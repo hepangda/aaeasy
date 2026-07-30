@@ -37,7 +37,6 @@ describe('ledger PDF HTML', () => {
           splitRule: null,
           splitInputState: null,
           tags: [],
-          isDraft: false,
           createdByUserId: null,
           createdByShareLinkId: null,
           createdAt: new Date('2026-07-13T00:00:00.000Z'),

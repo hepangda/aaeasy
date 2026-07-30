@@ -1,14 +1,9 @@
-import {
-  expenseInputSchema,
-  fillDraftsSchema,
-  updateExpenseInputSchema,
-  type ExpenseInput,
-} from '@aaeasy/contracts';
+import { expenseInputSchema, updateExpenseInputSchema, type ExpenseInput } from '@aaeasy/contracts';
 import { computeSplit, parseAmountToMinor, SplitError } from '@aaeasy/core';
 import { auditLogs, expenseSplits, expenses, groups, members } from '@aaeasy/db/schema';
 import { createId } from '@paralleldrive/cuid2';
 import Decimal from 'decimal.js';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import type { AppEnv } from '../app-env';
 import { boundMember, requireGroupAccess, type GroupAccess } from '../auth/access';
@@ -146,26 +141,9 @@ expenseRoutes.post('/groups/:groupId/expenses', async (c) => {
     return c.json({ ok: false, error: 'errors.forbidden' }, 403);
   }
 
-  let materialized: MaterializedExpense | null = null;
+  let materialized: MaterializedExpense;
   try {
-    if (parsed.data.isDraft) {
-      const [payer] = await c.var.db
-        .select({ id: members.id })
-        .from(members)
-        .where(and(eq(members.id, parsed.data.payerMemberId), eq(members.groupId, groupId)))
-        .limit(1);
-      if (!payer) return c.json({ ok: false, error: 'errors.unknown_payer' }, 400);
-      const [group] = await c.var.db
-        .select({ status: groups.status })
-        .from(groups)
-        .where(eq(groups.id, groupId))
-        .limit(1);
-      if (group?.status === 'ARCHIVED') {
-        return c.json({ ok: false, error: 'errors.expense_locked' }, 409);
-      }
-    } else {
-      materialized = await materialize(c, groupId, parsed.data);
-    }
+    materialized = await materialize(c, groupId, parsed.data);
   } catch (error) {
     return c.json({ ok: false, error: inputError(error) }, 400);
   }
@@ -181,18 +159,17 @@ expenseRoutes.post('/groups/:groupId/expenses', async (c) => {
       title: parsed.data.title,
       note: parsed.data.note || null,
       currency: parsed.data.currency,
-      amountMinor: materialized?.amountMinor ?? null,
-      fxRateToGroupCurrency: materialized?.fxRate.toString() ?? null,
+      amountMinor: materialized.amountMinor,
+      fxRateToGroupCurrency: materialized.fxRate.toString(),
       payerMemberId: parsed.data.payerMemberId,
-      splitRule: parsed.data.isDraft ? null : parsed.data.splitRule,
-      splitInputState: parsed.data.isDraft ? null : (parsed.data.splitInputState ?? null),
+      splitRule: parsed.data.splitRule,
+      splitInputState: parsed.data.splitInputState ?? null,
       tags: parsed.data.tags,
-      isDraft: parsed.data.isDraft,
       createdByUserId: auditActor.createdByUserId,
       createdByShareLinkId: auditActor.createdByShareLinkId,
       updatedAt: now,
     });
-    if (materialized && materialized.splits.size > 0) {
+    if (materialized.splits.size > 0) {
       await tx.insert(expenseSplits).values(
         [...materialized.splits].map(([memberId, shareMinor]) => ({
           id: createId(),
@@ -207,7 +184,7 @@ expenseRoutes.post('/groups/:groupId/expenses', async (c) => {
       groupId,
       actorType: auditActor.auditType,
       actorId: auditActor.auditId,
-      action: parsed.data.isDraft ? 'EXPENSE_CREATE_DRAFT' : 'EXPENSE_CREATE',
+      action: 'EXPENSE_CREATE',
       targetType: 'Expense',
       targetId: expenseId,
     });
@@ -251,9 +228,9 @@ expenseRoutes.put('/groups/:groupId/expenses/:expenseId', async (c) => {
     return c.json({ ok: false, error: 'errors.forbidden' }, 403);
   }
 
-  let materialized: MaterializedExpense | null = null;
+  let materialized: MaterializedExpense;
   try {
-    if (!parsed.data.isDraft) materialized = await materialize(c, groupId, parsed.data);
+    materialized = await materialize(c, groupId, parsed.data);
   } catch (error) {
     return c.json({ ok: false, error: inputError(error) }, 400);
   }
@@ -266,13 +243,12 @@ expenseRoutes.put('/groups/:groupId/expenses/:expenseId', async (c) => {
         title: parsed.data.title,
         note: parsed.data.note || null,
         currency: parsed.data.currency,
-        amountMinor: materialized?.amountMinor ?? null,
-        fxRateToGroupCurrency: materialized?.fxRate.toString() ?? null,
+        amountMinor: materialized.amountMinor,
+        fxRateToGroupCurrency: materialized.fxRate.toString(),
         payerMemberId: parsed.data.payerMemberId,
-        splitRule: parsed.data.isDraft ? null : parsed.data.splitRule,
-        splitInputState: parsed.data.isDraft ? null : (parsed.data.splitInputState ?? null),
+        splitRule: parsed.data.splitRule,
+        splitInputState: parsed.data.splitInputState ?? null,
         tags: parsed.data.tags,
-        isDraft: parsed.data.isDraft,
         updatedAt: new Date(),
         version: sql`${expenses.version} + 1`,
       })
@@ -288,7 +264,7 @@ expenseRoutes.put('/groups/:groupId/expenses/:expenseId', async (c) => {
       .returning({ version: expenses.version });
     if (updated.length === 0) return null;
     await tx.delete(expenseSplits).where(eq(expenseSplits.expenseId, expenseId));
-    if (materialized && materialized.splits.size > 0) {
+    if (materialized.splits.size > 0) {
       await tx.insert(expenseSplits).values(
         [...materialized.splits].map(([memberId, shareMinor]) => ({
           id: createId(),
@@ -382,149 +358,4 @@ expenseRoutes.delete('/groups/:groupId/expenses/:expenseId', async (c) => {
     actorId: auditActor.auditId,
   });
   return c.json({ ok: true, ...result });
-});
-
-expenseRoutes.post('/groups/:groupId/expenses/fill-drafts', async (c) => {
-  const groupId = c.req.param('groupId');
-  const parsed = fillDraftsSchema.safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success) return c.json({ ok: false, error: 'errors.invalid_input' }, 400);
-  const access = await requireGroupAccess(c, groupId, 'WRITE_EXPENSE');
-  const constrained = boundMember(access);
-  const [group] = await c.var.db
-    .select({ defaultCurrency: groups.defaultCurrency, status: groups.status })
-    .from(groups)
-    .where(eq(groups.id, groupId))
-    .limit(1);
-  if (!group || group.status === 'ARCHIVED') {
-    return c.json({ ok: false, error: 'errors.expense_locked' }, 409);
-  }
-  const memberRows = await c.var.db
-    .select({ id: members.id })
-    .from(members)
-    .where(eq(members.groupId, groupId));
-  const memberIds = memberRows.map((member) => member.id);
-  const validIds = new Set(memberIds);
-  const draftRows = await c.var.db
-    .select()
-    .from(expenses)
-    .where(
-      and(
-        eq(expenses.groupId, groupId),
-        inArray(
-          expenses.id,
-          parsed.data.items.map((item) => item.expenseId),
-        ),
-        isNull(expenses.deletedAt),
-      ),
-    );
-  const draftsById = new Map(draftRows.map((draft) => [draft.id, draft]));
-  const auditActor = actor(access);
-  const filled: string[] = [];
-  const failed: Array<{ expenseId: string; error: string }> = [];
-
-  for (const item of parsed.data.items) {
-    const draft = draftsById.get(item.expenseId);
-    if (!draft) {
-      failed.push({ expenseId: item.expenseId, error: 'errors.not_found' });
-      continue;
-    }
-    if (!draft.isDraft) {
-      failed.push({ expenseId: item.expenseId, error: 'errors.not_draft' });
-      continue;
-    }
-    if (draft.lockedBySettlementId) {
-      failed.push({ expenseId: item.expenseId, error: 'errors.expense_locked' });
-      continue;
-    }
-    if (constrained && draft.payerMemberId !== constrained) {
-      failed.push({ expenseId: item.expenseId, error: 'errors.forbidden' });
-      continue;
-    }
-
-    try {
-      const amountMinor = parseAmountToMinor(item.amount, draft.currency);
-      if (amountMinor <= 0n) throw new Error('AMOUNT_NEGATIVE');
-      const fxRate =
-        draft.currency === group.defaultCurrency
-          ? new Decimal(1)
-          : await getFxRate(c.var.db, {
-              base: draft.currency,
-              quote: group.defaultCurrency,
-              date: draft.occurredAt,
-            });
-      if (!fxRate) throw new Error('errors.fx_unavailable');
-      const rule = { type: 'EQUAL' as const, memberIds };
-      const splits = computeSplit({
-        totalMinor: amountMinor,
-        rule,
-        payerMemberId: draft.payerMemberId,
-        validMemberIds: validIds,
-      });
-      const result = await c.var.db.transaction(async (tx) => {
-        const updated = await tx
-          .update(expenses)
-          .set({
-            amountMinor,
-            fxRateToGroupCurrency: fxRate.toString(),
-            splitRule: rule,
-            splitInputState: {
-              rows: memberIds.map((memberId) => ({
-                memberId,
-                checked: true,
-                shares: '1',
-                extraText: '',
-              })),
-            },
-            isDraft: false,
-            updatedAt: new Date(),
-            version: sql`${expenses.version} + 1`,
-          })
-          .where(
-            and(
-              eq(expenses.id, draft.id),
-              eq(expenses.version, draft.version),
-              eq(expenses.isDraft, true),
-              isNull(expenses.deletedAt),
-              isNull(expenses.lockedBySettlementId),
-            ),
-          )
-          .returning({ version: expenses.version });
-        if (updated.length === 0) return null;
-        await tx.delete(expenseSplits).where(eq(expenseSplits.expenseId, draft.id));
-        await tx.insert(expenseSplits).values(
-          [...splits].map(([memberId, shareMinor]) => ({
-            id: createId(),
-            expenseId: draft.id,
-            memberId,
-            shareMinor,
-          })),
-        );
-        await tx.insert(auditLogs).values({
-          id: createId(),
-          groupId,
-          actorType: auditActor.auditType,
-          actorId: auditActor.auditId,
-          action: 'EXPENSE_FILL_DRAFT',
-          targetType: 'Expense',
-          targetId: draft.id,
-        });
-        return { revision: await bumpGroupRevision(tx, groupId) };
-      });
-      if (!result) throw new Error('errors.conflict');
-      filled.push(draft.id);
-      scheduleGroupEvent(c, groupId, {
-        revision: result.revision,
-        type: 'expense.updated',
-        entityId: draft.id,
-        actorId: auditActor.auditId,
-      });
-    } catch (error) {
-      failed.push({ expenseId: item.expenseId, error: inputError(error) });
-    }
-  }
-
-  if (filled.length === 0) {
-    return c.json({ ok: false, error: failed[0]?.error ?? 'errors.unknown', failed }, 400);
-  }
-  return c.json({ ok: true, filled, ...(failed.length ? { failed } : {}) });
 });

@@ -41,7 +41,6 @@ export function SettingsPanel({
   shareLinks = [],
   baseUrl = '',
   openExpenseCount = 0,
-  draftExpenseCount = 0,
 }: {
   groupId: string;
   isOwner: boolean;
@@ -54,7 +53,6 @@ export function SettingsPanel({
   shareLinks?: ExistingShareLink[];
   baseUrl?: string;
   openExpenseCount?: number;
-  draftExpenseCount?: number;
 }) {
   const t = useTranslations();
   const canReopen = Boolean(isArchived && canSettle && settlementId);
@@ -69,11 +67,7 @@ export function SettingsPanel({
             description={t('settlements.settle_desc')}
           />
           <div>
-            <SettleButton
-              groupId={groupId}
-              openExpenseCount={openExpenseCount}
-              draftExpenseCount={draftExpenseCount}
-            />
+            <SettleButton groupId={groupId} openExpenseCount={openExpenseCount} />
           </div>
         </Card>
       ) : null}

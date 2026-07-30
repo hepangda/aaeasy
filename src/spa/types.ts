@@ -122,7 +122,6 @@ export interface LedgerExpense {
   splitInputState: unknown;
   tags: string[];
   lockedBySettlementId: string | null;
-  isDraft: boolean;
   version: number;
   splits: Array<{ id: string; memberId: string; shareMinor: bigint }>;
   createdAt: Date;

@@ -54,7 +54,6 @@ export const expenseInputSchema = z.object({
   splitRule: splitRuleSchema.nullable().optional(),
   splitInputState: splitInputStateSchema.nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
-  isDraft: z.boolean().default(false),
   expectedVersion: z.number().int().positive().optional(),
 });
 
@@ -63,18 +62,6 @@ export const updateExpenseInputSchema = expenseInputSchema.extend({
 });
 
 export type ExpenseInput = z.infer<typeof expenseInputSchema>;
-
-export const fillDraftsSchema = z.object({
-  items: z
-    .array(
-      z.object({
-        expenseId: z.string().min(1),
-        amount: z.string().trim().min(1),
-      }),
-    )
-    .min(1)
-    .max(50),
-});
 
 export const settlementEntrySchema = z.object({
   fromMemberId: z.string().min(1),
