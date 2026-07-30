@@ -23,6 +23,7 @@ import { getPageSlice } from '@/lib/pagination';
 import { ErrorPage } from '../page-state';
 import { SkeletonPage } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
+import { PageShell } from '@/components/ui/page-shell';
 import { useGroupQuery, useLedgerQuery } from '../queries';
 
 const PAGE_SIZE_EXPENSES = 10;
@@ -121,7 +122,7 @@ export function GroupDetailPage() {
       : [];
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-9">
+    <PageShell>
       <GroupLiveRefresher groupId={groupId} />
       <LedgerPageHeader
         name={group.name}
@@ -291,6 +292,6 @@ export function GroupDetailPage() {
           ]}
         />
       </div>
-    </section>
+    </PageShell>
   );
 }

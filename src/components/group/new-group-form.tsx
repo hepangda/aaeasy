@@ -21,7 +21,7 @@ export function NewGroupForm() {
   }, [state.error, t]);
 
   return (
-    <form action={action} className="flex w-full max-w-lg flex-col gap-5">
+    <form action={action} className="flex w-full flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
         <div className="grid gap-2">
           <Label htmlFor="name">{t('groups.name')}</Label>

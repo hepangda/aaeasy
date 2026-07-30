@@ -217,6 +217,7 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 | 原语 | 位置 | 取代 |
 | --- | --- | --- |
 | `Card` / `CardHeader` / `CardBody` | `ui/card.tsx` | 手写卡片外壳 |
+| `PageShell` | `ui/page-shell.tsx` | 手写页面容器（`mx-auto max-w-* px-* py-*`）|
 | `PageHeader` / `SectionHeader` | `ui/page-header.tsx` | 手写页头、标题＋描述组合 |
 | `Eyebrow` | `ui/eyebrow.tsx` | 全大写小标签、徽章、日期分组头 |
 | `AmountRow` | `ui/amount-row.tsx` | 左名称右金额的列表行 |
@@ -282,6 +283,7 @@ flex items-center justify-between gap-4 border-b border-border py-3 last:border-
 
 **结构项**
 - [ ] 卡片、页头、空状态、金额行都走了共享原语，没有手写
+- [ ] 页面容器用 `<PageShell>`，没有手写 `mx-auto max-w-* px-*`（宽度必须与顶栏一致，否则左边缘会在跳转时跳动）
 - [ ] 卡片用边框而不是阴影，圆角遵守"外大内小"
 - [ ] 表单字段用 `<Field>`，错误接到了 `aria-invalid`
 - [ ] 没有 `hidden md:block` + `md:hidden` 的双份 markup

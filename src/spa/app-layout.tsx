@@ -193,7 +193,7 @@ function DesktopHeader({
 
   return (
     <header className="border-border bg-background/94 sticky top-0 z-40 hidden border-b backdrop-blur-lg lg:block">
-      <div className="mx-auto w-full max-w-6xl px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="flex min-h-14 items-center gap-4">
           <BrandHomeLink compact />
 

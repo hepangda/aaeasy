@@ -5,6 +5,8 @@ import { useTranslations } from 'use-intl';
 import { ChevronLeft } from 'lucide-react';
 import { ExpenseForm } from '@/components/expense/expense-form';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageShell } from '@/components/ui/page-shell';
 import { formatMinor } from '@/lib/money';
 import { splitInputStateSchema, type SplitInputState } from '@/lib/split/input-state';
 import { splitRuleSchema, type SplitRule } from '@/lib/split/types';
@@ -50,27 +52,19 @@ export function NewExpensePage() {
     displayName: member.displayName,
   }));
   return (
-    <section className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-5 px-4 py-5 sm:gap-7 sm:px-6 sm:py-10 lg:px-8">
-      <Button asChild variant="ghost" size="sm" className="-ml-2 self-start">
-        <Link href={`/groups/${groupId}`}>
-          <ChevronLeft /> {detail.data.group.name}
-        </Link>
-      </Button>
-      <header className="flex flex-col gap-2">
-        <h1 className="font-display text-3xl leading-none font-bold tracking-[-0.055em] sm:text-4xl">
-          {t('expenses.add')}
-        </h1>
-        <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">
-          {t('expenses.form_intro')}
-        </p>
-      </header>
+    <PageShell>
+      <PageHeader
+        title={t('expenses.add')}
+        description={t('expenses.form_intro')}
+        backLink={{ href: `/groups/${groupId}`, label: detail.data.group.name }}
+      />
       <ExpenseForm
         groupId={groupId}
         groupCurrency={detail.data.group.defaultCurrency}
         members={members}
         lockedPayerMemberId={constrainedPayer(detail.data.access)}
       />
-    </section>
+    </PageShell>
   );
 }
 
@@ -109,8 +103,8 @@ export function EditExpensePage() {
   }
   if (expense.lockedBySettlementId) {
     return (
-      <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-10">
-        <Button asChild variant="ghost" size="sm" className="-ml-2 self-start">
+      <PageShell>
+        <Button asChild variant="ghost" size="sm" className="-ml-3 self-start">
           <Link href={`/groups/${groupId}`}>
             <ChevronLeft /> {detail.data.group.name}
           </Link>
@@ -118,7 +112,7 @@ export function EditExpensePage() {
         <p className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-center text-sm">
           {t('errors.expense_locked')}
         </p>
-      </section>
+      </PageShell>
     );
   }
 
@@ -145,20 +139,12 @@ export function EditExpensePage() {
   const amountMinor = expense.amountMinor === null ? 0n : BigInt(expense.amountMinor);
 
   return (
-    <section className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-5 px-4 py-5 sm:gap-7 sm:px-6 sm:py-10 lg:px-8">
-      <Button asChild variant="ghost" size="sm" className="-ml-2 self-start">
-        <Link href={`/groups/${groupId}`}>
-          <ChevronLeft /> {detail.data.group.name}
-        </Link>
-      </Button>
-      <header className="flex flex-col gap-2">
-        <h1 className="font-display text-3xl leading-none font-bold tracking-[-0.055em] sm:text-4xl">
-          {t('expenses.edit')}
-        </h1>
-        <p className="text-muted-foreground max-w-xl text-sm leading-relaxed">
-          {t('expenses.form_intro_edit')}
-        </p>
-      </header>
+    <PageShell>
+      <PageHeader
+        title={t('expenses.edit')}
+        description={t('expenses.form_intro_edit')}
+        backLink={{ href: `/groups/${groupId}`, label: detail.data.group.name }}
+      />
       <ExpenseForm
         groupId={groupId}
         groupCurrency={detail.data.group.defaultCurrency}
@@ -186,6 +172,6 @@ export function EditExpensePage() {
           isDraft: expense.isDraft,
         }}
       />
-    </section>
+    </PageShell>
   );
 }
