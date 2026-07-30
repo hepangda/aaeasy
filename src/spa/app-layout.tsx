@@ -15,7 +15,7 @@ import {
 import { Outlet, useLocation } from 'react-router';
 import { useTranslations } from 'use-intl';
 import { BrandMark } from '@/components/layout/brand-mark';
-import { HeaderActionsMenu } from '@/components/layout/header-actions-menu';
+import { HeaderActions } from '@/components/layout/header-actions';
 import { ServiceWorkerRegister } from '@/components/layout/service-worker-register';
 import { Button } from '@/components/ui/button';
 import { Eyebrow } from '@/components/ui/eyebrow';
@@ -63,7 +63,7 @@ function AnonymousHeader() {
     <header className="border-border bg-background/94 sticky top-0 z-40 border-b backdrop-blur-lg">
       <div className="mx-auto flex min-h-14 w-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
         <BrandHomeLink compact />
-        <HeaderActionsMenu />
+        <HeaderActions />
       </div>
     </header>
   );
@@ -181,13 +181,11 @@ function DesktopHeader({
   groups,
   currentGroupId,
   groupName,
-  pathname,
 }: {
   displayName: string;
   groups: GroupListItem[];
   currentGroupId: string;
   groupName?: string;
-  pathname: string;
 }) {
   const t = useTranslations();
 
@@ -222,20 +220,7 @@ function DesktopHeader({
                 {t('groups.new_group')}
               </Link>
             </Button>
-            <Link
-              href="/account"
-              aria-current={pathname.startsWith('/account') ? 'page' : undefined}
-              aria-label={t('common.account')}
-              className={cn(
-                'hover:bg-accent grid size-9 place-items-center rounded-full transition-colors',
-                pathname.startsWith('/account') && 'ring-primary ring-2',
-              )}
-            >
-              <span className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-full font-mono text-xs font-bold">
-                {displayName.trim().charAt(0).toUpperCase() || 'A'}
-              </span>
-            </Link>
-            <HeaderActionsMenu userDisplayName={displayName} />
+            <HeaderActions userDisplayName={displayName} />
           </div>
         </div>
       </div>
@@ -287,7 +272,7 @@ function MobileHeader({
             ))}
         </div>
 
-        <HeaderActionsMenu userDisplayName={displayName} />
+        <HeaderActions userDisplayName={displayName} />
       </div>
     </header>
   );
@@ -523,7 +508,6 @@ export function AppLayout() {
           groups={groupList}
           currentGroupId={isExpenseComposer ? '' : routeGroupId}
           groupName={groupName}
-          pathname={location.pathname}
         />
         <MobileHeader
           displayName={user.displayName}

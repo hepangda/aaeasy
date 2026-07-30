@@ -16,4 +16,9 @@ export default defineConfig({
   resolve: {
     alias: [{ find: '@', replacement: path.resolve(import.meta.dirname, 'src') }],
   },
+  server: {
+    // Vite ignores PORT by default. Honoring it lets a second dev server pick a
+    // free port instead of colliding with one already running on the default.
+    port: process.env.PORT ? Number(process.env.PORT) : undefined,
+  },
 });
