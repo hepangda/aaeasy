@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Pencil, Link as LinkIcon } from 'lucide-react';
+import { Pressable } from '@/components/ui/pressable';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { Pagination } from '@/components/ui/pagination';
 import type { MemberLite } from './types';
@@ -93,22 +94,24 @@ function CompactMemberRow(props: RowProps) {
     <li>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="hover:bg-accent/35 data-[state=open]:bg-accent/60 flex min-h-16 w-full items-center gap-3 px-4 py-2 text-sm transition-colors"
-            aria-label={t('common.actions')}
-          >
-            <MemberIdentity
-              displayName={facts.displayName}
-              member={member}
-              isLinked={facts.isLinked}
-            />
-            {member.linkedUserRole && (
-              <span className="bg-muted text-muted-foreground shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold">
-                {t(`members.role.${member.linkedUserRole}` as never)}
-              </span>
-            )}
-          </button>
+          <Pressable asChild scale={0.985}>
+            <button
+              type="button"
+              className="hover:bg-accent/35 data-[state=open]:bg-accent/60 flex min-h-16 w-full items-center gap-3 px-4 py-2 text-sm transition-colors"
+              aria-label={t('common.actions')}
+            >
+              <MemberIdentity
+                displayName={facts.displayName}
+                member={member}
+                isLinked={facts.isLinked}
+              />
+              {member.linkedUserRole && (
+                <span className="bg-muted text-muted-foreground shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold">
+                  {t(`members.role.${member.linkedUserRole}` as never)}
+                </span>
+              )}
+            </button>
+          </Pressable>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
           {/* The menu names the member it belongs to: once it floats over the

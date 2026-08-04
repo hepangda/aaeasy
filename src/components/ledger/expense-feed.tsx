@@ -22,6 +22,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { Card, CardHeader } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Pressable } from '@/components/ui/pressable';
 import { formatMoney } from '@aaeasy/core/money';
 import { splitInputStateSchema } from '@aaeasy/core/split-input-state';
 import { classifyPersistedSplit } from '@/lib/split/intent';
@@ -153,7 +154,7 @@ function ExpenseFeedItem({
 
       {/* The amount is the one thing a user scans a ledger for, so it gets the
           largest type on the row and is the only element allowed to be bold. */}
-      <p className="shrink-0 font-mono text-lg font-bold tracking-[-0.04em] whitespace-nowrap tabular-nums">
+      <p className="tracking-figure shrink-0 font-mono text-lg font-bold whitespace-nowrap tabular-nums">
         {amountText}
       </p>
     </>
@@ -170,14 +171,20 @@ function ExpenseFeedItem({
             {/* Tapping anywhere on the row opens its actions — on touch there
                 is no hover to reveal them and no room to park icon buttons.
                 While the menu is open the row stays highlighted so it is
-                unambiguous which expense the actions apply to. */}
-            <button
-              type="button"
-              className={`${rowClass} data-[state=open]:bg-accent/60 text-left`}
-              aria-label={t('common.actions')}
-            >
-              {body}
-            </button>
+                unambiguous which expense the actions apply to.
+
+                The press compression is small: a full-bleed row travels many
+                more pixels for the same percentage than a button does, and
+                anything larger reads as the row lurching. */}
+            <Pressable asChild scale={0.985}>
+              <button
+                type="button"
+                className={`${rowClass} data-[state=open]:bg-accent/60 text-left`}
+                aria-label={t('common.actions')}
+              >
+                {body}
+              </button>
+            </Pressable>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
             {/* The menu repeats the expense it belongs to: once it floats over

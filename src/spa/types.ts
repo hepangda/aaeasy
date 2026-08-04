@@ -87,6 +87,7 @@ export interface GroupDetailResponse {
     displayName: string;
     linkedUserId: string | null;
     linkedUsername: string | null;
+    linkedUserPicture: string | null;
     color: string | null;
     sortOrder: number;
     createdAt: string;
@@ -104,6 +105,7 @@ export interface LedgerMember {
   linkedUserId: string | null;
   linkedUsername: string | null;
   linkedUserDisplayName: string | null;
+  linkedUserPicture: string | null;
   linkedUserRole: GroupRole | null;
   color: string | null;
 }

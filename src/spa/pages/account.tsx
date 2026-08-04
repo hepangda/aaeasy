@@ -4,6 +4,7 @@ import { useFormatter, useTranslations } from 'use-intl';
 import { ExternalLink } from 'lucide-react';
 import { DeleteAccountButton } from '@/components/account/delete-account-button';
 import { Button } from '@/components/ui/button';
+import { Avatar } from '@/components/ledger/member-avatar';
 import { ErrorPage } from '../page-state';
 import { SkeletonPage } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
@@ -25,8 +26,6 @@ export function AccountPage() {
   if (account.isPending) return <SkeletonPage rows={4} />;
   if (account.isError) return <ErrorPage error={account.error} />;
 
-  const initial = account.data.user.displayName.trim().charAt(0).toUpperCase() || 'A';
-
   return (
     <PageShell>
       <PageHeader
@@ -46,18 +45,14 @@ export function AccountPage() {
           description={t('account.identity_desc')}
         />
         <div className="flex items-center gap-4">
-          {account.data.user.picture ? (
-            <img
-              src={account.data.user.picture}
-              alt=""
-              className="size-12 shrink-0 rounded-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <span className="bg-primary text-primary-foreground grid size-12 shrink-0 place-items-center rounded-full font-mono text-base font-bold">
-              {initial}
-            </span>
-          )}
+          <Avatar
+            seedId={account.data.user.id}
+            displayName={account.data.user.displayName}
+            picture={account.data.user.picture}
+            color="var(--primary)"
+            size="xl"
+            className="text-primary-foreground border-0"
+          />
           <dl className="min-w-0 flex-1 text-sm">
             <div className="flex min-w-0 gap-2">
               <dt className="text-muted-foreground shrink-0">{t('account.name_label')}</dt>

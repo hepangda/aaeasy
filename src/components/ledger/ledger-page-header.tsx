@@ -35,7 +35,7 @@ export function LedgerPageHeader({
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-col gap-2.5 sm:gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-            <h1 className="font-display text-foreground truncate text-3xl leading-none font-bold tracking-[-0.04em] sm:text-4xl">
+            <h1 className="font-display text-foreground tracking-display truncate text-3xl leading-none font-bold sm:text-4xl">
               {name}
             </h1>
             {archived ? (

@@ -20,7 +20,7 @@ const VARIANT = {
   default:
     'border-input bg-card hover:border-foreground/25 focus-visible:border-ring focus-visible:ring-ring/14 disabled:bg-muted aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/14 flex h-10 rounded-md border px-3 py-2 text-sm focus-visible:ring-3',
   display:
-    'aria-[invalid=true]:text-destructive-ink h-14 border-0 bg-transparent px-0 font-mono text-3xl font-bold tracking-[-0.04em] shadow-none ring-0 focus-visible:ring-0 sm:h-16 sm:text-4xl',
+    'aria-[invalid=true]:text-destructive-ink h-14 border-0 bg-transparent px-0 font-mono text-3xl font-bold tracking-figure-lg shadow-none ring-0 focus-visible:ring-0 sm:h-16 sm:text-4xl',
 } as const;
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(

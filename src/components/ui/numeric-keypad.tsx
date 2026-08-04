@@ -152,14 +152,20 @@ export function NumericKeypad({
         aria-live="polite"
       >
         <span className="text-muted-foreground text-xs">{title}</span>
-        <span className="text-foreground font-mono text-2xl font-bold tracking-[-0.04em] tabular-nums">
+        <span className="text-foreground tracking-figure-lg font-mono text-2xl font-bold tabular-nums">
           {draft || '0'}
         </span>
       </div>
       <div className="grid grid-cols-4 gap-2 p-3 pt-1">
-        <KeypadButton onClick={() => pressDigit('7')}>7</KeypadButton>
-        <KeypadButton onClick={() => pressDigit('8')}>8</KeypadButton>
-        <KeypadButton onClick={() => pressDigit('9')}>9</KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('7')}>
+          7
+        </KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('8')}>
+          8
+        </KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('9')}>
+          9
+        </KeypadButton>
         <KeypadButton
           onPointerDown={handleBackspacePointerDown}
           onPointerUp={clearLongPress}
@@ -171,10 +177,17 @@ export function NumericKeypad({
           <Delete className="size-5" />
         </KeypadButton>
 
-        <KeypadButton onClick={() => pressDigit('4')}>4</KeypadButton>
-        <KeypadButton onClick={() => pressDigit('5')}>5</KeypadButton>
-        <KeypadButton onClick={() => pressDigit('6')}>6</KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('4')}>
+          4
+        </KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('5')}>
+          5
+        </KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('6')}>
+          6
+        </KeypadButton>
         <KeypadButton
+          instant
           onClick={() => pressMultiZero('000')}
           disabled={atFullPrecision}
           variant="muted"
@@ -182,10 +195,17 @@ export function NumericKeypad({
           000
         </KeypadButton>
 
-        <KeypadButton onClick={() => pressDigit('1')}>1</KeypadButton>
-        <KeypadButton onClick={() => pressDigit('2')}>2</KeypadButton>
-        <KeypadButton onClick={() => pressDigit('3')}>3</KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('1')}>
+          1
+        </KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('2')}>
+          2
+        </KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('3')}>
+          3
+        </KeypadButton>
         <KeypadButton
+          instant
           onClick={() => pressMultiZero('00')}
           disabled={atFullPrecision}
           variant="muted"
@@ -194,20 +214,24 @@ export function NumericKeypad({
         </KeypadButton>
 
         {isDecimal ? (
-          <KeypadButton onClick={pressDot} disabled={dotDisabled} variant="muted">
+          <KeypadButton instant onClick={pressDot} disabled={dotDisabled} variant="muted">
             .
           </KeypadButton>
         ) : (
           <KeypadSpacer />
         )}
-        <KeypadButton onClick={() => pressDigit('0')}>0</KeypadButton>
+        <KeypadButton instant onClick={() => pressDigit('0')}>
+          0
+        </KeypadButton>
         {allowNegative ? (
-          <KeypadButton onClick={pressToggleSign} variant="muted" ariaLabel="±">
+          <KeypadButton instant onClick={pressToggleSign} variant="muted" ariaLabel="±">
             ±
           </KeypadButton>
         ) : (
           <KeypadSpacer />
         )}
+        {/* Confirm stays on click: it commits and closes the sheet, so it must
+            remain abortable by sliding off the key. */}
         <KeypadButton onClick={pressConfirm} variant="primary" ariaLabel={t('confirm')}>
           <Check className="size-5" />
         </KeypadButton>
@@ -227,6 +251,14 @@ function KeypadButton({
   className,
   variant = 'default',
   ariaLabel,
+  /**
+   * Fire on pointer-down instead of click. This is the right default for a
+   * keypad: a physical key registers when it goes down, and waiting for release
+   * on the app's most-tapped control is where latency is felt most. Confirm
+   * deliberately opts out — a committing action should require a complete,
+   * abortable press.
+   */
+  instant = false,
 }: {
   children?: React.ReactNode;
   onClick?: () => void;
@@ -238,13 +270,37 @@ function KeypadButton({
   className?: string;
   variant?: 'default' | 'muted' | 'primary';
   ariaLabel?: string;
+  instant?: boolean;
 }) {
+  const firedRef = useRef(false);
+
   return (
     <Button
       type="button"
       variant="outline"
-      onClick={onClick}
-      onPointerDown={onPointerDown}
+      // Keyboard activation still arrives as a click with no preceding pointer
+      // event, so the handler has to stay reachable both ways without letting a
+      // mouse press run it twice.
+      onClick={
+        instant
+          ? () => {
+              if (firedRef.current) {
+                firedRef.current = false;
+                return;
+              }
+              onClick?.();
+            }
+          : onClick
+      }
+      onPointerDown={(e) => {
+        if (instant && onClick && !disabled) {
+          // Suppress the focus shift that would otherwise scroll the sheet.
+          e.preventDefault();
+          firedRef.current = true;
+          onClick();
+        }
+        onPointerDown?.(e);
+      }}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerLeave}
       onPointerCancel={onPointerCancel}

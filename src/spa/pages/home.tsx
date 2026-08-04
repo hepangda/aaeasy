@@ -57,7 +57,7 @@ function LedgerPreview() {
             <span className="bg-primary text-primary-foreground grid size-9 shrink-0 place-items-center rounded-lg">
               <ReceiptText className="size-4" aria-hidden="true" />
             </span>
-            <p className="truncate text-sm font-bold tracking-[-0.025em] sm:text-base">
+            <p className="tracking-title truncate text-sm font-bold sm:text-base">
               {t('demo_group')}
             </p>
           </div>
@@ -79,7 +79,7 @@ function LedgerPreview() {
                   <p className="truncate text-sm font-bold">{t('demo_expense')}</p>
                   <p className="text-muted-foreground mt-1 text-xs leading-5">{t('demo_payer')}</p>
                 </div>
-                <span className="font-mono text-base font-bold tracking-[-0.04em]">¥438</span>
+                <span className="tracking-figure font-mono text-base font-bold">¥438</span>
               </div>
 
               <div className="border-border mt-4 flex items-center justify-between gap-4 border-t border-dashed pt-3 text-xs">
@@ -151,7 +151,7 @@ function FeatureStep({
         {number}
       </span>
       <div className="md:mt-6">
-        <h2 className="font-display text-foreground text-lg font-semibold tracking-[-0.04em] sm:text-xl">
+        <h2 className="font-display text-foreground tracking-display text-lg font-semibold sm:text-xl">
           {title}
         </h2>
         <p className="text-muted-foreground mt-2 max-w-sm text-sm leading-6">{description}</p>
@@ -180,7 +180,7 @@ export function HomePage() {
 
         <div className="mx-auto grid min-h-[calc(100svh-3.5rem)] w-full max-w-7xl items-center gap-12 px-5 py-14 sm:px-8 sm:py-16 lg:min-h-[45rem] lg:grid-cols-[minmax(0,0.82fr)_minmax(36rem,1.18fr)] lg:gap-16 lg:px-10 lg:py-20">
           <div className="interface-enter relative z-10 max-w-xl">
-            <h1 className="font-display text-foreground max-w-[10ch] text-[clamp(3.15rem,5.4vw,4.75rem)] leading-[0.99] font-bold tracking-[-0.072em]">
+            <h1 className="font-display text-foreground tracking-hero max-w-[10ch] text-[clamp(3.15rem,5.4vw,4.75rem)] leading-[0.99] font-bold">
               <span className="block">{t('headline_line_1')}</span>
               <span className="text-primary-ink block">{t('headline_line_2')}</span>
             </h1>

@@ -46,7 +46,9 @@ export const splitInputStateSchema = z.object({
 export const expenseInputSchema = z.object({
   occurredAt: z.string().datetime(),
   title: z.string().trim().min(1).max(120),
-  note: z.string().trim().max(2000).nullable().optional(),
+  // A note is a one-line aside, not prose: the ledger only ever renders a
+  // marker icon and a tooltip for it. 200 matches `settlementEntrySchema.note`.
+  note: z.string().trim().max(200).nullable().optional(),
   currency: currencyCodeSchema,
   amount: z.string().trim().optional(),
   payerMemberId: z.string().min(1),

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +48,33 @@ export function Tabs({
   const tabId = (id: string) => `${idPrefix}-tab-${id}`;
   const panelId = (id: string) => `${idPrefix}-tabpanel-${id}`;
 
+  const listRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef(new Map<string, HTMLButtonElement>());
+  const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
+
+  // Measure after layout, not after paint, so the indicator is never rendered
+  // for one frame at a stale position. Re-measured on resize and on label
+  // changes (a badge count appearing widens its tab).
+  useLayoutEffect(() => {
+    function measure() {
+      const list = listRef.current;
+      const node = tabRefs.current.get(active);
+      if (!list || !node) return;
+      setIndicator({ left: node.offsetLeft, width: node.offsetWidth });
+    }
+    measure();
+
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => measure());
+    if (listRef.current) observer?.observe(listRef.current);
+    for (const node of tabRefs.current.values()) observer?.observe(node);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [active, tabs]);
+
   // Keep one source of truth for desktop tabs, mobile navigation, reloads,
   // and browser history. Normalizing the default into the URL also lets
   // navigation outside this component highlight the correct panel.
@@ -92,12 +119,30 @@ export function Tabs({
   return (
     <div className="flex flex-col gap-5">
       <div
+        ref={listRef}
         role="tablist"
         className={cn(
-          'border-border -mx-1 gap-0 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          'border-border relative -mx-1 gap-0 overflow-x-auto border-b [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           alsoInBottomNav ? 'hidden lg:flex' : 'flex',
         )}
       >
+        {/* One indicator that travels, rather than one per tab appearing and
+            disappearing. Continuous motion between the old and new position is
+            what tells the user these panels sit side by side in a row — a
+            hard cut leaves the relationship between them unstated. */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            'bg-primary pointer-events-none absolute bottom-0 h-0.5',
+            'transition-[transform,width] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+            'motion-reduce:transition-none',
+            indicator ? 'opacity-100' : 'opacity-0',
+          )}
+          style={{
+            width: indicator?.width ?? 0,
+            transform: `translateX(${indicator?.left ?? 0}px)`,
+          }}
+        />
         {tabs.map((tab) => {
           const isActive = tab.id === active;
           return (
@@ -105,6 +150,10 @@ export function Tabs({
               key={tab.id}
               type="button"
               role="tab"
+              ref={(node) => {
+                if (node) tabRefs.current.set(tab.id, node);
+                else tabRefs.current.delete(tab.id);
+              }}
               aria-selected={isActive}
               aria-controls={panelId(tab.id)}
               id={tabId(tab.id)}
@@ -116,7 +165,8 @@ export function Tabs({
                 moveFocus(tab.id, event.key);
               }}
               className={cn(
-                'relative flex min-h-11 items-center gap-1.5 px-3 py-2 text-sm font-semibold whitespace-nowrap transition-colors',
+                'relative flex min-h-11 items-center gap-1.5 px-3 py-2 text-sm font-semibold whitespace-nowrap',
+                'transition-colors duration-200',
                 isActive ? 'text-primary-ink' : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -125,9 +175,6 @@ export function Tabs({
                 <span className="bg-muted text-muted-foreground inline-flex min-w-5 items-center justify-center rounded-md px-1.5 font-mono text-[10px] tabular-nums">
                   {tab.badge}
                 </span>
-              )}
-              {isActive && (
-                <span aria-hidden className="bg-primary absolute -bottom-px left-0 h-0.5 w-full" />
               )}
             </button>
           );

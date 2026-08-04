@@ -66,7 +66,7 @@ export function EmptyState({
       <div className="flex max-w-2xl items-start gap-4 sm:gap-5">
         {iconPlate}
         <div className="flex flex-col gap-2">
-          <h2 className="text-foreground text-xl leading-tight font-bold tracking-[-0.025em] sm:text-2xl">
+          <h2 className="text-foreground tracking-title text-xl leading-tight font-bold sm:text-2xl">
             {title}
           </h2>
           {description && (

@@ -34,7 +34,7 @@ export function SettlementStatus({ pendingTransfers }: { pendingTransfers: numbe
         )}
       </span>
       <div className="min-w-0">
-        <h2 className="font-display text-lg leading-tight font-bold tracking-[-0.04em] sm:text-xl">
+        <h2 className="font-display tracking-display text-lg leading-tight font-bold sm:text-xl">
           {settled
             ? t('summary.trail_title_even')
             : t('summary.trail_title_pending', { count: pendingTransfers })}

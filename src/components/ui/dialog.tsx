@@ -4,8 +4,13 @@ import { X } from 'lucide-react';
 import { useTranslations } from 'use-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useDragToDismiss } from '@/hooks/use-drag-to-dismiss';
+import { useMediaQuery } from '@/hooks/use-media-query';
+import { usePresence } from '@/hooks/use-presence';
+import { useReducedMotion } from '@/hooks/use-spring';
 
 const BACKDROP_DISMISS_GRACE_MS = 200;
+const DIALOG_EXIT_MS = 240;
 const FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
@@ -211,8 +216,13 @@ export function useModalLayer<T extends HTMLElement>(
  * it escapes any ancestor `overflow:hidden` / transform stack.
  *
  * On mobile (< sm) it docks to the bottom as a sheet — easier for one-handed
- * use than a top-anchored card. On `sm+` it floats centered. Closes on
- * backdrop click and Escape; body scroll is locked while open.
+ * use than a top-anchored card — and can be dragged down to dismiss. On `sm+`
+ * it floats centered and *materializes*: blur and scale animate together so the
+ * surface reads as a real pane of glass arriving, rather than a flat rectangle
+ * fading in. Both directions retrace the same path, so a dialog always leaves
+ * the way it came.
+ *
+ * Closes on backdrop click and Escape; body scroll is locked while open.
  */
 export function Dialog({
   open,
@@ -232,18 +242,44 @@ export function Dialog({
   const t = useTranslations('common');
   const openedAt = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
+  const scrimRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const requestClose = useModalLayer(open, onClose, panelRef);
+  const reducedMotion = useReducedMotion();
+  const isCompact = useMediaQuery('(max-width: 639px)');
+  const { mounted, state } = usePresence(open, reducedMotion ? 160 : DIALOG_EXIT_MS);
+  const requestClose = useModalLayer(mounted, onClose, panelRef);
+
+  // Drag-to-dismiss only earns its place on the bottom-docked mobile
+  // presentation. A centered desktop card has no edge to pull toward.
+  const { handlers, progress, dragging } = useDragToDismiss(panelRef, {
+    onDismiss: onClose,
+    disabled: reducedMotion || !isCompact,
+  });
 
   useEffect(() => {
     if (open) openedAt.current = performance.now();
   }, [open]);
 
-  if (typeof document === 'undefined' || !open) return null;
+  useEffect(() => {
+    const scrim = scrimRef.current;
+    if (!scrim) return;
+    scrim.style.opacity = state === 'present' ? String(1 - progress) : '0';
+  }, [progress, state]);
+
+  if (typeof document === 'undefined' || !mounted) return null;
+
+  const offscreen = state !== 'present';
+  // Reduced motion keeps the cross-fade and drops the travel: a large surface
+  // sweeping across the viewport is exactly the motion that causes trouble.
+  const enterTransform = reducedMotion
+    ? undefined
+    : isCompact
+      ? 'translate3d(0, 100%, 0)'
+      : 'scale(0.94) translate3d(0, 8px, 0)';
 
   return createPortal(
     <div
-      className="bg-scrim fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:overflow-y-auto sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:overflow-y-auto sm:p-4"
       onPointerDown={(e) => {
         if (e.target !== e.currentTarget) return;
         e.preventDefault();
@@ -255,23 +291,42 @@ export function Dialog({
       }}
     >
       <div
+        ref={scrimRef}
+        aria-hidden="true"
+        className="bg-scrim absolute inset-0 transition-opacity duration-200 ease-out"
+        style={{ opacity: offscreen ? 0 : 1 }}
+      />
+      <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         aria-label={title ? undefined : ariaLabel}
         tabIndex={-1}
+        {...handlers}
         className={cn(
           'bg-background shadow-lifted relative flex w-full max-w-lg flex-col gap-4 border p-5',
           'max-h-[90svh] overflow-y-auto rounded-t-2xl rounded-b-none border-b-0',
           'sm:max-h-[calc(100svh-2rem)] sm:rounded-2xl sm:border-b',
+          'material-edge-top touch-pan-y sm:touch-auto',
           'pb-safe-5',
+          !dragging &&
+            'transition-[transform,opacity] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+          'motion-reduce:transition-opacity',
           className,
         )}
+        style={{
+          transform: offscreen ? enterTransform : undefined,
+          opacity: offscreen && (reducedMotion || !isCompact) ? 0 : undefined,
+        }}
       >
+        {/* Mobile only: the sheet is draggable there, so it says so. */}
+        <div aria-hidden="true" className="-mt-2 flex shrink-0 justify-center pb-1 sm:hidden">
+          <span className="bg-muted-foreground/30 h-1 w-9 rounded-full" />
+        </div>
         {title && (
           <header className="flex items-center justify-between gap-2">
-            <h2 id={titleId} className="text-base font-bold tracking-[-0.025em]">
+            <h2 id={titleId} className="text-base font-bold">
               {title}
             </h2>
             <Button

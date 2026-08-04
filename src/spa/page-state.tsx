@@ -58,7 +58,7 @@ export function ErrorPage({ error }: { error?: unknown }) {
         <p className="text-muted-foreground mt-5 font-mono text-xs font-semibold tracking-[0.12em]">
           {content.code === '!' ? 'AAEasy' : content.code}
         </p>
-        <h1 className="font-display mt-3 text-3xl leading-tight font-bold tracking-[-0.045em]">
+        <h1 className="font-display tracking-display mt-3 text-3xl leading-tight font-bold">
           {content.title}
         </h1>
         <p className="text-muted-foreground mt-3 text-sm leading-6">{content.description}</p>

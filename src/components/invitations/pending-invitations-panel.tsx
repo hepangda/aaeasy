@@ -129,7 +129,7 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
   return (
     <Card as="section" padding="body" className="flex flex-col gap-3">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="inline-flex items-center gap-1.5 text-base font-bold tracking-[-0.025em]">
+        <h2 className="tracking-title inline-flex items-center gap-1.5 text-base font-bold">
           <Mail className="size-4" aria-hidden="true" />
           {t('invitations.section_title')}
           <span className="bg-muted text-muted-foreground ml-1 inline-flex min-w-5 items-center justify-center rounded-md px-1.5 font-mono text-[10px] tabular-nums">

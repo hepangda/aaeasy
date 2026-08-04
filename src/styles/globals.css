@@ -47,7 +47,19 @@
   --motion-fast: 120ms;
   --motion-base: 200ms;
   --motion-slow: 360ms;
+  /* A reversible transition must retrace its own path, so the outbound and
+     return curves are inverses of each other rather than both `ease-out`. */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.64, 0, 0.78, 0);
+  /* Translucent chrome. Blur alone greys out whatever is behind it; the
+     saturation boost is what keeps the underlying colour reading through the
+     material. Weight scales with surface size — a big surface should read as
+     thicker glass than a small chip. */
+  --material-thin: blur(12px) saturate(180%);
+  --material-regular: blur(20px) saturate(180%);
+  --material-thick: blur(30px) saturate(190%);
+  /* The bright top edge is light catching the leading face of the material. */
+  --material-edge: rgb(255 255 255 / 0.5);
   --radius: 0.5rem;
 }
 
@@ -90,6 +102,9 @@
   --scrim: oklch(0.06 0.015 258 / 0.6);
   --lifted-shadow: 0 20px 56px rgb(0 0 0 / 0.38);
   --floating-shadow: 0 10px 28px rgb(0 0 0 / 0.4);
+  /* In dark mode the light catching the material's edge is a dim highlight, not
+     a white line — a 0.5 alpha white here would read as a drawn border. */
+  --material-edge: rgb(255 255 255 / 0.12);
 }
 
 @theme inline {
@@ -157,11 +172,48 @@
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    letter-spacing: -0.01em;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tracking is size-specific — a single global value is wrong somewhere by
+     definition. Letters read too far apart as type grows, so large text needs
+     negative tracking; small text needs a touch of positive tracking to stay
+     legible. This used to be a flat `-0.01em` on `body`, which over-tightened
+     captions and under-tightened headings at the same time.
+
+     Leading moves inversely to size for the same reason: tight on a heading,
+     comfortable on body copy. */
+  :where(h1, h2, h3, .text-3xl, .text-4xl, .text-5xl) {
+    font-optical-sizing: auto;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  :where(h4, h5, h6, .text-xl, .text-2xl) {
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  /* Body copy sits at zero — the size it was designed for. */
+  :where(p, li, dd, dt, input, textarea, select, button) {
+    letter-spacing: 0;
+  }
+
+  /* Small text opens up slightly. Below ~13px the default fit is too tight to
+     read comfortably, especially in the mixed CJK/Latin strings this app is
+     full of. */
+  :where(.text-xs, .text-\[10px\], .text-\[11px\]) {
+    letter-spacing: 0.005em;
+  }
+
+  /* Figures are compared column-to-column, so they always align and always use
+     the same tightened fit. */
+  :where(.font-mono) {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 
   ::selection {
@@ -192,6 +244,15 @@
     display: none;
   }
 
+  /* Reduced motion is not "no feedback" — it is a gentler, non-vestibular
+     equivalent. The previous rule flattened *every* duration to 0.01ms, which
+     also destroyed the opacity and colour changes that tell a user something
+     happened; the result was an interface that jump-cut between states with no
+     explanation at all.
+
+     So: kill travel, parallax and overshoot, keep cross-fades. Anything that
+     moves the viewport-relative position of a large surface is replaced by a
+     short opacity transition. */
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;
@@ -200,17 +261,161 @@
     *,
     *::before,
     *::after {
-      animation-delay: 0ms !important;
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
       scroll-behavior: auto !important;
+      /* Transforms are how travel is expressed; freeze those but leave
+         opacity/colour transitions running at a calm speed. */
+      transition-property:
+        opacity, color, background-color, border-color, box-shadow, fill, stroke !important;
+      transition-duration: 180ms !important;
       transition-delay: 0ms !important;
-      transition-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+    }
+
+    /* Looping animation near 0.2Hz is the range that reads as an attention
+       grab rather than a status hint. Stop the loops outright. */
+    *,
+    *::before,
+    *::after {
+      animation-iteration-count: 1 !important;
+    }
+
+    .interface-enter,
+    .interface-enter-delayed {
+      animation: reduced-fade-in var(--motion-base) ease-out both;
+    }
+
+    .flow-path {
+      animation: none;
+    }
+  }
+
+  @keyframes reduced-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Frost the glass rather than blurring it. Users who ask for reduced
+     transparency are usually asking for legibility over depth, so the material
+     becomes near-opaque and keeps its edge as a real border. */
+  @media (prefers-reduced-transparency: reduce) {
+    :root,
+    .dark {
+      --material-thin: none;
+      --material-regular: none;
+      --material-thick: none;
+    }
+  }
+
+  /* High contrast: solid surfaces, defined borders, no translucency at all. */
+  @media (prefers-contrast: more) {
+    :root,
+    .dark {
+      --material-thin: none;
+      --material-regular: none;
+      --material-thick: none;
+    }
+
+    :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+      outline-width: 3px;
+      outline-color: var(--ring);
     }
   }
 }
 
 @layer utilities {
+  /* Named tracking steps, so call sites stop inventing values.
+     Four different hand-written numbers had accumulated (-0.025, -0.04, -0.045,
+     -0.072em) with nothing to say which belonged where. The rule is simply that
+     tracking tightens as type grows: */
+
+  /* Section titles and card headings. */
+  .tracking-title {
+    letter-spacing: -0.02em;
+  }
+
+  /* Page titles — big enough that the default fit reads as gappy. */
+  .tracking-display {
+    letter-spacing: -0.03em;
+  }
+
+  /* Figures. Tabular digits are drawn on a fixed advance width, so they need a
+     touch more negative tracking than text at the same size to look right. */
+  .tracking-figure {
+    letter-spacing: -0.02em;
+  }
+
+  /* Figures at display size — the amount in the composer and the keypad
+     readout, which are the largest numerals in the app. */
+  .tracking-figure-lg {
+    letter-spacing: -0.04em;
+  }
+
+  /* The hero headline, and nothing else. At ~4.75rem the default fit is
+     visibly loose, and this is the one place the type gets that big. */
+  .tracking-hero {
+    letter-spacing: -0.055em;
+  }
+
+  /* Translucent chrome. Content scrolls *under* these surfaces rather than
+     being pushed out of the way by an opaque strip, which is what makes the
+     layer read as a floating material instead of a fixed bar.
+
+     Three weights, because a bigger surface should read as thicker glass:
+     `material-thin` for chips and small popovers, `material-regular` for
+     toolbars and menus, `material-thick` for full-width sheets. Each degrades
+     to a solid background when the user asks for reduced transparency, so the
+     colour must stay legible on its own. */
+  .material-thin {
+    backdrop-filter: var(--material-thin);
+    -webkit-backdrop-filter: var(--material-thin);
+  }
+
+  .material-regular {
+    backdrop-filter: var(--material-regular);
+    -webkit-backdrop-filter: var(--material-regular);
+  }
+
+  .material-thick {
+    backdrop-filter: var(--material-thick);
+    -webkit-backdrop-filter: var(--material-thick);
+  }
+
+  /* A one-pixel highlight along the leading edge, as if light were catching the
+     face of the glass. Applied on the side the surface is entering from. */
+  .material-edge-top {
+    box-shadow: inset 0 1px 0 0 var(--material-edge);
+  }
+
+  .material-edge-bottom {
+    box-shadow: inset 0 -1px 0 0 var(--material-edge);
+  }
+
+  /* Scroll edge effect: a short gradient where content passes beneath floating
+     chrome, instead of a hard 1px divider that is drawn even when there is
+     nothing to separate. Toggled by the element's own scroll state. */
+  .scroll-edge {
+    position: relative;
+  }
+
+  .scroll-edge::after {
+    content: '';
+    position: absolute;
+    inset: 100% 0 auto 0;
+    height: 1.25rem;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(to bottom, var(--background), transparent);
+    transition: opacity var(--motion-base) var(--ease-out);
+  }
+
+  .scroll-edge[data-scrolled='true']::after {
+    opacity: 1;
+  }
+
   /* Bottom safe-area handling. `pb-safe` is the bare inset (for a bar that
      supplies its own padding); `pb-safe-3` keeps a minimum 0.75rem so content
      never sits flush against the edge on non-notched devices. Use these instead
@@ -244,6 +449,11 @@
     stroke-dasharray: 5 6;
   }
 
+  /* Entrance for above-the-fold marketing content. Deliberately a keyframe and
+     not a spring: nothing here is grabbable, so there is no interruption to
+     preserve, and a one-shot CSS animation costs no JS on the landing page's
+     critical path. The travel is small (10px) because a large entrance
+     translation is the exact motion that triggers vestibular discomfort. */
   @keyframes interface-enter {
     from {
       opacity: 0;
@@ -261,6 +471,25 @@
 
   .interface-enter-delayed {
     animation: interface-enter var(--motion-slow) var(--ease-out) 90ms both;
+  }
+
+  /* Loading placeholders breathe rather than blink. Tailwind's `animate-pulse`
+     runs a 0→1 opacity swing on a 2s cycle, which sits close to the 0.2Hz band
+     that reads as an attention grab; against a page of skeleton rows it is the
+     most distracting thing on screen. This keeps the shimmer shallow (0.45 at
+     its dimmest, never fully transparent) and slower. */
+  @keyframes skeleton-breathe {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+
+  .skeleton-breathe {
+    animation: skeleton-breathe 2.6s var(--ease-out) infinite;
   }
 
   /* Brief highlight pulse applied by JS when AI streaming writes into a

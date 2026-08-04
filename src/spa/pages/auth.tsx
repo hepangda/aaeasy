@@ -34,7 +34,7 @@ function ExternalLoginRedirect() {
   return (
     <section className="flex w-full flex-1 items-center px-4 py-12 sm:px-6 sm:py-16">
       <div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
-        <h1 className="font-display text-3xl leading-tight font-bold tracking-[-0.04em]">
+        <h1 className="font-display tracking-display text-3xl leading-tight font-bold">
           {t('errors.login_stalled_title')}
         </h1>
         <p className="text-muted-foreground mt-3 text-sm leading-6">

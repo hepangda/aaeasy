@@ -106,7 +106,7 @@ export function GroupsPage() {
                       </div>
                     ) : null}
 
-                    <h2 className="truncate text-xl leading-tight font-bold tracking-[-0.04em] sm:text-2xl">
+                    <h2 className="tracking-display truncate text-xl leading-tight font-bold sm:text-2xl">
                       {group.name}
                     </h2>
 

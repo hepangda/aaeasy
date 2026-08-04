@@ -14,7 +14,12 @@ export function Skeleton({ className }: { className?: string }) {
     <span
       aria-hidden="true"
       className={cn(
-        'bg-muted block animate-pulse rounded-md motion-reduce:animate-none',
+        // Not Tailwind's `animate-pulse`: that swings opacity all the way to 0
+        // on a 2s cycle, and a page of rows doing it in unison is the most
+        // distracting thing on screen — right in the frequency band that reads
+        // as demanding attention rather than reporting status. This breathes
+        // shallowly (never below 0.45) and slower.
+        'bg-muted skeleton-breathe block rounded-md motion-reduce:animate-none',
         className,
       )}
     />

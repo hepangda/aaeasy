@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { IntlProvider } from 'use-intl';
@@ -55,13 +55,20 @@ describe('Dialog scroll lock', () => {
     expect(document.body.style.paddingRight).toBe('15px');
   });
 
-  it('restores the body on close', async () => {
+  it('holds the lock until the dialog has finished leaving, then restores', async () => {
     fakeScrollbar(15);
     const user = userEvent.setup();
     render(<Harness />);
 
     await user.click(screen.getByRole('button', { name: 'open' }));
     await user.keyboard('{Escape}');
+
+    // The dialog animates out along the path it arrived on, so it is still on
+    // screen at this point. Releasing the lock now would let the page scroll
+    // underneath a surface the user can still see.
+    expect(document.body.style.overflow).toBe('hidden');
+
+    await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
 
     expect(document.body.style.overflow).toBe('');
     expect(document.body.style.paddingRight).toBe('');

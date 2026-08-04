@@ -36,7 +36,7 @@ export function BrandMark({ className, iconClassName, showWordmark = true }: Bra
         />
       </svg>
       {showWordmark ? (
-        <span className="font-display truncate text-base font-bold tracking-[-0.045em] text-current">
+        <span className="font-display tracking-display truncate text-base font-bold text-current">
           AA<span className="text-primary-ink">Easy</span>
         </span>
       ) : (

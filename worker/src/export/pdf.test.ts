@@ -19,6 +19,7 @@ describe('ledger PDF HTML', () => {
           linkedUserId: null,
           linkedUsername: null,
           linkedUserDisplayName: null,
+          linkedUserPicture: null,
           linkedUserRole: null,
           color: null,
         },

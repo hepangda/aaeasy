@@ -67,7 +67,7 @@ export function PageHeader({
         <div className={cn('flex min-w-0 flex-col gap-2', centered && 'items-center')}>
           {eyebrow}
           <div className="flex min-w-0 items-center gap-3">
-            <h1 className="font-display text-foreground truncate text-3xl leading-none font-bold tracking-[-0.04em] sm:text-4xl">
+            <h1 className="font-display text-foreground tracking-display truncate text-3xl leading-none font-bold sm:text-4xl">
               {title}
             </h1>
             {badge}
@@ -100,7 +100,7 @@ export function SectionHeader({
     <div className={cn('flex items-start justify-between gap-4', className)}>
       <div className="flex min-w-0 flex-col gap-1.5">
         {eyebrow}
-        <h2 className="text-foreground text-base font-bold tracking-[-0.025em]">{title}</h2>
+        <h2 className="text-foreground tracking-title text-base font-bold">{title}</h2>
         {description && <p className="text-muted-foreground text-sm leading-6">{description}</p>}
       </div>
       {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}

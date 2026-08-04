@@ -20,6 +20,8 @@ import { HeaderActions } from '@/components/layout/header-actions';
 import { ServiceWorkerRegister } from '@/components/layout/service-worker-register';
 import { Button } from '@/components/ui/button';
 import { Eyebrow } from '@/components/ui/eyebrow';
+import { Pressable } from '@/components/ui/pressable';
+import { useScrolled } from '@/hooks/use-scrolled';
 import { cn } from '@/lib/utils';
 import type { GroupListResponse } from './types';
 import { useGroupQuery, useGroupsQuery, useLedgerQuery, useSessionQuery } from './queries';
@@ -59,9 +61,31 @@ function BrandHomeLink({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/**
+ * The shared class string for the app's top chrome.
+ *
+ * These bars are a translucent material that content scrolls *underneath*, not
+ * an opaque strip that consumes a fixed band of the viewport. Two consequences
+ * worth stating, because both used to be got wrong here:
+ *
+ *  - Blur alone desaturates whatever is behind it. The saturation boost is what
+ *    keeps the underlying colour reading through the glass instead of turning
+ *    to grey mush.
+ *  - The bottom border is drawn only once something is actually beneath it. A
+ *    permanent divider under a resting header separates the header from nothing.
+ */
+function chromeSurface(scrolled: boolean, extra?: string) {
+  return cn(
+    'bg-background/80 material-regular sticky top-0 z-40 transition-[border-color,box-shadow] duration-300',
+    scrolled ? 'border-border border-b' : 'border-b border-transparent',
+    extra,
+  );
+}
+
 function AnonymousHeader() {
+  const scrolled = useScrolled();
   return (
-    <header className="border-border bg-background/94 sticky top-0 z-40 border-b backdrop-blur-lg">
+    <header className={chromeSurface(scrolled)}>
       <div className="mx-auto flex min-h-14 w-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-8 lg:px-10">
         <BrandHomeLink compact />
         <HeaderActions />
@@ -72,22 +96,24 @@ function AnonymousHeader() {
 
 function GroupNavLink({ group, active }: { group: GroupListItem; active: boolean }) {
   return (
-    <Link
-      href={`/groups/${group.id}`}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors',
-        active
-          ? 'bg-accent text-accent-foreground font-semibold'
-          : 'text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground',
-      )}
-    >
-      <span aria-hidden="true" className="bg-primary size-1.5 shrink-0 rounded-sm" />
-      <span className="min-w-0 flex-1 truncate">{group.name}</span>
-      <span className="text-muted-foreground font-mono text-[10px] tabular-nums">
-        {group.memberCount}
-      </span>
-    </Link>
+    <Pressable asChild scale={0.98}>
+      <Link
+        href={`/groups/${group.id}`}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          'flex min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors',
+          active
+            ? 'bg-accent text-accent-foreground font-semibold'
+            : 'text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground',
+        )}
+      >
+        <span aria-hidden="true" className="bg-primary size-1.5 shrink-0 rounded-sm" />
+        <span className="min-w-0 flex-1 truncate">{group.name}</span>
+        <span className="text-muted-foreground font-mono text-[10px] tabular-nums">
+          {group.memberCount}
+        </span>
+      </Link>
+    </Pressable>
   );
 }
 
@@ -143,7 +169,7 @@ function GroupSwitcher({
         aria-label={t('common.switch_group')}
         className="hover:bg-accent -mx-2 flex min-h-11 min-w-0 items-center gap-1.5 rounded-md px-2 transition-colors"
       >
-        <span className="truncate text-sm font-bold tracking-[-0.025em]">{label}</span>
+        <span className="tracking-title truncate text-sm font-bold">{label}</span>
         <ChevronsUpDown className="text-muted-foreground size-3.5 shrink-0" aria-hidden="true" />
       </button>
 
@@ -193,19 +219,22 @@ function GroupSwitcher({
  */
 function DesktopHeader({
   displayName,
+  picture,
   groups,
   currentGroupId,
   groupName,
 }: {
   displayName: string;
+  picture: string | null;
   groups: GroupListItem[];
   currentGroupId: string;
   groupName?: string;
 }) {
   const t = useTranslations();
+  const scrolled = useScrolled();
 
   return (
-    <header className="border-border bg-background/94 sticky top-0 z-40 hidden border-b backdrop-blur-lg lg:block">
+    <header className={chromeSurface(scrolled, 'hidden lg:block')}>
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="flex min-h-14 items-center gap-4">
           <BrandHomeLink compact />
@@ -235,7 +264,7 @@ function DesktopHeader({
                 {t('groups.new_group')}
               </Link>
             </Button>
-            <HeaderActions userDisplayName={displayName} />
+            <HeaderActions userDisplayName={displayName} userPicture={picture} />
           </div>
         </div>
       </div>
@@ -250,21 +279,24 @@ function DesktopHeader({
  */
 function MobileHeader({
   displayName,
+  picture,
   backHref,
   title,
   groups,
   currentGroupId,
 }: {
   displayName: string;
+  picture: string | null;
   backHref?: string;
   title?: string;
   groups: GroupListItem[];
   currentGroupId: string;
 }) {
   const t = useTranslations('common');
+  const scrolled = useScrolled();
 
   return (
-    <header className="border-border bg-background/94 sticky top-0 z-40 border-b backdrop-blur-lg lg:hidden">
+    <header className={chromeSurface(scrolled, 'lg:hidden')}>
       <div className="flex min-h-14 items-center gap-2 px-4">
         {backHref ? (
           <Link
@@ -283,11 +315,11 @@ function MobileHeader({
             (currentGroupId ? (
               <GroupSwitcher groups={groups} currentGroupId={currentGroupId} label={title} />
             ) : (
-              <p className="truncate text-sm font-bold tracking-[-0.025em]">{title}</p>
+              <p className="tracking-title truncate text-sm font-bold">{title}</p>
             ))}
         </div>
 
-        <HeaderActions userDisplayName={displayName} />
+        <HeaderActions userDisplayName={displayName} userPicture={picture} />
       </div>
     </header>
   );
@@ -307,26 +339,28 @@ function MobileNavItem({
   prominent?: boolean;
 }) {
   return (
-    <Link
-      href={href}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] font-semibold transition-colors',
-        prominent || active ? 'text-primary-ink' : 'text-muted-foreground hover:text-foreground',
-      )}
-    >
-      {active ? (
-        <span aria-hidden="true" className="bg-primary absolute inset-x-3 top-0 h-0.5" />
-      ) : null}
-      {prominent ? (
-        <span className="bg-primary text-primary-foreground shadow-lifted -mt-3 grid size-11 place-items-center rounded-full">
-          <Icon className="size-5" aria-hidden="true" />
-        </span>
-      ) : (
-        <Icon className="size-4" aria-hidden="true" />
-      )}
-      <span className="max-w-full truncate">{label}</span>
-    </Link>
+    <Pressable asChild scale={0.94}>
+      <Link
+        href={href}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          'relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] font-semibold transition-colors',
+          prominent || active ? 'text-primary-ink' : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        {active ? (
+          <span aria-hidden="true" className="bg-primary absolute inset-x-3 top-0 h-0.5" />
+        ) : null}
+        {prominent ? (
+          <span className="bg-primary text-primary-foreground shadow-lifted -mt-3 grid size-11 place-items-center rounded-full">
+            <Icon className="size-5" aria-hidden="true" />
+          </span>
+        ) : (
+          <Icon className="size-4" aria-hidden="true" />
+        )}
+        <span className="max-w-full truncate">{label}</span>
+      </Link>
+    </Pressable>
   );
 }
 
@@ -348,7 +382,10 @@ function MobileBottomNav({
   return (
     <nav
       aria-label={t('common.navigation')}
-      className="border-border bg-background/96 pb-safe fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-lg lg:hidden"
+      // Thicker material than the top bars: this surface is wider, sits closer
+      // to the content, and a bigger pane of glass should read as heavier. The
+      // inset top highlight is light catching its leading edge.
+      className="border-border bg-background/80 material-thick material-edge-top pb-safe fixed inset-x-0 bottom-0 z-40 border-t lg:hidden"
     >
       <div className="mx-auto flex max-w-lg items-stretch px-1 py-1">
         {groupId ? (
@@ -525,12 +562,14 @@ export function AppLayout() {
       <div className="bg-background text-foreground min-h-svh">
         <DesktopHeader
           displayName={user.displayName}
+          picture={user.picture}
           groups={groupList}
           currentGroupId={routeGroupId}
           groupName={groupName}
         />
         <MobileHeader
           displayName={user.displayName}
+          picture={user.picture}
           backHref={backHref}
           title={headerTitle}
           groups={groupList}

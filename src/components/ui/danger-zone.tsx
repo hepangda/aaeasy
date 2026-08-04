@@ -24,7 +24,7 @@ export function DangerZone({
   return (
     <Card tone="danger" padding="body" className={cn('flex flex-col gap-4', className)}>
       <div className="flex flex-col gap-1.5">
-        <h2 className="text-destructive-ink text-base font-bold tracking-[-0.025em]">{title}</h2>
+        <h2 className="text-destructive-ink tracking-title text-base font-bold">{title}</h2>
         {description && <p className="text-muted-foreground text-sm leading-6">{description}</p>}
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">{children}</div>

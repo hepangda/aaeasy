@@ -101,9 +101,7 @@ export function CardHeader({
             <div className="flex min-w-0 flex-col gap-0.5">
               {eyebrow}
               {title && (
-                <p className="truncate text-sm font-bold tracking-[-0.025em] sm:text-base">
-                  {title}
-                </p>
+                <p className="tracking-title truncate text-sm font-bold sm:text-base">{title}</p>
               )}
               {description && (
                 <p className="text-muted-foreground truncate text-xs leading-5">{description}</p>

@@ -12,7 +12,7 @@ import { Eyebrow } from '@/components/ui/eyebrow';
 import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { OptionalNote } from '@/components/ui/optional-note';
 import { CurrencySelect } from '@/components/money/currency-select';
 import {
   createExpenseAction,
@@ -483,7 +483,7 @@ export function ExpenseForm({
     <form
       action={formAction}
       ref={formRef}
-      className="bg-card relative flex w-full flex-col overflow-hidden rounded-2xl border pb-36 md:pb-0"
+      className="bg-card relative flex w-full flex-col overflow-hidden rounded-2xl border pb-36"
     >
       <input type="hidden" name="groupId" value={groupId} />
       <input type="hidden" name="splitRule" value={ruleJson} />
@@ -598,29 +598,29 @@ export function ExpenseForm({
       )}
 
       {/* ─── Split rule ──────────────── */}
-      {/* A rendered `legend` is painted *on* the fieldset's top border, which
-          left the label straddling the card and the tinted box. The legend
-          stays for assistive tech; the visible heading is an ordinary first
-          line inside the box. */}
-      <fieldset className="bg-sunken-strong mx-5 mb-6 grid gap-4 rounded-lg border p-4 sm:mx-8 sm:p-5">
+      {/* This used to be a `bg-sunken-strong` box. That tint reads as blue at
+          hue 258, gave an optional section more visual weight than the required
+          fields above it, and once the editor opened it had to stretch behind
+          the entire member table. The section now matches the fields above:
+          a plain label, and a bordered card around the one row you can click,
+          so the summary — not a slab of colour — is the visual centre. */}
+      <fieldset className="mx-5 mb-6 grid gap-2 sm:mx-8">
         <legend className="sr-only">{t('expenses.split_rule')}</legend>
-        <p className="text-sm font-semibold" aria-hidden="true">
-          {t('expenses.split_rule')}
-        </p>
+        <Label aria-hidden="true">{t('expenses.split_rule')}</Label>
 
         <details
-          className="group"
+          className="group bg-card rounded-lg border open:shadow-xs"
           open={splitEditorOpen}
           onToggle={(event) => setSplitEditorOpen(event.currentTarget.open)}
         >
-          <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center gap-3 rounded-md p-1 focus-visible:ring-2 focus-visible:outline-hidden [&::-webkit-details-marker]:hidden">
+          <summary className="focus-visible:ring-ring hover:bg-accent/40 flex cursor-pointer list-none items-center gap-3 rounded-lg p-3 transition-colors group-open:rounded-b-none focus-visible:ring-2 focus-visible:outline-hidden [&::-webkit-details-marker]:hidden">
             <span className="flex shrink-0 -space-x-1.5">
               {activeSplitRows.slice(0, 4).map(({ row }) => {
                 const member = members.find((candidate) => candidate.id === row.memberId);
                 return (
                   <span
                     key={row.memberId}
-                    className="bg-secondary text-secondary-foreground ring-background grid size-7 place-items-center rounded-full font-mono text-[10px] font-bold ring-2"
+                    className="bg-secondary text-secondary-foreground ring-card grid size-7 place-items-center rounded-full font-mono text-[10px] font-bold ring-2"
                     aria-hidden
                   >
                     {member?.displayName.trim().slice(0, 1).toUpperCase() || '?'}
@@ -629,7 +629,7 @@ export function ExpenseForm({
               })}
               {activeSplitRows.length > 4 ? (
                 <span
-                  className="bg-muted text-muted-foreground ring-background grid size-7 place-items-center rounded-full font-mono text-[9px] font-bold ring-2"
+                  className="bg-muted text-muted-foreground ring-card grid size-7 place-items-center rounded-full font-mono text-[9px] font-bold ring-2"
                   aria-hidden
                 >
                   +{activeSplitRows.length - 4}
@@ -650,7 +650,12 @@ export function ExpenseForm({
             </span>
           </summary>
 
-          <div className="mt-4 flex flex-col gap-4 border-t pt-4">
+          {/* No tint here. Every surface token in this palette sits at hue
+              255-260, so any `sunken`/`muted` fill reads as blue — which is
+              exactly what this section was rewritten to get rid of. The
+              summary's bottom border already separates the two, and the member
+              rows carry their own borders, so a fill adds nothing but colour. */}
+          <div className="flex flex-col gap-4 border-t p-3 sm:p-4">
             <div className="flex flex-wrap items-center gap-2">
               <Button type="button" variant="outline" size="sm" onClick={btnToggleAll}>
                 {rows.every((r) => r.checked)
@@ -813,21 +818,18 @@ export function ExpenseForm({
       </fieldset>
 
       {/* ─── Note ─────────────────────────────────────────────────── */}
-      <div className="mx-5 mb-5 grid gap-2 sm:mx-8 sm:mb-7">
-        <Label htmlFor="note">{t('expenses.note')}</Label>
-        <Textarea
-          id="note"
-          name="note"
-          rows={2}
-          maxLength={2000}
-          defaultValue={defaults?.note ?? ''}
-        />
-      </div>
+      <OptionalNote name="note" defaultValue={defaults?.note ?? ''} />
 
-      {/* On mobile the bar is pinned to the viewport bottom; the form reserves
-          matching space below the last field (see `pb-36` on the form) so
-          nothing ends up underneath it. From `md` up it rides in normal flow. */}
-      <div className="bg-card/95 pb-safe-3 fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3 backdrop-blur-lg md:static md:z-10 md:px-8 md:pt-4 md:pb-4">
+      {/* The action bar is pinned to the viewport bottom at every width, not
+          just on mobile. It used to go `md:static`, which parked it wherever
+          the card happened to end — on a tall desktop window that left Save
+          floating in the middle of the page with empty space beneath it. Save
+          is the one control the user is always reaching for, so it belongs at
+          a fixed, predictable edge. The form reserves matching space below its
+          last field (`pb-36`) so nothing ends up underneath. */}
+      {/* Because content now passes under the bar at every width, it stays a
+          real translucent material rather than dropping the blur from `md` up. */}
+      <div className="bg-card/85 material-thick material-edge-top pb-safe-3 fixed inset-x-0 bottom-0 z-30 border-t px-4 pt-3 md:px-8 md:pt-4">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           {/* The reason Save is disabled must be visible *here*. It used to live
               only inside the split editor, which defaults to collapsed — so a

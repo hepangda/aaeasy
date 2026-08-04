@@ -299,6 +299,7 @@ groupRoutes.get('/groups/:groupId', async (c) => {
       displayName: members.displayName,
       linkedUserId: members.linkedUserId,
       linkedUsername: users.username,
+      linkedUserPicture: users.picture,
       color: members.color,
       sortOrder: members.sortOrder,
       createdAt: members.createdAt,

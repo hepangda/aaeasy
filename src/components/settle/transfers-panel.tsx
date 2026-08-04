@@ -8,6 +8,7 @@ import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { Pressable } from '@/components/ui/pressable';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import {
   DropdownMenu,
@@ -229,13 +230,15 @@ export function TransfersPanel({
                   <li key={i}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className={`${rowClass} hover:bg-accent/35 data-[state=open]:bg-accent/60 transition-colors`}
-                          aria-label={t('common.actions')}
-                        >
-                          {body}
-                        </button>
+                        <Pressable asChild scale={0.985}>
+                          <button
+                            type="button"
+                            className={`${rowClass} hover:bg-accent/35 data-[state=open]:bg-accent/60 transition-colors`}
+                            aria-label={t('common.actions')}
+                          >
+                            {body}
+                          </button>
+                        </Pressable>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-64">
                         <DropdownMenuLabel className="flex flex-col gap-1">

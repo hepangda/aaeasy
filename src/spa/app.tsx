@@ -100,7 +100,19 @@ export function App() {
                 </Route>
               </Routes>
             </Suspense>
-            <Toaster position="top-center" richColors closeButton />
+            {/* Toasts sit clear of the sticky header rather than on top of it,
+                and are built from the same translucent material as the rest of
+                the app's floating chrome — a notification is a floating layer,
+                so it should read like one. */}
+            <Toaster
+              position="top-center"
+              richColors
+              closeButton
+              offset="4.5rem"
+              toastOptions={{
+                className: 'material-regular material-edge-top shadow-lifted',
+              }}
+            />
           </ConfirmDialogProvider>
         </IntlProvider>
       </ThemeProvider>

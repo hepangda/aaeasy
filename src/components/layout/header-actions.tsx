@@ -6,6 +6,7 @@ import { logoutAction } from '@/spa/actions/auth';
 import { setLocaleAction } from '@/spa/actions/locale';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/layout/theme-provider';
+import { Avatar } from '@/components/ledger/member-avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,7 +110,13 @@ function ThemeMenu() {
  * action a new visitor must not have to hunt for behind a glyph. Signed in it
  * collapses to the avatar initial, which opens account settings / sign out.
  */
-function AccountControl({ displayName }: { displayName?: string }) {
+function AccountControl({
+  displayName,
+  picture,
+}: {
+  displayName?: string;
+  picture?: string | null;
+}) {
   const common = useTranslations('common');
   const account = useTranslations('account');
   const [isPending, startTransition] = useTransition();
@@ -126,9 +133,14 @@ function AccountControl({ displayName }: { displayName?: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" aria-label={common('account')}>
-          <span className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-full font-mono text-xs font-bold">
-            {displayName.trim().charAt(0).toUpperCase() || 'A'}
-          </span>
+          <Avatar
+            seedId={displayName}
+            displayName={displayName}
+            picture={picture}
+            color="var(--primary)"
+            size="md"
+            className="text-primary-foreground size-8 border-0"
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
@@ -158,12 +170,18 @@ function AccountControl({ displayName }: { displayName?: string }) {
  * These were previously buried together under a single hamburger, which cost
  * two clicks to reach a setting and hid the sign-in entry point entirely.
  */
-export function HeaderActions({ userDisplayName }: { userDisplayName?: string }) {
+export function HeaderActions({
+  userDisplayName,
+  userPicture,
+}: {
+  userDisplayName?: string;
+  userPicture?: string | null;
+}) {
   return (
     <div className="flex shrink-0 items-center gap-0.5">
       <LanguageMenu />
       <ThemeMenu />
-      <AccountControl displayName={userDisplayName} />
+      <AccountControl displayName={userDisplayName} picture={userPicture} />
     </div>
   );
 }

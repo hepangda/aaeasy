@@ -36,6 +36,7 @@ export async function loadLedger(db: Executor, groupId: string) {
       linkedUserId: members.linkedUserId,
       linkedUsername: users.username,
       linkedUserDisplayName: users.displayName,
+      linkedUserPicture: users.picture,
       linkedUserRole: groupMemberships.role,
       color: members.color,
     })

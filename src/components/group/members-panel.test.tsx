@@ -15,6 +15,7 @@ const OWNER: MemberLite = {
   linkedUserId: 'u1',
   linkedUsername: 'owner',
   linkedUserDisplayName: 'Staging Owner',
+  linkedUserPicture: null,
   linkedUserRole: 'OWNER',
   color: null,
 };
@@ -26,6 +27,7 @@ const UNLINKED: MemberLite = {
   linkedUserId: null,
   linkedUsername: null,
   linkedUserDisplayName: null,
+  linkedUserPicture: null,
   linkedUserRole: null,
   color: null,
 };

@@ -18,8 +18,16 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        'bg-popover text-popover-foreground shadow-lifted z-50 min-w-32 overflow-hidden rounded-lg border p-1',
+        'bg-popover/85 text-popover-foreground material-regular shadow-lifted z-50 min-w-32 overflow-hidden rounded-lg border p-1',
+        // Grow out of the control that opened it, not out of thin air. Radix
+        // publishes the trigger-relative origin; using it is what makes the
+        // menu read as belonging to its button.
+        'origin-(--radix-dropdown-menu-content-transform-origin)',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+        // Enter and exit retrace the same path — mirrored curves, not the same
+        // ease-out in both directions.
+        'data-[state=open]:duration-150 data-[state=open]:ease-out',
+        'data-[state=closed]:duration-100 data-[state=closed]:ease-in',
         className,
       )}
       {...props}
