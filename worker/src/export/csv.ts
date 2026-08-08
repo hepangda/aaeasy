@@ -24,9 +24,7 @@ export function createLedgerCsv(ledger: Ledger): string {
   const lines: string[] = [];
   const memberById = new Map(ledger.members.map((member) => [member.id, member]));
   const currency = ledger.group.defaultCurrency;
-  const expenses = ledger.expenses.filter(
-    (expense) => expense.amountMinor !== null && expense.fxRateToGroupCurrency !== null,
-  );
+  const expenses = ledger.expenses;
 
   lines.push('# 费用明细 / Expenses');
   lines.push(
@@ -44,10 +42,10 @@ export function createLedgerCsv(ledger: Ledger): string {
   );
   for (const expense of expenses) {
     const amountInGroup = convertMinor(
-      expense.amountMinor!,
+      expense.amountMinor,
       expense.currency,
       currency,
-      expense.fxRateToGroupCurrency!,
+      expense.fxRateToGroupCurrency,
     );
     const shares = new Map(expense.splits.map((split) => [split.memberId, split.shareMinor]));
     lines.push(
@@ -56,7 +54,7 @@ export function createLedgerCsv(ledger: Ledger): string {
         expense.title,
         memberById.get(expense.payerMemberId)?.displayName ?? '?',
         expense.currency,
-        formatMinor(expense.amountMinor!, expense.currency),
+        formatMinor(expense.amountMinor, expense.currency),
         formatMinor(amountInGroup, currency),
         ...ledger.members.map((member) =>
           formatMinor(shares.get(member.id) ?? 0n, expense.currency),

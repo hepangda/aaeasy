@@ -1,5 +1,4 @@
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,6 @@ export function MemberRenameDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const router = useRouter();
   const t = useTranslations();
   const [name, setName] = useState(currentName);
   const [pending, startTransition] = useTransition();
@@ -44,7 +42,6 @@ export function MemberRenameDialog({
         return;
       }
       onOpenChange(false);
-      router.refresh();
     });
   }
 

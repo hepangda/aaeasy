@@ -4,7 +4,7 @@ import { useRouter } from '@/router/navigation';
 import { useConfirm, type ConfirmOptions } from '@/components/ui/confirm-dialog';
 import { showI18nError, successToast } from '@/lib/ui/toast';
 
-/** The shape every server action in this app resolves to. */
+/** The shape every action in this app resolves to. */
 export interface ActionResult {
   ok?: boolean;
   error?: string;
@@ -19,7 +19,8 @@ export interface ActionResult {
  *   2. optionally confirm first
  *   3. await the action
  *   4. on failure, translate + toast the error key
- *   5. on success, refresh the router (and optionally navigate / toast)
+ *   5. on success, optionally navigate / toast (the action itself has already
+ *      invalidated the caches it touched)
  *
  *     const { run, pending } = useAsyncAction({
  *       action: () => deleteGroupAction(groupId),
@@ -33,7 +34,6 @@ export function useAsyncAction<TArgs extends unknown[] = []>({
   onSuccess,
   successMessage,
   redirectTo,
-  refresh = true,
 }: {
   action: (...args: TArgs) => Promise<ActionResult>;
   /** When set, a confirm dialog gates the action. Declining is a no-op. */
@@ -41,8 +41,6 @@ export function useAsyncAction<TArgs extends unknown[] = []>({
   onSuccess?: (result: ActionResult) => void;
   successMessage?: string;
   redirectTo?: string;
-  /** Refresh router data on success. Defaults to true. */
-  refresh?: boolean;
 }) {
   const t = useTranslations();
   const router = useRouter();
@@ -65,10 +63,9 @@ export function useAsyncAction<TArgs extends unknown[] = []>({
         if (successMessage) successToast(successMessage);
         onSuccess?.(res);
         if (redirectTo) router.push(redirectTo);
-        if (refresh) router.refresh();
       });
     },
-    [action, confirm, confirmOptions, onSuccess, redirectTo, refresh, router, successMessage, t],
+    [action, confirm, confirmOptions, onSuccess, redirectTo, router, successMessage, t],
   );
 
   return { run, pending };

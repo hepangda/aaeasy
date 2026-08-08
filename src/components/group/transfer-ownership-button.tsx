@@ -1,5 +1,4 @@
 import { useState, useTransition } from 'react';
-import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,7 +28,6 @@ export function TransferOwnershipButton({
   candidates: OwnerCandidate[];
 }) {
   const t = useTranslations();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState<string>(candidates[0]?.userId ?? '');
@@ -46,7 +44,6 @@ export function TransferOwnershipButton({
         return;
       }
       setOpen(false);
-      router.refresh();
     });
   }
 

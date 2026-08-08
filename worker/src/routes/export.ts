@@ -28,14 +28,13 @@ function contentDisposition(groupName: string, stamp: string, extension: 'csv' |
 
 exportRoutes.get('/groups/:groupId/export', async (c) => {
   const groupId = c.req.param('groupId');
-  const access = await requireGroupAccess(c, groupId, 'READ_GROUP');
+  const { access, group } = await requireGroupAccess(c, groupId, 'READ_GROUP');
   if (access.kind !== 'user') return c.json({ error: 'FORBIDDEN' }, 403);
   const format = c.req.query('format') ?? 'pdf';
   if (format !== 'pdf' && format !== 'csv') {
     return c.json({ error: 'INVALID_FORMAT' }, 400);
   }
-  const ledger = await loadLedger(c.var.db, groupId);
-  if (!ledger) return c.json({ error: 'NOT_FOUND' }, 404);
+  const ledger = await loadLedger(c.var.db, group);
   const stamp = new Date().toISOString().slice(0, 10);
   if (format === 'csv') {
     return new Response(createLedgerCsv(ledger), {

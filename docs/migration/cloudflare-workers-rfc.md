@@ -53,7 +53,7 @@ PostgreSQL 是业务数据的唯一事实来源。DO 不保存完整账本，只
 
 ## 数据层
 
-`packages/db/src/schema.ts` 当前定义 14 张 Drizzle PostgreSQL 表。迁移目录只包含 `0000_baseline.sql`（可从空数据库建立完整 schema）以及对应的 Drizzle snapshot 和 journal。
+`packages/db/src/schema.ts` 当前定义 14 张 Drizzle PostgreSQL 表。`drizzle/0000_baseline.sql` 可从空数据库建立初始 schema，后续 migration 与 snapshot 由 Drizzle journal 按顺序管理。
 
 数据库通过 `pnpm db:migrate` 应用 schema。
 

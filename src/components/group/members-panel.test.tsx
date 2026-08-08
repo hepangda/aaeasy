@@ -40,8 +40,7 @@ function renderPanel(members: MemberLite[]) {
           <MembersPanel
             groupId="g1"
             members={members}
-            membersPage={{ slice: members, page: 1, totalPages: 1 }}
-            isOwner
+            canManageRoles
             canManage
             existingShareLinks={[]}
             pendingInvitations={[]}

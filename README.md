@@ -13,7 +13,6 @@ flowchart LR
   Worker -->|"postgres.js"| Hyperdrive["Cloudflare Hyperdrive"]
   Hyperdrive --> Postgres["PostgreSQL / Neon"]
   Worker -->|"HTML + CSS"| BrowserRun["Cloudflare Browser Run"]
-  Worker -->|"OpenAI-compatible API"| AI["AI Gateway / model provider"]
   Browser -->|"OIDC authorization code + PKCE"| Auth["Pangda Auth / KeyForge"]
   Worker -->|"token exchange / UserInfo / refresh"| Auth
 ```
@@ -29,7 +28,7 @@ flowchart LR
 | 国际化 | `use-intl`，中文 / English |
 | 测试 | Vitest、TypeScript、ESLint、Wrangler dry-run |
 
-已移除 Next.js、Prisma、`pg` 实时通知、Vercel Blob、React PDF、ExcelJS、小票附件（R2）和生产容器镜像。
+已移除 Next.js、Prisma、`pg` 实时通知、Vercel Blob、React PDF、ExcelJS、小票附件（R2）、AI 记账和生产容器镜像。
 
 ## 本地运行
 
@@ -81,7 +80,9 @@ pnpm dev:wrangler
 pnpm db:migrate
 ```
 
-`drizzle/0000_baseline.sql` 是唯一的 migration，可从空库建立完整 schema。
+`drizzle/0000_baseline.sql` 可从空库建立初始 schema；后续 migration 按 `drizzle/meta/_journal.json` 顺序增量应用。
+
+`0003_tighten_ledger_invariants.sql` 会在加约束前清理历史数据：退役没有金额/汇率/分摊规则的草稿行、断开失效的分享链接引用、释放大小写冲突的用户名、解绑同组重复绑定的成员。执行前建议先备份。
 
 连接串中的 `schema=public` 会由迁移工具自动移除；Postgres.js 会把该参数误当成 PostgreSQL server 配置，因此不要在 `.env` 中使用它。
 
@@ -124,7 +125,6 @@ pnpm cf:typegen      # 重新生成 Cloudflare binding 类型
 pnpm db:generate     # 生成新的 Drizzle migration
 pnpm db:migrate      # 应用 migration
 pnpm db:studio       # Drizzle Studio
-pnpm r2:migrate -- --help
 ```
 
 ## 目录
@@ -136,7 +136,7 @@ packages/contracts/   API schema 与 DTO
 packages/core/        金额、分摊、账本与清算纯函数
 packages/db/          Drizzle schema 和 Postgres.js client
 drizzle/              可从空库执行的 baseline migration
-scripts/              配置检查、本地登录初始化、AI 基准测试
+scripts/              配置检查、本地登录初始化
 docs/                 架构与部署手册
 ```
 
@@ -145,7 +145,10 @@ docs/                 架构与部署手册
 - 所有写请求经过 Hono CSRF origin 校验和身份 / 分享 scope 校验。
 - AAEasy 不接收或保存密码、Passkey 等登录凭据；浏览器登录只能跳转到 Pangda Auth。
 - OIDC state、nonce 与 PKCE verifier 使用短期加密 Cookie；访问、刷新和 ID token 使用服务端 AES-GCM 加密后保存。
-- KeyForge 用户禁用、授权撤销和 `admins` 组变化会在会话重新校验时生效；AI、成员搜索和 PDF 继续由 Durable Object 限流。
+- KeyForge 用户禁用、授权撤销和 `admins` 组变化会在会话重新校验时生效。
+- 分享解锁、用户搜索和 PDF 导出由 Durable Object 限流；用户搜索只做前缀匹配，避免遍历用户目录。
 - 分享访客不能导出完整账本；只读分享不能写费用。
+- 权限只在服务端判定一次（`accessDto`），客户端不从 `role` 重新推导。
 - 费用写入使用 `version` 乐观锁，账本事件使用单调 `revision` 自愈断线缺口。
+- 成员/角色/分享链接/邀请/结算等写操作都会写入 `audit_logs`，并附带 before/after。
 - CSV 会转义 RFC 4180 特殊字符并中和 spreadsheet formula injection。

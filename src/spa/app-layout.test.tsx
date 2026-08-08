@@ -13,7 +13,14 @@ import { ThemeProvider } from '@/components/layout/theme-provider';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 
-function renderLayout(entry: string) {
+function renderLayout(
+  entry: string,
+  options: {
+    accessKind?: 'user' | 'share';
+    canWriteExpense?: boolean;
+    status?: 'ACTIVE' | 'ARCHIVED';
+  } = {},
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   qc.setQueryData(['session'], {
     user: {
@@ -51,9 +58,13 @@ function renderLayout(entry: string) {
     invitations: [],
   });
   qc.setQueryData(['group', 'g1'], {
-    group: { id: 'g1', name: 'Osaka trip' },
-    access: { kind: 'user' },
+    group: { id: 'g1', name: 'Osaka trip', status: options.status ?? 'ACTIVE' },
+    access: {
+      kind: options.accessKind ?? 'user',
+      canWriteExpense: options.canWriteExpense ?? true,
+    },
   });
+  qc.setQueryData(['ledger', 'g1', 1], {});
 
   return render(
     <QueryClientProvider client={qc}>
@@ -119,6 +130,25 @@ describe('AppLayout navigation', () => {
     // — two sections either side of it rather than pushed off to one edge.
     expect(items).toHaveLength(5);
     expect(items[2]!.textContent).toContain(messages.expenses.add);
+  });
+
+  it('does not render member navigation for share access', () => {
+    const { container } = renderLayout('/groups/g1#expenses', { accessKind: 'share' });
+    expect(container.querySelector('nav.lg\\:hidden')).toBeNull();
+  });
+
+  it('omits the compose action for read-only members', () => {
+    const { container } = renderLayout('/groups/g1#expenses', { canWriteExpense: false });
+    const nav = container.querySelector('nav.lg\\:hidden')!;
+    expect(nav.textContent).not.toContain(messages.expenses.add);
+    expect(nav.firstElementChild!.children).toHaveLength(4);
+  });
+
+  it('omits the compose action for archived ledgers', () => {
+    const { container } = renderLayout('/groups/g1#expenses', { status: 'ARCHIVED' });
+    const nav = container.querySelector('nav.lg\\:hidden')!;
+    expect(nav.textContent).not.toContain(messages.expenses.add);
+    expect(nav.firstElementChild!.children).toHaveLength(4);
   });
 
   it('keeps content free of any sidebar offset', () => {

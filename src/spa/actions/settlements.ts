@@ -1,11 +1,15 @@
-import { actionRequest, currentGroupId } from '@/spa/api';
+import { actionRequest, groupQueryKeys, type ActionResult } from '@/spa/api';
 
-export type SettleActionState = { ok: boolean; error?: string; settlementId?: string };
-export type SettlementEntryActionState = { ok: boolean; error?: string };
-export type ReopenState = { ok: boolean; error?: string };
+export type SettleActionState = ActionResult & { settlementId?: string };
+export type SettlementEntryActionState = ActionResult;
+export type ReopenState = ActionResult;
 
 export async function settleAction(input: { groupId: string }): Promise<SettleActionState> {
-  return actionRequest(`/api/groups/${input.groupId}/settlements`, { method: 'POST' });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/settlements`,
+    { method: 'POST' },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function addSettlementEntryAction(input: {
@@ -15,29 +19,31 @@ export async function addSettlementEntryAction(input: {
   amount: string;
   note?: string;
 }) {
-  return actionRequest(`/api/groups/${input.groupId}/settlement-entries`, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/settlement-entries`,
+    { method: 'POST', body: JSON.stringify(input) },
+    groupQueryKeys(input.groupId),
+  );
 }
 
-export async function deleteSettlementEntryAction(input: { entryId: string }) {
-  const groupId = currentGroupId();
-  if (!groupId) return { ok: false, error: 'errors.not_found' };
-  return actionRequest(`/api/groups/${groupId}/settlement-entries/${input.entryId}`, {
-    method: 'DELETE',
-  });
+// `groupId` is a parameter, not something to recover by parsing
+// `window.location.pathname`: that made the action depend on where the user
+// happened to be standing, and only worked from one route.
+export async function deleteSettlementEntryAction(input: { groupId: string; entryId: string }) {
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/settlement-entries/${encodeURIComponent(input.entryId)}`,
+    { method: 'DELETE' },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function reopenSettlementAction(input: {
+  groupId: string;
   settlementId: string;
 }): Promise<ReopenState> {
-  const groupId = currentGroupId();
-  if (!groupId) return { ok: false, error: 'errors.not_found' };
-  const result = await actionRequest<ReopenState>(
-    `/api/groups/${groupId}/settlements/${input.settlementId}/reopen`,
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/settlements/${encodeURIComponent(input.settlementId)}/reopen`,
     { method: 'POST' },
+    groupQueryKeys(input.groupId),
   );
-  if (result.ok) window.location.assign(`/groups/${groupId}`);
-  return result;
 }

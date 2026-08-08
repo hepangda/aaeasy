@@ -8,18 +8,25 @@ import { logoutAction } from './auth';
 
 describe('logoutAction', () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
 
-  it('returns to the project home page after a successful logout', async () => {
-    const assign = vi.fn();
-    vi.stubGlobal('window', { location: { assign } });
+  it('reports the project home page as the destination after a successful logout', async () => {
+    // Not the provider's `redirectTo`: signing out of AAEasy should land on
+    // AAEasy. The caller performs the navigation.
     actionRequest.mockResolvedValue({ ok: true, redirectTo: '/login' });
 
-    await logoutAction();
-
+    await expect(logoutAction()).resolves.toEqual({ ok: true, redirectTo: '/' });
     expect(actionRequest).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
-    expect(assign).toHaveBeenCalledWith('/');
+  });
+
+  it('offers no destination when the logout failed', async () => {
+    actionRequest.mockResolvedValue({ ok: false, error: 'errors.network', status: 0 });
+
+    await expect(logoutAction()).resolves.toEqual({
+      ok: false,
+      error: 'errors.network',
+      status: 0,
+    });
   });
 });

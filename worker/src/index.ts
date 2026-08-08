@@ -10,8 +10,12 @@ import { authRoutes } from './routes/auth';
 import { expenseRoutes } from './routes/expenses';
 import { exportRoutes } from './routes/export';
 import { groupRoutes } from './routes/groups';
+import { invitationRoutes } from './routes/invitations';
+import { memberRoutes } from './routes/members';
 import { realtimeRoutes } from './routes/realtime';
 import { settlementRoutes } from './routes/settlements';
+import { shareLinkRoutes } from './routes/share-links';
+import { userRoutes } from './routes/users';
 
 export { GroupRoom } from './durable-objects/group-room';
 export { RateLimiter } from './durable-objects/rate-limiter';
@@ -40,8 +44,12 @@ app.route('/api', authRoutes);
 app.route('/api', expenseRoutes);
 app.route('/api', exportRoutes);
 app.route('/api', groupRoutes);
+app.route('/api', invitationRoutes);
+app.route('/api', memberRoutes);
 app.route('/api', realtimeRoutes);
 app.route('/api', settlementRoutes);
+app.route('/api', shareLinkRoutes);
+app.route('/api', userRoutes);
 
 app.notFound((c) => c.json({ error: 'NOT_FOUND' }, 404));
 app.onError(handleApiError);

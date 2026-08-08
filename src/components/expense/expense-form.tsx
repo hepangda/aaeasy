@@ -2,7 +2,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '@/router/navigation';
 import Link from '@/router/link';
 import { useTranslations } from 'use-intl';
-import { Minus, Plus, TriangleAlert, X } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -18,16 +18,26 @@ import {
   createExpenseAction,
   updateExpenseAction,
   type ExpenseActionState,
+  type ExpenseInputPayload,
+  type UpdateExpensePayload,
 } from '@/spa/actions/expenses';
 import { showI18nError } from '@/lib/ui/toast';
 import { describeSplitIntent } from '@/lib/split/intent';
 import { distribute, parseMajorMinor, parseSignedMajorMinor } from '@/lib/split/allocate';
 import type { SplitRule } from '@aaeasy/core/split-types';
 import type { SplitInputState } from '@aaeasy/core/split-input-state';
-import { computeSplit } from '@aaeasy/core/split';
 import { formatMinor, minorUnits } from '@aaeasy/core/money';
-
-type Member = { id: string; displayName: string };
+import { ExtraInput, SharesStepper } from './split-controls';
+import {
+  equalSplitRows,
+  rowsFromDefaults,
+  toggleAllRows,
+  totalsFromRows,
+  withChecked,
+  withShares,
+  type Member,
+  type SplitRow,
+} from './split-rows';
 
 interface Props {
   groupId: string;
@@ -63,127 +73,6 @@ function todayLocalISO(): string {
   return d.toISOString().slice(0, 10);
 }
 
-interface SplitRow {
-  memberId: string;
-  checked: boolean;
-  /** Integer share count for proportional fill. Empty string = "0". */
-  shares: string;
-  /** Base share, in MAJOR units, as a free-form text the user can edit. */
-  baseText: string;
-  /**
-   * Extra amount that goes 100% to this member, in MAJOR units. May be
-   * negative — e.g. a refund or per-person discount that increases the
-   * base pool everyone else shares.
-   */
-  extraText: string;
-}
-
-/**
- * Build the initial SplitRow[] from the user's last-saved form state when
- * available, otherwise reconstruct from the persisted SplitRule:
- *   - EQUAL / SUBSET → checked members, shares=1, extras blank.
- *   - WEIGHTED with integer weights → shares=weight, extras blank.
- *   - WEIGHTED with non-integer weights, or EXACT → each member's resolved
- *     amount lands in `extraText`, shares=0; the user can rebalance from
- *     there or click "Equal-split all" to start over.
- *   - null rule (brand-new expense) → everyone checked, shares=1, extras blank.
- */
-function rowsFromDefaults(
-  state: SplitInputState | null,
-  rule: SplitRule | null,
-  members: Member[],
-  totalMinor: bigint,
-  currency: string,
-): SplitRow[] {
-  if (state) {
-    const byMember = new Map(state.rows.map((r) => [r.memberId, r]));
-    return members.map((m) => {
-      const r = byMember.get(m.id);
-      if (!r) {
-        return { memberId: m.id, checked: false, shares: '0', baseText: '', extraText: '' };
-      }
-      return {
-        memberId: m.id,
-        checked: r.checked,
-        shares: r.shares || (r.checked ? '1' : '0'),
-        baseText: '',
-        extraText: r.extraText,
-      };
-    });
-  }
-  if (!rule) {
-    return members.map((m) => ({
-      memberId: m.id,
-      checked: true,
-      shares: '1',
-      baseText: '',
-      extraText: '',
-    }));
-  }
-  if (rule.type === 'EQUAL' || rule.type === 'SUBSET') {
-    const set = new Set(rule.memberIds);
-    return members.map((m) => {
-      const inUse = set.has(m.id);
-      return {
-        memberId: m.id,
-        checked: inUse,
-        shares: inUse ? '1' : '0',
-        baseText: '',
-        extraText: '',
-      };
-    });
-  }
-  if (rule.type === 'WEIGHTED') {
-    const byMember = new Map(rule.weights.map((w) => [w.memberId, w.weight]));
-    const allInteger = rule.weights.every((w) => /^\d+$/.test(w.weight));
-    if (allInteger) {
-      return members.map((m) => {
-        const w = byMember.get(m.id);
-        const n = w ? parseInt(w, 10) : 0;
-        return {
-          memberId: m.id,
-          checked: n > 0,
-          shares: n > 0 ? String(n) : '0',
-          baseText: '',
-          extraText: '',
-        };
-      });
-    }
-    // Fall through: treat decimal weights like EXACT below (preserve by
-    // dropping into the extras column).
-  }
-  // EXACT (and any non-integer WEIGHTED): each member's resolved amount
-  // goes into `extra` so the totals immediately reconcile and the user can
-  // tweak per-person numbers directly.
-  const amountByMember = new Map<string, bigint>();
-  if (rule.type === 'EXACT') {
-    for (const a of rule.amounts) amountByMember.set(a.memberId, BigInt(a.amountMinor));
-  } else if (rule.type === 'WEIGHTED' && totalMinor > 0n) {
-    try {
-      const computed = computeSplit({
-        totalMinor,
-        rule,
-        validMemberIds: new Set(members.map((m) => m.id)),
-      });
-      for (const [memberId, share] of computed) {
-        amountByMember.set(memberId, share);
-      }
-    } catch {
-      // best effort — leave the form blank if compute fails
-    }
-  }
-  return members.map((m) => {
-    const amt = amountByMember.get(m.id) ?? 0n;
-    return {
-      memberId: m.id,
-      checked: false,
-      shares: '0',
-      baseText: '',
-      extraText: amt > 0n ? formatMinor(amt, currency) : '',
-    };
-  });
-}
-
 export function ExpenseForm({
   groupId,
   groupCurrency,
@@ -193,8 +82,11 @@ export function ExpenseForm({
 }: Props) {
   const t = useTranslations();
   const router = useRouter();
-  const action = defaults ? updateExpenseAction : createExpenseAction;
-  const [state, formAction, pending] = useActionState(action, initial);
+  const [createState, submitCreate, creating] = useActionState(createExpenseAction, initial);
+  const [updateState, submitUpdate, updating] = useActionState(updateExpenseAction, initial);
+  const editing = defaults !== undefined;
+  const state = editing ? updateState : createState;
+  const pending = editing ? updating : creating;
 
   useEffect(() => {
     if (state.error) showI18nError(t, state.error);
@@ -280,113 +172,41 @@ export function ExpenseForm({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => recompute(), [recomputeKey]);
 
-  // Toggle every row's checkbox in lockstep. If anyone is unchecked, click
-  // selects all; otherwise it deselects all.
+  // Selects all when anyone is unchecked, otherwise deselects all.
   function btnToggleAll() {
-    const allChecked = rows.every((r) => r.checked);
-    setRows((cur) =>
-      cur.map((r) => {
-        if (allChecked) return { ...r, checked: false, shares: '0' };
-        const n = parseInt(r.shares || '0', 10);
-        const shares = Number.isFinite(n) && n > 0 ? String(n) : '1';
-        return { ...r, checked: true, shares };
-      }),
-    );
+    setRows(toggleAllRows);
   }
 
-  // Reset all currently-checked rows to a clean equal share (shares=1, extras
-  // cleared). One-click "everybody splits the bill equally".
+  // One-click "everybody splits the bill equally".
   function btnEqualSplitAll() {
-    setRows((cur) => {
-      const anyChecked = cur.some((r) => r.checked);
-      if (!anyChecked) {
-        return cur.map((r) => ({ ...r, checked: true, shares: '1', extraText: '' }));
-      }
-      return cur.map((r) => (r.checked ? { ...r, shares: '1', extraText: '' } : r));
-    });
+    setRows(equalSplitRows);
   }
 
   // Bump a row's integer shares by ±1 (floor at 0). Sliders/dropdowns felt
   // heavy here — a tap-friendly stepper keeps the table compact.
   function bumpShares(memberId: string, delta: number) {
-    setRows((cur) =>
-      cur.map((r) => {
-        if (r.memberId !== memberId) return r;
-        const n = parseInt(r.shares || '0', 10);
-        const next = Math.max(0, (Number.isFinite(n) ? n : 0) + delta);
-        const nextStr = String(next);
-        // Bumping from 0 implicitly checks the row; dropping to 0 unchecks.
-        if (next === 0) return { ...r, checked: false, shares: '0' };
-        return { ...r, checked: true, shares: nextStr };
-      }),
-    );
-  }
-
-  // Direct edit of the shares input. Mirrors `bumpShares`'s invariant that
-  // 0 shares is meaningless — a row with no weight gets unchecked rather
-  // than silently dragging the totals out of balance.
-  function setShares(memberId: string, raw: string) {
-    const digits = raw.replace(/\D/g, '');
-    setRows((cur) =>
-      cur.map((r) => {
-        if (r.memberId !== memberId) return r;
-        const n = digits === '' ? 0 : parseInt(digits, 10);
-        if (!Number.isFinite(n) || n <= 0) {
-          return { ...r, checked: false, shares: '0' };
-        }
-        return { ...r, checked: true, shares: String(n) };
-      }),
-    );
-  }
-
-  // Toggle a single row's checkbox. Keeps the "checked ↔ shares > 0"
-  // invariant: checking a row whose current shares is '0' (e.g. legacy
-  // EXACT split surfaced as extras) bumps it back up to 1 so it
-  // immediately contributes to the base pool.
-  function setChecked(memberId: string, checked: boolean) {
-    setRows((cur) =>
-      cur.map((r) => {
-        if (r.memberId !== memberId) return r;
-        if (!checked) return { ...r, checked: false, shares: '0' };
-        const n = parseInt(r.shares || '0', 10);
-        const shares = Number.isFinite(n) && n > 0 ? String(n) : '1';
-        return { ...r, checked: true, shares };
-      }),
-    );
-  }
-
-  // ─── Live totals ─────────────────────────────────────────────────────
-  // Final[i] = (checked ? base : 0) + extra. Extras count for everyone.
-  const { sumMinor, perMemberFinal, anyParseError } = useMemo(() => {
-    let s = 0n;
-    let bad = false;
-    const final: bigint[] = rows.map((r) => {
-      const extraV = parseSignedMajorMinor(r.extraText, currency);
-      if (extraV === null) {
-        bad = true;
-        return 0n;
-      }
-      let baseV: bigint;
-      if (r.checked) {
-        const parsed = parseMajorMinor(r.baseText, currency);
-        if (parsed === null) {
-          bad = true;
-          return 0n;
-        }
-        baseV = parsed;
-      } else {
-        baseV = 0n;
-      }
-      const v = baseV + extraV;
-      if (v < 0n) {
-        bad = true;
-        return 0n;
-      }
-      s += v;
-      return v;
+    setRows((cur) => {
+      const current = parseInt(
+        cur.find((candidate) => candidate.memberId === memberId)?.shares || '0',
+        10,
+      );
+      return withShares(cur, memberId, (Number.isFinite(current) ? current : 0) + delta);
     });
-    return { sumMinor: s, perMemberFinal: final, anyParseError: bad };
-  }, [rows, currency]);
+  }
+
+  function setShares(memberId: string, raw: string) {
+    const digits = raw.replace(/[^0-9]/g, '');
+    setRows((cur) => withShares(cur, memberId, digits === '' ? 0 : parseInt(digits, 10)));
+  }
+
+  function setChecked(memberId: string, checked: boolean) {
+    setRows((cur) => withChecked(cur, memberId, checked));
+  }
+
+  const { sumMinor, perMemberFinal, anyParseError } = useMemo(
+    () => totalsFromRows(rows, currency),
+    [rows, currency],
+  );
 
   const sumMatchesTotal = totalMinor !== null && !anyParseError && sumMinor === totalMinor;
   const diffMinor = totalMinor !== null ? totalMinor - sumMinor : 0n;
@@ -421,31 +241,32 @@ export function ExpenseForm({
             ? t('expenses.split_summary_ratio_detail', { ratio: splitIntent.ratio.join(':') })
             : t('expenses.split_summary_custom_detail');
 
-  // ─── Server expects splitRule JSON ──────────────────────────────────
-  const ruleJson = useMemo(() => {
+  // ─── What the action receives ───────────────────────────────────────
+  // Built as values, not as JSON stuffed into hidden inputs and parsed back
+  // out on the far side: the action signature checks these.
+  const splitRule = useMemo<SplitRule>(() => {
     const amounts = rows
       .map((r, i) => ({
         memberId: r.memberId,
         amountMinor: perMemberFinal[i]!.toString(),
       }))
       .filter((a) => BigInt(a.amountMinor) > 0n);
-    const rule: SplitRule = { type: 'EXACT', amounts };
-    return JSON.stringify(rule);
+    return { type: 'EXACT', amounts };
   }, [rows, perMemberFinal]);
 
   // Round-trip the raw editor state so the edit page can restore it without
   // reverse-engineering the EXACT amounts back into shares/extras.
-  const splitInputStateJson = useMemo(() => {
-    const state: SplitInputState = {
+  const splitInputState = useMemo<SplitInputState>(
+    () => ({
       rows: rows.map((r) => ({
         memberId: r.memberId,
         checked: r.checked,
         shares: r.shares,
         extraText: r.extraText,
       })),
-    };
-    return JSON.stringify(state);
-  }, [rows]);
+    }),
+    [rows],
+  );
 
   // Navigate away once the action reports success.
   const navigatedRef = useRef(false);
@@ -481,16 +302,36 @@ export function ExpenseForm({
 
   return (
     <form
-      action={formAction}
+      onSubmit={(event) => {
+        event.preventDefault();
+        const fields = new FormData(event.currentTarget);
+        const read = (field: string) => fields.get(field)?.toString() ?? '';
+        const payload: ExpenseInputPayload = {
+          groupId,
+          occurredOn: read('occurredAt'),
+          title: read('title'),
+          note: read('note') || null,
+          currency,
+          amount: amountText,
+          payerMemberId: lockedPayerMemberId ?? read('payerMemberId'),
+          fxRateOverride: read('fxRateOverride') || undefined,
+          splitRule,
+          splitInputState,
+        };
+        if (defaults) {
+          const update: UpdateExpensePayload = {
+            ...payload,
+            expenseId: defaults.expenseId,
+            expectedVersion: defaults.version ?? 0,
+          };
+          submitUpdate(update);
+        } else {
+          submitCreate(payload);
+        }
+      }}
       ref={formRef}
       className="bg-card relative flex w-full flex-col overflow-hidden rounded-2xl border pb-36"
     >
-      <input type="hidden" name="groupId" value={groupId} />
-      <input type="hidden" name="splitRule" value={ruleJson} />
-      <input type="hidden" name="splitInputState" value={splitInputStateJson} />
-      {defaults && <input type="hidden" name="expenseId" value={defaults.expenseId} />}
-      {defaults && <input type="hidden" name="expectedVersion" value={defaults.version ?? 0} />}
-
       {/* ─── Amount | Currency | Payer ─────────────────────────────
           Mobile: amount + currency share one row, then payer below.
           Desktop keeps them on a single three-column row.
@@ -532,12 +373,9 @@ export function ExpenseForm({
           <div className="grid gap-2">
             <Label htmlFor="payerMemberId">{t('expenses.payer')}</Label>
             {lockedPayerMemberId ? (
-              <>
-                <input type="hidden" name="payerMemberId" value={lockedPayerMemberId} />
-                <p className="border-input bg-muted/50 text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
-                  {members.find((m) => m.id === lockedPayerMemberId)?.displayName ?? '?'}
-                </p>
-              </>
+              <p className="border-input bg-muted/50 text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
+                {members.find((m) => m.id === lockedPayerMemberId)?.displayName ?? '?'}
+              </p>
             ) : (
               <Select
                 id="payerMemberId"
@@ -863,101 +701,5 @@ export function ExpenseForm({
         </div>
       </div>
     </form>
-  );
-}
-
-/**
- * Tap-friendly integer share stepper. The middle input stays editable so
- * power users can still type, but most adjustments are one tap on ±.
- */
-function SharesStepper({
-  value,
-  disabled,
-  onChange,
-  onBump,
-  decLabel,
-  incLabel,
-  label,
-}: {
-  value: string;
-  disabled: boolean;
-  onChange: (v: string) => void;
-  onBump: (delta: number) => void;
-  decLabel: string;
-  incLabel: string;
-  label: string;
-}) {
-  const n = parseInt(value || '0', 10);
-  const canDec = !disabled && Number.isFinite(n) && n > 0;
-  return (
-    <div className="border-input bg-background inline-flex h-9 w-full max-w-[120px] items-stretch overflow-hidden rounded-md border">
-      <button
-        type="button"
-        onClick={() => onBump(-1)}
-        disabled={!canDec}
-        aria-label={decLabel}
-        className="hover:bg-accent text-muted-foreground disabled:text-muted-foreground/40 grid w-9 place-items-center disabled:cursor-not-allowed"
-      >
-        <Minus className="size-4" />
-      </button>
-      <NumericInput
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        mode="integer"
-        disabled={disabled}
-        unstyled
-        keypadTitle={label}
-        aria-label={label}
-        className="w-full min-w-0 flex-1 border-x bg-transparent text-center font-mono text-sm tabular-nums focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
-      />
-      <button
-        type="button"
-        onClick={() => onBump(1)}
-        aria-label={incLabel}
-        className="hover:bg-accent text-muted-foreground grid w-9 place-items-center"
-      >
-        <Plus className="size-4" />
-      </button>
-    </div>
-  );
-}
-
-/** Decimal input that clears with an inline X when it has content. */
-function ExtraInput({
-  value,
-  onChange,
-  precision,
-  clearLabel,
-  label,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  precision: number;
-  clearLabel: string;
-  label: string;
-}) {
-  return (
-    <div className="relative">
-      <NumericInput
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="0"
-        allowNegative
-        precision={precision}
-        keypadTitle={label}
-        aria-label={label}
-        className="h-9 w-full pr-7 pl-2 text-right font-mono tabular-nums"
-      />
-      {value && (
-        <button
-          type="button"
-          onClick={() => onChange('')}
-          aria-label={clearLabel}
-          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1.5 grid -translate-y-1/2 place-items-center rounded-md p-0.5"
-        >
-          <X className="size-3" />
-        </button>
-      )}
-    </div>
   );
 }

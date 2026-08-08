@@ -1,66 +1,77 @@
-import { actionRequest, formString } from '@/spa/api';
+import { actionRequest, groupQueryKeys, type ActionResult } from '@/spa/api';
 
-export type ShareActionState = { ok: boolean; error?: string; token?: string };
-export type UnlockState = {
-  ok: boolean;
-  error?: string;
+export type ShareActionState = ActionResult & { token?: string };
+export type UnlockState = ActionResult & {
   needsClaim?: { memberId: string; memberName: string };
+  /** Where the caller should navigate on success. */
+  redirectTo?: string;
 };
+
+/** `'READ_ONLY'`, or a lifetime in hours. */
+export type ShareLinkExpiry = 'READ_ONLY' | string;
 
 export async function createMemberShareLinkAction(
   _previous: ShareActionState,
-  formData: FormData,
+  input: {
+    groupId: string;
+    memberId: string;
+    expires: ShareLinkExpiry;
+    assignedRole: string;
+    label?: string;
+  },
 ): Promise<ShareActionState> {
-  const groupId = formString(formData, 'groupId');
-  const expires = formString(formData, 'expires');
-  const readOnly = expires === 'READ_ONLY';
-  return actionRequest(`/api/groups/${groupId}/share-links`, {
-    method: 'POST',
-    body: JSON.stringify({
-      memberId: formString(formData, 'memberId'),
-      scope: readOnly ? 'READ' : 'WRITE',
-      assignedRole: formString(formData, 'assignedRole') || 'MEMBER',
-      label: formString(formData, 'label') || undefined,
-      expiresAt: readOnly
-        ? null
-        : new Date(Date.now() + Number(expires) * 60 * 60 * 1000).toISOString(),
-    }),
-  });
+  const readOnly = input.expires === 'READ_ONLY';
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/share-links`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        memberId: input.memberId,
+        scope: readOnly ? 'READ' : 'WRITE',
+        assignedRole: input.assignedRole || 'MEMBER',
+        label: input.label || undefined,
+        expiresAt: readOnly
+          ? null
+          : new Date(Date.now() + Number(input.expires) * 60 * 60 * 1000).toISOString(),
+      }),
+    },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function createGroupShareLinkAction(
   _previous: ShareActionState,
-  formData: FormData,
+  input: { groupId: string; label?: string },
 ): Promise<ShareActionState> {
-  const groupId = formString(formData, 'groupId');
-  return actionRequest(`/api/groups/${groupId}/share-links`, {
-    method: 'POST',
-    body: JSON.stringify({
-      memberId: null,
-      scope: 'READ',
-      assignedRole: null,
-      label: formString(formData, 'label') || undefined,
-    }),
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/share-links`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        memberId: null,
+        scope: 'READ',
+        assignedRole: null,
+        label: input.label || undefined,
+      }),
+    },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function revokeShareLinkAction(input: { groupId: string; shareLinkId: string }) {
-  return actionRequest(`/api/groups/${input.groupId}/share-links/${input.shareLinkId}`, {
-    method: 'DELETE',
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/share-links/${encodeURIComponent(input.shareLinkId)}`,
+    { method: 'DELETE' },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function unlockShareAction(
   _previous: UnlockState,
-  formData: FormData,
+  input: { token: string; claimMemberId?: string },
 ): Promise<UnlockState> {
-  const result = await actionRequest<UnlockState & { redirectTo?: string }>('/api/share/unlock', {
+  return actionRequest<UnlockState>('/api/share/unlock', {
     method: 'POST',
-    body: JSON.stringify({
-      token: formString(formData, 'token'),
-      claimMemberId: formString(formData, 'claimMemberId') || undefined,
-    }),
+    body: JSON.stringify({ token: input.token, claimMemberId: input.claimMemberId || undefined }),
   });
-  if (result.ok && result.redirectTo) window.location.assign(result.redirectTo);
-  return result;
 }

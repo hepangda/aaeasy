@@ -1,5 +1,37 @@
+import type { GroupEvent } from '@aaeasy/contracts';
 import { useEffect } from 'react';
 import { queryClient } from '@/spa/query-client';
+
+/**
+ * Which caches a given event actually invalidates.
+ *
+ * Every event used to refetch both the group detail *and* the whole ledger.
+ * An expense write is the common case by a wide margin and touches neither the
+ * member list nor the share links, so in a group of N people one person adding
+ * an expense cost N-1 redundant group-detail queries.
+ */
+export function affectedQueryKeys(type: GroupEvent['type'], groupId: string): string[][] {
+  switch (type) {
+    case 'expense.created':
+    case 'expense.updated':
+    case 'expense.deleted':
+      return [['ledger', groupId]];
+    case 'settlement.changed':
+      // Closing or reopening a ledger flips group status and the reopen target.
+      return [
+        ['ledger', groupId],
+        ['group', groupId],
+      ];
+    case 'member.changed':
+      return [
+        ['ledger', groupId],
+        ['group', groupId],
+      ];
+    case 'group.updated':
+      // The name shows up in the sidebar switcher too.
+      return [['ledger', groupId], ['group', groupId], ['groups']];
+  }
+}
 
 /** Subscribe to a group's Durable Object WebSocket and invalidate cached data. */
 export function useGroupStream(groupId: string) {
@@ -14,9 +46,15 @@ export function useGroupStream(groupId: string) {
     const cached = queryClient.getQueryData<{ group?: { revision?: string } }>(['group', groupId]);
     if (cached?.group?.revision) revision = cached.group.revision;
 
-    function refresh() {
-      void queryClient.invalidateQueries({ queryKey: ['group', groupId] });
-      void queryClient.invalidateQueries({ queryKey: ['ledger', groupId] });
+    function invalidate(queryKeys: string[][]) {
+      for (const queryKey of queryKeys) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+    }
+
+    /** Used when the server tells us we are too far behind to replay. */
+    function refreshEverything() {
+      invalidate([['ledger', groupId], ['group', groupId], ['groups']]);
     }
 
     function connect() {
@@ -37,19 +75,19 @@ export function useGroupStream(groupId: string) {
           const payload = JSON.parse(String(message.data)) as {
             type?: string;
             revision?: string;
-            event?: { revision?: string };
+            event?: GroupEvent;
           };
           if (payload.type === 'event' && payload.event?.revision) {
             revision = payload.event.revision;
-            refresh();
+            invalidate(affectedQueryKeys(payload.event.type, groupId));
           } else if (payload.type === 'ready' && payload.revision) {
             revision = payload.revision;
           } else if (payload.type === 'resync' && payload.revision) {
             revision = payload.revision;
-            refresh();
+            refreshEverything();
           }
         } catch {
-          refresh();
+          refreshEverything();
         }
       };
 

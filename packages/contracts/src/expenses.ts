@@ -50,10 +50,13 @@ export const expenseInputSchema = z.object({
   // marker icon and a tooltip for it. 200 matches `settlementEntrySchema.note`.
   note: z.string().trim().max(200).nullable().optional(),
   currency: currencyCodeSchema,
-  amount: z.string().trim().optional(),
+  // Amount and split rule are what make a request an expense. They were
+  // optional for the removed draft mode, which pushed the check into the
+  // route as an untyped `throw`.
+  amount: z.string().trim().min(1),
   payerMemberId: z.string().min(1),
   fxRateOverride: z.string().trim().optional(),
-  splitRule: splitRuleSchema.nullable().optional(),
+  splitRule: splitRuleSchema,
   splitInputState: splitInputStateSchema.nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
   expectedVersion: z.number().int().positive().optional(),

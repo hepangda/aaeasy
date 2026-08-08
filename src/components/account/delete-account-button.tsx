@@ -27,7 +27,13 @@ export function DeleteAccountButton({
     if (!phraseOk || pending) return;
     startTransition(async () => {
       const result = await deleteAccountAction();
-      if (!result.ok) showI18nError(t, result.error ?? 'errors.unknown');
+      if (!result.ok) {
+        showI18nError(t, result.error ?? 'errors.unknown');
+        return;
+      }
+      // `redirectTo` is the identity provider's logout endpoint, so this is a
+      // document navigation rather than a client-side route change.
+      window.location.assign(result.redirectTo ?? '/');
     });
   }
 

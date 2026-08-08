@@ -95,7 +95,7 @@ export interface GroupDetailResponse {
   }>;
   shareLinks: ExistingShareLinkDto[];
   pendingInvitations: PendingMemberInvitationDto[];
-  latestSettlementId: string | null;
+  activeSettlementId: string | null;
 }
 
 export interface LedgerMember {
@@ -117,8 +117,8 @@ export interface LedgerExpense {
   title: string;
   note: string | null;
   currency: string;
-  amountMinor: bigint | null;
-  fxRateToGroupCurrency: string | null;
+  amountMinor: bigint;
+  fxRateToGroupCurrency: string;
   payerMemberId: string;
   splitRule: unknown;
   splitInputState: unknown;
@@ -142,12 +142,14 @@ export interface LedgerResponse {
   expenses: Array<
     Omit<LedgerExpense, 'occurredAt' | 'amountMinor' | 'splits' | 'createdAt' | 'updatedAt'> & {
       occurredAt: string;
-      amountMinor: string | null;
+      amountMinor: string;
       splits: Array<{ id: string; memberId: string; shareMinor: string }>;
       createdAt: string;
       updatedAt: string;
     }
   >;
+  expensePage: { page: number; pageSize: number; totalItems: number; totalPages: number };
+  openExpenseCount: number;
   summary: Array<{
     memberId: string;
     paidMinorInGroup: string;
@@ -171,6 +173,8 @@ export interface HydratedLedger {
   group: LedgerResponse['group'];
   members: LedgerMember[];
   expenses: LedgerExpense[];
+  expensePage: LedgerResponse['expensePage'];
+  openExpenseCount: number;
   summary: Array<{
     memberId: string;
     paidMinorInGroup: bigint;
@@ -196,7 +200,7 @@ export function hydrateLedger(raw: LedgerResponse): HydratedLedger {
     expenses: raw.expenses.map((expense) => ({
       ...expense,
       occurredAt: new Date(expense.occurredAt),
-      amountMinor: expense.amountMinor === null ? null : BigInt(expense.amountMinor),
+      amountMinor: BigInt(expense.amountMinor),
       splits: expense.splits.map((split) => ({
         ...split,
         shareMinor: BigInt(split.shareMinor),

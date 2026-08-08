@@ -1,9 +1,11 @@
-import Link from '@/router/link';
+import { useEffect, useRef } from 'react';
 import { ArrowRight, ReceiptText } from 'lucide-react';
-import { Navigate } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import { useTranslations } from 'use-intl';
+import Link from '@/router/link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { errorToast } from '@/lib/ui/toast';
 import { useSessionQuery } from '../queries';
 
 const DEMO_AVATARS = [
@@ -163,6 +165,19 @@ function FeatureStep({
 export function HomePage() {
   const t = useTranslations('home');
   const commonT = useTranslations('common');
+  const errorT = useTranslations('errors');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const handledAuthError = useRef<string | null>(null);
+  const authError = searchParams.get('auth_error');
+
+  useEffect(() => {
+    if (!authError || handledAuthError.current === authError) return;
+    handledAuthError.current = authError;
+    errorToast(errorT(authError === 'access_denied' ? 'auth_access_denied' : 'auth_failed'));
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('auth_error');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [authError, errorT, searchParams, setSearchParams]);
   const session = useSessionQuery();
 
   if (session.data?.user) return <Navigate to="/groups" replace />;

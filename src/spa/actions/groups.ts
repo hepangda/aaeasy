@@ -1,60 +1,71 @@
-import { actionRequest, formString } from '@/spa/api';
+import { actionRequest, groupAndListQueryKeys, groupQueryKeys, type ActionResult } from '@/spa/api';
 
-export type ActionState = { ok: boolean; error?: string };
+export type ActionState = ActionResult;
+
+export type MemberChip = { kind: 'name'; text: string } | { kind: 'mention'; username: string };
+
+export type CreateGroupState = ActionState & {
+  groupId?: string;
+  unresolvedMention?: boolean;
+  /** Where the caller should navigate on success. */
+  redirectTo?: string;
+};
 
 export async function createGroupAction(
-  _previous: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  let members: unknown[] = [];
-  try {
-    members = JSON.parse(formString(formData, 'members') || '[]') as unknown[];
-  } catch {
-    return { ok: false, error: 'errors.invalid_input' };
-  }
-  const result = await actionRequest<
-    ActionState & { groupId?: string; unresolvedMention?: boolean }
-  >('/api/groups', {
-    method: 'POST',
-    body: JSON.stringify({
-      name: formString(formData, 'name'),
-      defaultCurrency: formString(formData, 'defaultCurrency') || 'CNY',
-      members,
-    }),
-  });
-  if (result.ok && result.groupId) {
-    window.location.assign(
-      `/groups/${result.groupId}${result.unresolvedMention ? '?notice=unresolved_mention' : ''}`,
-    );
-  }
-  return result;
+  _previous: CreateGroupState,
+  input: { name: string; defaultCurrency: string; members: MemberChip[] },
+): Promise<CreateGroupState> {
+  const result = await actionRequest<CreateGroupState>(
+    '/api/groups',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        name: input.name,
+        defaultCurrency: input.defaultCurrency || 'CNY',
+        members: input.members,
+      }),
+    },
+    [['groups'], ['account']],
+  );
+  if (!result.ok || !result.groupId) return result;
+  // The caller navigates. Doing it here with `location.assign` reloaded the
+  // whole SPA and threw away the query cache we had just refreshed.
+  return {
+    ...result,
+    redirectTo: `/groups/${result.groupId}${
+      result.unresolvedMention ? '?notice=unresolved_mention' : ''
+    }`,
+  };
 }
 
 export async function renameGroupAction(input: {
   groupId: string;
   name: string;
 }): Promise<ActionState> {
-  return actionRequest(`/api/groups/${encodeURIComponent(input.groupId)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ name: input.name }),
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}`,
+    { method: 'PATCH', body: JSON.stringify({ name: input.name }) },
+    groupAndListQueryKeys(input.groupId),
+  );
 }
 
 export async function addMemberAction(
   _previous: ActionState,
-  formData: FormData,
+  input: { groupId: string; displayName: string },
 ): Promise<ActionState> {
-  const groupId = formString(formData, 'groupId');
-  return actionRequest(`/api/groups/${encodeURIComponent(groupId)}/members`, {
-    method: 'POST',
-    body: JSON.stringify({ displayName: formString(formData, 'displayName') }),
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/members`,
+    { method: 'POST', body: JSON.stringify({ displayName: input.displayName }) },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function removeMemberAction(input: { groupId: string; memberId: string }) {
-  return actionRequest(`/api/groups/${input.groupId}/members/${input.memberId}`, {
-    method: 'DELETE',
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/members/${encodeURIComponent(input.memberId)}`,
+    { method: 'DELETE' },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function renameMemberAction(input: {
@@ -62,10 +73,11 @@ export async function renameMemberAction(input: {
   memberId: string;
   displayName: string;
 }) {
-  return actionRequest(`/api/groups/${input.groupId}/members/${input.memberId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ displayName: input.displayName }),
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/members/${encodeURIComponent(input.memberId)}`,
+    { method: 'PATCH', body: JSON.stringify({ displayName: input.displayName }) },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function setMemberRoleAction(input: {
@@ -73,22 +85,31 @@ export async function setMemberRoleAction(input: {
   memberId: string;
   role: 'MANAGER' | 'MEMBER' | 'VIEWER';
 }) {
-  return actionRequest(`/api/groups/${input.groupId}/members/${input.memberId}/role`, {
-    method: 'PUT',
-    body: JSON.stringify({ role: input.role }),
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/members/${encodeURIComponent(input.memberId)}/role`,
+    { method: 'PUT', body: JSON.stringify({ role: input.role }) },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function unlinkMemberAction(input: { groupId: string; memberId: string }) {
-  return actionRequest(`/api/groups/${input.groupId}/members/${input.memberId}/link`, {
-    method: 'DELETE',
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/members/${encodeURIComponent(input.memberId)}/link`,
+    { method: 'DELETE' },
+    groupQueryKeys(input.groupId),
+  );
 }
 
 export async function leaveGroupAction(groupId: string): Promise<ActionState> {
-  return actionRequest(`/api/groups/${groupId}/leave`, { method: 'POST' });
+  return actionRequest(`/api/groups/${encodeURIComponent(groupId)}/leave`, { method: 'POST' }, [
+    ...groupAndListQueryKeys(groupId),
+    ['account'],
+  ]);
 }
 
 export async function deleteGroupAction(groupId: string): Promise<ActionState> {
-  return actionRequest(`/api/groups/${groupId}`, { method: 'DELETE' });
+  return actionRequest(`/api/groups/${encodeURIComponent(groupId)}`, { method: 'DELETE' }, [
+    ...groupAndListQueryKeys(groupId),
+    ['account'],
+  ]);
 }

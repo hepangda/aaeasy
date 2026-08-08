@@ -71,15 +71,34 @@ export interface GroupListItemDto {
   updatedAt: string;
 }
 
+/**
+ * Everything the client needs to decide what to render, decided once on the
+ * server. The booleans are authoritative: clients must not re-derive them from
+ * `role`/`kind`, or the rule ends up written twice and drifts.
+ */
 export interface GroupAccessDto {
   kind: 'user' | 'share';
   userId: string | null;
   role: GroupRole | null;
   scope: 'READ' | 'WRITE' | null;
+  /** The member row this caller *is*, when there is one. */
   linkedMemberId: string | null;
+  /**
+   * The member this caller may only write as, or null when unconstrained.
+   * Differs from `linkedMemberId` for owners and managers, who are linked to a
+   * member but may act for anyone.
+   */
+  boundMemberId: string | null;
   bypass: 'superadmin' | null;
   canWriteExpense: boolean;
   canManageMembers: boolean;
+  canManageShares: boolean;
   canSettle: boolean;
   canDeleteGroup: boolean;
+  /** Assigning roles is owner-level, same as deleting the group. */
+  canManageRoles: boolean;
+  /** Owners only, and never through the super-admin bypass. */
+  canTransferOwnership: boolean;
+  /** Owners cannot leave a group they still own. */
+  canLeaveGroup: boolean;
 }

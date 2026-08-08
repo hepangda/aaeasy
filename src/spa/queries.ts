@@ -9,6 +9,15 @@ import {
   type SessionResponse,
 } from './types';
 
+/**
+ * The signed-in user.
+ *
+ * Revalidated when the tab regains focus or the network comes back, which is
+ * when a session actually tends to have changed underneath us. There is no
+ * background poll: a fixed interval hit the database — and, every fifth
+ * minute, the identity provider — for every open tab of every user, whether or
+ * not anyone was looking.
+ */
 export function useSessionQuery() {
   return useQuery({
     queryKey: ['session'],
@@ -16,7 +25,6 @@ export function useSessionQuery() {
     staleTime: 30_000,
     refetchOnWindowFocus: 'always',
     refetchOnReconnect: 'always',
-    refetchInterval: (query) => (query.state.data?.user ? 60_000 : false),
   });
 }
 
@@ -36,12 +44,14 @@ export function useGroupQuery(groupId: string, enabled = Boolean(groupId)) {
   });
 }
 
-export function useLedgerQuery(groupId: string, enabled = Boolean(groupId)) {
+export function useLedgerQuery(groupId: string, page = 1, enabled = Boolean(groupId)) {
   return useQuery({
-    queryKey: ['ledger', groupId],
+    queryKey: ['ledger', groupId, page],
     queryFn: async () =>
       hydrateLedger(
-        await apiRequest<LedgerResponse>(`/api/groups/${encodeURIComponent(groupId)}/ledger`),
+        await apiRequest<LedgerResponse>(
+          `/api/groups/${encodeURIComponent(groupId)}/ledger?page=${encodeURIComponent(page)}`,
+        ),
       ),
     enabled,
   });

@@ -31,7 +31,9 @@ export type { MemberLite } from './types';
  */
 export function SettingsPanel({
   groupId,
-  isOwner,
+  canDeleteGroup,
+  canTransferOwnership,
+  canLeave,
   canSettle,
   isArchived,
   settlementId,
@@ -43,8 +45,10 @@ export function SettingsPanel({
   openExpenseCount = 0,
 }: {
   groupId: string;
-  isOwner: boolean;
+  canDeleteGroup: boolean;
+  canTransferOwnership: boolean;
   canSettle: boolean;
+  canLeave: boolean;
   isArchived: boolean;
   settlementId?: string;
   ownerCandidates: OwnerCandidate[];
@@ -79,7 +83,7 @@ export function SettingsPanel({
             description={t('expenses.reopen_desc')}
           />
           <div>
-            <ReopenSettlementButton settlementId={settlementId!} />
+            <ReopenSettlementButton groupId={groupId} settlementId={settlementId!} />
           </div>
         </Card>
       ) : null}
@@ -105,7 +109,7 @@ export function SettingsPanel({
         </Card>
       ) : null}
 
-      {isOwner ? (
+      {canTransferOwnership ? (
         <Card as="section" padding="body" className="flex flex-col gap-3">
           <SectionHeader
             title={t('groups.transfer_owner')}
@@ -117,12 +121,18 @@ export function SettingsPanel({
         </Card>
       ) : null}
 
-      <DangerZone
-        title={t('account.danger_zone')}
-        description={isOwner ? t('groups.delete_desc') : t('groups.leave_desc')}
-      >
-        {isOwner ? <DeleteGroupButton groupId={groupId} /> : <LeaveGroupButton groupId={groupId} />}
-      </DangerZone>
+      {canDeleteGroup || canLeave ? (
+        <DangerZone
+          title={t('account.danger_zone')}
+          description={canDeleteGroup ? t('groups.delete_desc') : t('groups.leave_desc')}
+        >
+          {canDeleteGroup ? (
+            <DeleteGroupButton groupId={groupId} />
+          ) : (
+            <LeaveGroupButton groupId={groupId} />
+          )}
+        </DangerZone>
+      ) : null}
     </div>
   );
 }

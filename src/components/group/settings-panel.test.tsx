@@ -14,7 +14,9 @@ function renderPanel(props: Partial<Parameters<typeof SettingsPanel>[0]> = {}) {
         <ConfirmDialogProvider>
           <SettingsPanel
             groupId="g1"
-            isOwner
+            canDeleteGroup
+            canTransferOwnership
+            canLeave={false}
             canSettle={false}
             isArchived={false}
             ownerCandidates={[]}
@@ -39,12 +41,26 @@ describe('SettingsPanel', () => {
   });
 
   it('offers leaving rather than deleting for non-owners', () => {
-    const { container } = renderPanel({ isOwner: false });
+    const { container } = renderPanel({
+      canDeleteGroup: false,
+      canTransferOwnership: false,
+      canLeave: true,
+    });
     const blocks = [...container.firstElementChild!.children];
 
     // No ownership card without ownership — just the danger zone.
     expect(blocks).toHaveLength(1);
     expect(blocks[0]!.textContent).toContain(messages.groups.leave);
+  });
+
+  it('does not offer member-only destructive actions to share visitors', () => {
+    const { container } = renderPanel({
+      canDeleteGroup: false,
+      canTransferOwnership: false,
+      canLeave: false,
+    });
+    expect(container.textContent).not.toContain(messages.groups.leave);
+    expect(container.querySelector('[class*="destructive"]')).toBeNull();
   });
 
   it('surfaces reopening only for a settled ledger', () => {

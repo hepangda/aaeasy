@@ -65,8 +65,7 @@ function labels(locale: string) {
 export function renderLedgerHtml(ledger: Ledger, locale: string): string {
   const text = labels(locale);
   const memberById = new Map(ledger.members.map((member) => [member.id, member]));
-  const activeExpenses = ledger.expenses.filter((expense) => expense.amountMinor !== null);
-  const expenseRows = activeExpenses
+  const expenseRows = ledger.expenses
     .map((expense) => {
       const splitText = expense.splits
         .filter((split) => split.shareMinor > 0n)
@@ -81,7 +80,7 @@ export function renderLedgerHtml(ledger: Ledger, locale: string): string {
         <td>${escapeHtml(new Intl.DateTimeFormat(locale).format(expense.occurredAt))}</td>
         <td><strong>${escapeHtml(expense.title)}</strong>${expense.note ? `<div class="muted">${escapeHtml(expense.note)}</div>` : ''}</td>
         <td>${escapeHtml(memberById.get(expense.payerMemberId)?.displayName ?? '?')}</td>
-        <td class="money">${escapeHtml(formatMoney(expense.amountMinor!, expense.currency, locale))}</td>
+        <td class="money">${escapeHtml(formatMoney(expense.amountMinor, expense.currency, locale))}</td>
         <td class="split">${splitText}</td>
       </tr>`;
     })
@@ -117,7 +116,7 @@ export function renderLedgerHtml(ledger: Ledger, locale: string): string {
           .join('');
   const memberDetails = ledger.members
     .map((member) => {
-      const rows = activeExpenses
+      const rows = ledger.expenses
         .flatMap((expense) => {
           const split = expense.splits.find((candidate) => candidate.memberId === member.id);
           if (!split || split.shareMinor <= 0n) return [];

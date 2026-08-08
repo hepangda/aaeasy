@@ -1,5 +1,4 @@
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { ArrowRight, Check, ChevronDown, Copy, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -69,7 +68,6 @@ export function TransfersPanel({
   boundMemberId?: string | null;
 }) {
   const t = useTranslations();
-  const router = useRouter();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const isCompact = useMediaQuery('(max-width: 767px)');
@@ -128,7 +126,6 @@ export function TransfersPanel({
         amount: s.amountMajor,
       });
       if (!res.ok) showI18nError(t, res.error ?? 'errors.unknown');
-      router.refresh();
     });
   }
 
@@ -150,7 +147,6 @@ export function TransfersPanel({
       setAmount('');
       setNote('');
       setManualOpen(false);
-      router.refresh();
     });
   }
 
@@ -159,9 +155,8 @@ export function TransfersPanel({
     confirm({ message: t('settlements.confirm_delete_entry') }).then((ok) => {
       if (!ok) return;
       startTransition(async () => {
-        const res = await deleteSettlementEntryAction({ entryId: id });
+        const res = await deleteSettlementEntryAction({ groupId, entryId: id });
         if (!res.ok) showI18nError(t, res.error ?? 'errors.unknown');
-        router.refresh();
       });
     });
   }

@@ -13,6 +13,7 @@ import { z } from 'zod';
 import type { AppEnv } from '../app-env';
 import { buildOidcLogoutUrl, revokeOidcRefreshToken } from '../auth/oidc';
 import { clearCurrentSessionCookie, currentOidcTokens, requireUser } from '../auth/session';
+import { userActor, writeAudit } from '../lib/audit';
 import { bumpGroupRevision, scheduleGroupEvent } from '../realtime/events';
 
 export const accountRoutes = new Hono<AppEnv>();
@@ -134,6 +135,17 @@ accountRoutes.put('/groups/:groupId/ownership', async (c) => {
       .where(
         and(eq(groupMemberships.userId, session.user.id), eq(groupMemberships.groupId, groupId)),
       );
+    await writeAudit(tx, {
+      groupId,
+      actor: userActor(session.user.id),
+      action: 'OWNERSHIP_TRANSFER',
+      targetType: 'Membership',
+      targetId: parsed.data.newOwnerUserId,
+      diff: {
+        owner: { before: session.user.id, after: parsed.data.newOwnerUserId },
+        previousOwnerRole: 'MANAGER',
+      },
+    });
     return bumpGroupRevision(tx, groupId);
   });
   scheduleGroupEvent(c, groupId, {

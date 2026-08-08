@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
  * hash (which we use for active tab) and other search params.
  *
  * The parent component is responsible for slicing items based on the page;
- * see `getPageSlice` for a helper.
  */
 export function Pagination({
   paramKey,

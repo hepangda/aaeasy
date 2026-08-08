@@ -1,27 +1,46 @@
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'use-intl';
+import { useRouter } from '@/router/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChipInput, type MemberChip } from '@/components/ui/chip-input';
 import { CurrencySelect } from '@/components/money/currency-select';
-import { createGroupAction, type ActionState } from '@/spa/actions/groups';
+import { createGroupAction, type CreateGroupState } from '@/spa/actions/groups';
 import { showI18nError } from '@/lib/ui/toast';
 
-const initial: ActionState = { ok: false };
+const initial: CreateGroupState = { ok: false };
 
 export function NewGroupForm() {
   const t = useTranslations();
-  const [state, action, pending] = useActionState(createGroupAction, initial);
+  const router = useRouter();
+  const [state, submit, pending] = useActionState(createGroupAction, initial);
   const [chips, setChips] = useState<MemberChip[]>([]);
   const [currency, setCurrency] = useState('CNY');
+  const [name, setName] = useState('');
+  const navigatedRef = useRef(false);
 
   useEffect(() => {
     if (state.error) showI18nError(t, state.error);
   }, [state.error, t]);
 
+  // The action reports where to go; the router takes us there. It used to call
+  // `location.assign`, which reloaded the SPA and discarded the caches the
+  // action had just refreshed.
+  useEffect(() => {
+    if (!state.redirectTo || navigatedRef.current) return;
+    navigatedRef.current = true;
+    router.push(state.redirectTo);
+  }, [state.redirectTo, router]);
+
   return (
-    <form action={action} className="flex w-full flex-col gap-5">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit({ name, defaultCurrency: currency, members: chips });
+      }}
+      className="flex w-full flex-col gap-5"
+    >
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
         <div className="grid gap-2">
           <Label htmlFor="name">{t('groups.name')}</Label>
@@ -30,6 +49,8 @@ export function NewGroupForm() {
             name="name"
             required
             maxLength={64}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
             placeholder={t('groups.name_placeholder')}
           />
         </div>
@@ -55,7 +76,6 @@ export function NewGroupForm() {
           disabled={pending}
         />
         <p className="text-muted-foreground text-xs">{t('groups.chip_mention_hint')}</p>
-        <input type="hidden" name="members" value={chips.length ? JSON.stringify(chips) : ''} />
       </div>
 
       <Button type="submit" disabled={pending} className="self-start">

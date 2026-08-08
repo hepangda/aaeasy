@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams as useRouterSearchParams } from 'react-router';
-import { refreshQueries } from '@/spa/query-client';
 
+/**
+ * Client-side navigation.
+ *
+ * There is deliberately no `refresh()` here. Mutations declare which caches
+ * they invalidate (see `actionRequest`), so a blanket "refetch everything"
+ * only ever hid a missing declaration behind a pile of redundant requests.
+ */
 export function useRouter() {
   const navigate = useNavigate();
   return useMemo(
@@ -9,8 +15,8 @@ export function useRouter() {
       push(href: string) {
         navigate(href);
       },
-      refresh() {
-        refreshQueries();
+      replace(href: string) {
+        navigate(href, { replace: true });
       },
     }),
     [navigate],

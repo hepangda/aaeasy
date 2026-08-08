@@ -132,7 +132,7 @@ export function EditExpensePage() {
     : (recoveredExactRule ?? { type: 'EQUAL', memberIds: members.map((member) => member.id) });
   const parsedState = splitInputStateSchema.safeParse(expense.splitInputState);
   const splitInputState: SplitInputState | null = parsedState.success ? parsedState.data : null;
-  const amountMinor = expense.amountMinor === null ? 0n : BigInt(expense.amountMinor);
+  const amountMinor = BigInt(expense.amountMinor);
 
   return (
     <PageShell>
@@ -149,10 +149,7 @@ export function EditExpensePage() {
           title: expense.title,
           note: expense.note,
           currency: expense.currency,
-          amountText:
-            expense.amountMinor === null
-              ? ''
-              : formatMinor(BigInt(expense.amountMinor), expense.currency),
+          amountText: formatMinor(amountMinor, expense.currency),
           amountMinor,
           payerMemberId: expense.payerMemberId,
           splitRule,

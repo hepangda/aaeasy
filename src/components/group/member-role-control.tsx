@@ -1,5 +1,4 @@
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { Select } from '@/components/ui/select';
 import {
@@ -17,7 +16,6 @@ const EDITABLE_ROLES: EditableRole[] = ['MANAGER', 'MEMBER', 'VIEWER'];
 
 /** Optimistic role state shared by the inline select and the menu variant. */
 function useRoleSetter(groupId: string, memberId: string, currentRole: Role) {
-  const router = useRouter();
   const t = useTranslations();
   const [role, setRole] = useState<Role>(currentRole);
   const [pending, startTransition] = useTransition();
@@ -37,7 +35,6 @@ function useRoleSetter(groupId: string, memberId: string, currentRole: Role) {
         showI18nError(t, res.error ?? 'errors.unknown');
         return;
       }
-      router.refresh();
     });
   }
 

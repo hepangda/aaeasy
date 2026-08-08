@@ -15,6 +15,20 @@
       "when": 1785395166075,
       "tag": "0001_truncate_expense_note",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785868081178,
+      "tag": "0002_unique_settlement_per_group",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786182806883,
+      "tag": "0003_tighten_ledger_invariants",
+      "breakpoints": true
     }
   ]
 }

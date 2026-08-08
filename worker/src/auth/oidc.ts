@@ -10,7 +10,7 @@ import { generateToken } from '../lib/crypto';
 
 const FLOW_TTL_MS = 10 * 60 * 1000;
 const TOKEN_EXPIRY_SKEW_MS = 30 * 1000;
-const OIDC_SCOPES = 'openid profile email groups offline_access';
+const OIDC_SCOPES = 'openid profile email offline_access';
 const SEALED_VALUE_VERSION = 'v1';
 const SEAL_AAD = new TextEncoder().encode('aaeasy:oidc:v1');
 

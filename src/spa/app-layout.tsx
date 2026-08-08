@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Outlet, useLocation } from 'react-router';
 import { useTranslations } from 'use-intl';
+import { parsePageNumber } from '@aaeasy/core/pagination';
 import { BrandMark } from '@/components/layout/brand-mark';
 import { HeaderActions } from '@/components/layout/header-actions';
 import { ServiceWorkerRegister } from '@/components/layout/service-worker-register';
@@ -372,10 +373,12 @@ function MobileBottomNav({
   pathname,
   hash,
   groupId,
+  canAddExpense,
 }: {
   pathname: string;
   hash: string;
   groupId: string;
+  canAddExpense: boolean;
 }) {
   const t = useTranslations();
 
@@ -405,13 +408,15 @@ function MobileBottomNav({
               Icon={ArrowRightLeft}
               active={['#settlement', '#summary', '#transfers'].includes(hash)}
             />
-            <MobileNavItem
-              href={`/groups/${groupId}/expenses/new`}
-              label={t('expenses.add')}
-              Icon={Plus}
-              active={false}
-              prominent
-            />
+            {canAddExpense ? (
+              <MobileNavItem
+                href={`/groups/${groupId}/expenses/new`}
+                label={t('expenses.add')}
+                Icon={Plus}
+                active={false}
+                prominent
+              />
+            ) : null}
             <MobileNavItem
               href={`/groups/${groupId}#members`}
               label={t('members.title')}
@@ -474,13 +479,14 @@ export function AppLayout() {
   const groupRoute = location.pathname.match(/^\/groups\/([^/]+)/u);
   const routeGroupId = groupRoute?.[1] === 'new' ? '' : (groupRoute?.[1] ?? '');
   const isGroupOverview = Boolean(routeGroupId) && /^\/groups\/[^/]+\/?$/u.test(location.pathname);
+  const requestedExpensePage = parsePageNumber(new URLSearchParams(location.search).get('ep'));
   const session = useSessionQuery();
   const user = session.data?.user;
   const groups = useGroupsQuery(Boolean(user));
   // Start route data while the global session is still resolving. The page
   // reuses these query keys, avoiding a session -> page-data request waterfall.
   const group = useGroupQuery(routeGroupId);
-  useLedgerQuery(routeGroupId, isGroupOverview);
+  useLedgerQuery(routeGroupId, requestedExpensePage, isGroupOverview);
   const isExpenseComposer = /^\/groups\/[^/]+\/expenses\/(?:new|[^/]+\/edit)$/.test(
     location.pathname,
   );
@@ -539,6 +545,12 @@ export function AppLayout() {
 
   const groupList = groups.data?.groups ?? [];
   const groupName = group.data?.group?.name;
+  const memberNavigation = group.data?.access.kind === 'user';
+  const canAddExpense = Boolean(
+    memberNavigation &&
+    group.data?.access.canWriteExpense &&
+    group.data.group.status !== 'ARCHIVED',
+  );
 
   // The composer is a focus mode: it drops the bottom nav (which would stack a
   // second fixed bar under the form's own submit bar, and could only show the
@@ -585,11 +597,12 @@ export function AppLayout() {
         >
           <Outlet />
         </main>
-        {hideBottomNav ? null : (
+        {hideBottomNav || (routeGroupId && !memberNavigation) ? null : (
           <MobileBottomNav
             pathname={location.pathname}
             hash={location.hash}
             groupId={routeGroupId}
+            canAddExpense={canAddExpense}
           />
         )}
       </div>

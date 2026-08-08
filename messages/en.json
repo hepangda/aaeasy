@@ -23,6 +23,8 @@
   },
   "errors": {
     "amount_negative": "Amount must be non-negative",
+    "auth_access_denied": "Sign-in was cancelled or not authorized. Please try again.",
+    "auth_failed": "Sign-in failed. Please try again.",
     "cannot_invite_self": "You can't invite yourself",
     "cannot_leave_as_owner": "The group owner can't leave the group. Transfer ownership or delete the group instead.",
     "expense_locked": "This expense is part of a closed settlement and cannot be edited",
@@ -40,6 +42,7 @@
     "member_already_linked": "This member is already linked to an account",
     "member_in_use": "This member has expenses or settlements and cannot be removed. Use “Unlink account” instead.",
     "member_name_taken": "Member name already exists in this group",
+    "network": "Network unavailable — the request did not reach the server",
     "not_found": "Expense not found",
     "nothing_to_settle": "No expenses to settle",
     "page_forbidden_desc": "This account does not have permission to view or change this page.",

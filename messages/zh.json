@@ -23,6 +23,8 @@
   },
   "errors": {
     "amount_negative": "金额不能为负",
+    "auth_access_denied": "登录已取消或未获授权，请重试。",
+    "auth_failed": "登录失败，请重试。",
     "cannot_invite_self": "不能邀请自己",
     "cannot_leave_as_owner": "账本所有者无法离开账本，请先转让所有权或删除账本。",
     "expense_locked": "费用已包含在已结算的账单中，不可修改",
@@ -40,6 +42,7 @@
     "member_already_linked": "该成员已绑定账号",
     "member_in_use": "该成员已有费用或清算记录，无法移除。如需收回权限，请使用「解除账号绑定」。",
     "member_name_taken": "该账本中成员名称已存在",
+    "network": "网络不可用，请求未送达服务器",
     "not_found": "未找到该费用",
     "nothing_to_settle": "没有可结算的费用",
     "page_forbidden_desc": "当前账号没有查看或修改这个页面的权限。",

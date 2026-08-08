@@ -23,3 +23,13 @@ export interface ExistingShareLink {
   /** Hard-killed by an OWNER/MANAGER. Visitor gets no access at all. */
   revoked: boolean;
 }
+
+/** A pending invitation, as rendered in the per-member binding dialog. */
+export interface MemberPendingInvitationRow {
+  id: string;
+  memberId: string;
+  assignedRole: GroupRole;
+  createdAt: string | Date;
+  invitedUser: { id: string; displayName: string; username: string | null };
+  invitedBy: { id: string; displayName: string } | null;
+}

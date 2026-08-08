@@ -1,5 +1,4 @@
 import { useState, useTransition } from 'react';
-import { useRouter } from '@/router/navigation';
 import { useTranslations } from 'use-intl';
 import { Check, X, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,7 +31,6 @@ export interface PendingInvitationItem {
  */
 export function PendingInvitationsPanel({ invitations }: { invitations: PendingInvitationItem[] }) {
   const t = useTranslations();
-  const router = useRouter();
   const confirmDialog = useConfirm();
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [pending, startTransition] = useTransition();
@@ -89,7 +87,6 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
       }
       reportResult('accept', res.accepted, res.failed);
       setSelected(new Set());
-      router.refresh();
     });
   }
 
@@ -103,7 +100,6 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
       }
       reportResult('reject', ids, undefined);
       setSelected(new Set());
-      router.refresh();
     });
   }
 
@@ -121,7 +117,6 @@ export function PendingInvitationsPanel({ invitations }: { invitations: PendingI
         }
         successToast(t('invitations.rejected_toast', { count: invitations.length }));
         setSelected(new Set());
-        router.refresh();
       });
     });
   }

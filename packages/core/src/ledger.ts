@@ -6,9 +6,9 @@ export interface LedgerMember {
 }
 
 export interface LedgerExpense {
-  amountMinor: bigint | null;
+  amountMinor: bigint;
   currency: string;
-  fxRateToGroupCurrency: Decimal | string | null;
+  fxRateToGroupCurrency: Decimal | string;
   payerMemberId: string;
   splits: Array<{ memberId: string; shareMinor: bigint }>;
 }
@@ -29,7 +29,6 @@ export function computeLedgerSummary(
   const owed = new Map<string, bigint>(members.map((member) => [member.id, 0n]));
 
   for (const expense of expenses) {
-    if (expense.amountMinor === null || expense.fxRateToGroupCurrency === null) continue;
     const rate =
       expense.fxRateToGroupCurrency instanceof Decimal
         ? expense.fxRateToGroupCurrency

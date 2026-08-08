@@ -38,15 +38,14 @@ export function GroupShareDialog({
   function generate(ev: React.FormEvent) {
     ev.preventDefault();
     if (pending) return;
-    const fd = new FormData();
-    fd.set('groupId', groupId);
-    if (label.trim()) fd.set('label', label.trim());
     startTransition(async () => {
-      const res = await createGroupShareLinkAction({ ok: false }, fd);
+      const res = await createGroupShareLinkAction(
+        { ok: false },
+        { groupId, label: label.trim() || undefined },
+      );
       if (res.ok && res.token) {
         setRevealedToken(res.token);
         reset();
-        router.refresh();
       } else {
         showI18nError(t, res.error ?? 'errors.unknown');
       }
@@ -60,7 +59,6 @@ export function GroupShareDialog({
       startTransition(async () => {
         const res = await revokeShareLinkAction({ groupId, shareLinkId: linkId });
         if (!res.ok) showI18nError(t, res.error ?? 'errors.unknown');
-        router.refresh();
       });
     });
   }

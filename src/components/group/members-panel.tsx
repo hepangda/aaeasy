@@ -19,15 +19,12 @@ import {
 import { Pencil, Link as LinkIcon } from 'lucide-react';
 import { Pressable } from '@/components/ui/pressable';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { Pagination } from '@/components/ui/pagination';
 import type { MemberLite } from './types';
-
-export const PAGE_SIZE_MEMBERS = 12;
 
 interface RowProps {
   groupId: string;
   member: MemberLite;
-  isOwner: boolean;
+  canManageRoles: boolean;
   canManage: boolean;
   existingShareLinks: ExistingShareLink[];
   pendingInvitations: MemberPendingInvitationRow[];
@@ -36,9 +33,9 @@ interface RowProps {
 
 function useRowFacts({
   member,
-  isOwner,
+  canManageRoles,
   canManage,
-}: Pick<RowProps, 'member' | 'isOwner' | 'canManage'>) {
+}: Pick<RowProps, 'member' | 'canManageRoles' | 'canManage'>) {
   const isLinked = !!member.linkedUserId;
   return {
     isLinked,
@@ -47,9 +44,10 @@ function useRowFacts({
       : member.displayName,
     canRename: canManage && !isLinked,
     canBind: canManage && !isLinked && member.linkedUserRole !== 'OWNER',
-    canUnlink: isOwner && isLinked && member.linkedUserRole !== 'OWNER',
+    canUnlink: canManageRoles && isLinked && member.linkedUserRole !== 'OWNER',
     canRemove: canManage && !isLinked,
-    canSetRole: isLinked && !!member.linkedUserRole && isOwner && member.linkedUserRole !== 'OWNER',
+    canSetRole:
+      isLinked && !!member.linkedUserRole && canManageRoles && member.linkedUserRole !== 'OWNER',
   };
 }
 
@@ -84,7 +82,8 @@ function MemberIdentity({
  * icon buttons next to the name.
  */
 function CompactMemberRow(props: RowProps) {
-  const { groupId, member, isOwner, existingShareLinks, pendingInvitations, baseUrl } = props;
+  const { groupId, member, canManageRoles, existingShareLinks, pendingInvitations, baseUrl } =
+    props;
   const t = useTranslations();
   const facts = useRowFacts(props);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -178,7 +177,7 @@ function CompactMemberRow(props: RowProps) {
           groupId={groupId}
           memberId={member.id}
           memberName={facts.displayName}
-          canAssignManager={isOwner}
+          canAssignManager={canManageRoles}
           existingLinks={existingShareLinks.filter((l) => l.memberId === member.id)}
           pendingInvitations={pendingInvitations.filter((inv) => inv.memberId === member.id)}
           baseUrl={baseUrl}
@@ -192,7 +191,8 @@ function CompactMemberRow(props: RowProps) {
 
 /** Wide row: pointer devices get the actions inline, as before. */
 function WideMemberRow(props: RowProps) {
-  const { groupId, member, isOwner, existingShareLinks, pendingInvitations, baseUrl } = props;
+  const { groupId, member, canManageRoles, existingShareLinks, pendingInvitations, baseUrl } =
+    props;
   const facts = useRowFacts(props);
 
   return (
@@ -207,7 +207,7 @@ function WideMemberRow(props: RowProps) {
             groupId={groupId}
             memberId={member.id}
             currentRole={member.linkedUserRole}
-            editable={isOwner && member.linkedUserRole !== 'OWNER'}
+            editable={canManageRoles && member.linkedUserRole !== 'OWNER'}
           />
         )}
         {facts.canRename && (
@@ -222,7 +222,7 @@ function WideMemberRow(props: RowProps) {
             groupId={groupId}
             memberId={member.id}
             memberName={facts.displayName}
-            canAssignManager={isOwner}
+            canAssignManager={canManageRoles}
             existingLinks={existingShareLinks.filter((l) => l.memberId === member.id)}
             pendingInvitations={pendingInvitations.filter((inv) => inv.memberId === member.id)}
             baseUrl={baseUrl}
@@ -245,8 +245,7 @@ function WideMemberRow(props: RowProps) {
 export function MembersPanel({
   groupId,
   members,
-  membersPage,
-  isOwner,
+  canManageRoles,
   canManage,
   existingShareLinks,
   pendingInvitations,
@@ -254,8 +253,7 @@ export function MembersPanel({
 }: {
   groupId: string;
   members: MemberLite[];
-  membersPage: { slice: MemberLite[]; page: number; totalPages: number };
-  isOwner: boolean;
+  canManageRoles: boolean;
   canManage: boolean;
   existingShareLinks: ExistingShareLink[];
   pendingInvitations: MemberPendingInvitationRow[];
@@ -267,11 +265,11 @@ export function MembersPanel({
     <section className="flex flex-col gap-4">
       {canManage && <AddMemberForm groupId={groupId} />}
       <ul className="divide-y rounded-lg border">
-        {membersPage.slice.map((member) => {
+        {members.map((member) => {
           const props: RowProps = {
             groupId,
             member,
-            isOwner,
+            canManageRoles,
             canManage,
             existingShareLinks,
             pendingInvitations,
@@ -287,7 +285,6 @@ export function MembersPanel({
           );
         })}
       </ul>
-      <Pagination paramKey="mp" totalItems={members.length} pageSize={PAGE_SIZE_MEMBERS} />
     </section>
   );
 }

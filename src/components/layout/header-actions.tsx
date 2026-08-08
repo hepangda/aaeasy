@@ -3,7 +3,7 @@ import { useTransition } from 'react';
 import { useLocale, useTranslations } from 'use-intl';
 import { Check, Languages, Laptop, LogOut, Moon, Sun, User } from 'lucide-react';
 import { logoutAction } from '@/spa/actions/auth';
-import { setLocaleAction } from '@/spa/actions/locale';
+import { useSetLocale } from '@/spa/locale';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/layout/theme-provider';
 import { Avatar } from '@/components/ledger/member-avatar';
@@ -33,7 +33,7 @@ const THEMES = [
 function LanguageMenu() {
   const locale = useLocale();
   const common = useTranslations('common');
-  const [isPending, startTransition] = useTransition();
+  const setLocale = useSetLocale();
 
   return (
     <DropdownMenu>
@@ -45,17 +45,10 @@ function LanguageMenu() {
       <DropdownMenuContent align="end" className="w-40">
         <DropdownMenuRadioGroup
           value={locale}
-          onValueChange={(value) =>
-            startTransition(() => setLocaleAction(value === 'en' ? 'en' : 'zh'))
-          }
+          onValueChange={(value) => setLocale(value === 'en' ? 'en' : 'zh')}
         >
           {LANGS.map((lang) => (
-            <DropdownMenuRadioItem
-              key={lang.code}
-              value={lang.code}
-              disabled={isPending}
-              className="justify-between"
-            >
+            <DropdownMenuRadioItem key={lang.code} value={lang.code} className="justify-between">
               {lang.label}
               {locale === lang.code && <Check className="size-4" />}
             </DropdownMenuRadioItem>
@@ -154,7 +147,14 @@ function AccountControl({
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={isPending}
-          onSelect={() => startTransition(() => logoutAction())}
+          onSelect={() =>
+            startTransition(async () => {
+              const result = await logoutAction();
+              // A full document load, on purpose: nothing of the previous
+              // user's data should survive in memory.
+              if (result.redirectTo) window.location.assign(result.redirectTo);
+            })
+          }
           className="text-destructive-ink focus:text-destructive-ink gap-2"
         >
           <LogOut className="size-4" />

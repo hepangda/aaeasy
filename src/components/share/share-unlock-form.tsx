@@ -14,25 +14,32 @@ const initial: UnlockState = { ok: false };
  */
 export function ShareUnlockForm({ token }: { token: string }) {
   const t = useTranslations();
-  const [state, action, pending] = useActionState(unlockShareAction, initial);
+  const [state, submit, pending] = useActionState(unlockShareAction, initial);
   const claim = state.needsClaim;
 
   useEffect(() => {
     if (state.error) showI18nError(t, state.error);
   }, [state.error, t]);
 
+  // Unlocking may have created a share session cookie, and the whole app is
+  // rendered against it — so this one navigates the document rather than the
+  // router, to re-run the session bootstrap.
+  useEffect(() => {
+    if (state.ok && state.redirectTo) window.location.assign(state.redirectTo);
+  }, [state.ok, state.redirectTo]);
+
   if (claim) {
     return (
       <div className="flex w-full max-w-sm flex-col gap-5 text-center">
         <p className="text-base">{t('share.claim_prompt', { name: claim.memberName })}</p>
         <div className="flex justify-center gap-2">
-          <form action={action}>
-            <input type="hidden" name="token" value={token} />
-            <input type="hidden" name="claimMemberId" value={claim.memberId} />
-            <Button type="submit" disabled={pending}>
-              {pending ? t('share.continue') : t('share.claim_yes')}
-            </Button>
-          </form>
+          <Button
+            type="button"
+            disabled={pending}
+            onClick={() => submit({ token, claimMemberId: claim.memberId })}
+          >
+            {pending ? t('share.continue') : t('share.claim_yes')}
+          </Button>
           <Button asChild type="button" variant="ghost">
             <a href="/">{t('share.claim_no')}</a>
           </Button>
@@ -42,8 +49,13 @@ export function ShareUnlockForm({ token }: { token: string }) {
   }
 
   return (
-    <form action={action} className="flex w-full max-w-sm flex-col gap-5">
-      <input type="hidden" name="token" value={token} />
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit({ token });
+      }}
+      className="flex w-full max-w-sm flex-col gap-5"
+    >
       <Button type="submit" disabled={pending}>
         {t('share.continue')}
       </Button>

@@ -27,7 +27,6 @@ export const invitationStatusEnum = pgEnum('InvitationStatus', [
   'EXPIRED',
 ]);
 export const shareScopeEnum = pgEnum('ShareScope', ['READ', 'WRITE']);
-export const splitRuleTypeEnum = pgEnum('SplitRuleType', ['EQUAL', 'SUBSET', 'WEIGHTED']);
 export const auditActorTypeEnum = pgEnum('AuditActorType', ['USER', 'SHARE']);
 
 export const users = pgTable(
@@ -41,7 +40,16 @@ export const users = pgTable(
     createdAt: timestampColumn('createdAt').notNull().defaultNow(),
     updatedAt: timestampColumn('updatedAt').notNull(),
   },
-  (table) => [uniqueIndex('users_username_key').on(table.username)],
+  (table) => [
+    // The identity provider owns aliases case-insensitively, and every lookup
+    // in this codebase compares `lower(username)`. A plain unique index on the
+    // raw column would both miss those lookups and let `Alice` and `alice`
+    // coexist, so uniqueness is declared on the same expression the app reads.
+    uniqueIndex('users_username_lower_key').on(sql`lower(${table.username})`),
+    // Prefix search (`lower(username) like 'foo%'`) needs pattern ops to use a
+    // btree index under any non-C collation.
+    index('users_username_lower_pattern_idx').on(sql`lower(${table.username}) text_pattern_ops`),
+  ],
 );
 
 export const sessions = pgTable(
@@ -111,6 +119,12 @@ export const members = pgTable(
   (table) => [
     index('members_groupId_idx').on(table.groupId),
     index('members_linkedUserId_idx').on(table.linkedUserId),
+    // "One member row per user per group" is an invariant the routes check by
+    // hand in three places (`errors.user_already_linked_in_group`). Enforcing
+    // it here is what makes the single-query access lookup safe.
+    uniqueIndex('members_groupId_linkedUserId_key')
+      .on(table.groupId, table.linkedUserId)
+      .where(sql`${table.linkedUserId} is not null`),
   ],
 );
 
@@ -231,8 +245,25 @@ export const settlements = pgTable(
       onUpdate: 'cascade',
     }),
     createdAt: timestampColumn('createdAt').notNull().defaultNow(),
+    /**
+     * Set when the ledger is reopened. Reopening used to delete the row, which
+     * threw away the only copy of the settlement snapshot — the audit log kept
+     * a `SETTLEMENT_REOPEN` entry pointing at an id that no longer existed.
+     * The row now survives as history; only the uniqueness rule cares.
+     */
+    reopenedAt: timestampColumn('reopenedAt'),
+    reopenedById: text('reopenedById').references(() => users.id, {
+      onDelete: 'set null',
+      onUpdate: 'cascade',
+    }),
   },
-  (table) => [index('settlements_groupId_idx').on(table.groupId)],
+  (table) => [
+    // At most one *live* settlement per group; superseded ones stay readable.
+    uniqueIndex('settlements_groupId_active_key')
+      .on(table.groupId)
+      .where(sql`${table.reopenedAt} is null`),
+    index('settlements_groupId_createdAt_idx').on(table.groupId, table.createdAt),
+  ],
 );
 
 export const expenses = pgTable(
@@ -246,16 +277,21 @@ export const expenses = pgTable(
     title: text('title').notNull(),
     note: text('note'),
     currency: text('currency').notNull(),
-    amountMinor: bigint('amountMinor', { mode: 'bigint' }),
+    // Amount, FX rate and split rule are what makes a row an expense. They were
+    // nullable only to accommodate a half-entered "draft" mode that no longer
+    // exists; every reader had to re-check them at runtime.
+    amountMinor: bigint('amountMinor', { mode: 'bigint' }).notNull(),
     fxRateToGroupCurrency: numeric('fxRateToGroupCurrency', {
       precision: 20,
       scale: 10,
       mode: 'string',
-    }),
+    }).notNull(),
     payerMemberId: text('payerMemberId')
       .notNull()
       .references(() => members.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    splitRule: jsonb('splitRule'),
+    splitRule: jsonb('splitRule').notNull(),
+    /** Raw form controls captured at save time. Genuinely absent on rows
+     *  written before the editor recorded it, so this one stays nullable. */
     splitInputState: jsonb('splitInputState'),
     tags: text('tags')
       .array()
@@ -264,7 +300,10 @@ export const expenses = pgTable(
       onDelete: 'set null',
       onUpdate: 'cascade',
     }),
-    createdByShareLinkId: text('createdByShareLinkId'),
+    createdByShareLinkId: text('createdByShareLinkId').references(() => shareLinks.id, {
+      onDelete: 'set null',
+      onUpdate: 'cascade',
+    }),
     createdAt: timestampColumn('createdAt').notNull().defaultNow(),
     updatedAt: timestampColumn('updatedAt').notNull(),
     deletedAt: timestampColumn('deletedAt'),
@@ -279,6 +318,7 @@ export const expenses = pgTable(
     index('expenses_groupId_deletedAt_idx').on(table.groupId, table.deletedAt),
     index('expenses_payerMemberId_idx').on(table.payerMemberId),
     index('expenses_lockedBySettlementId_idx').on(table.lockedBySettlementId),
+    index('expenses_createdByShareLinkId_idx').on(table.createdByShareLinkId),
   ],
 );
 

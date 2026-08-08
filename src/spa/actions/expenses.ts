@@ -1,62 +1,82 @@
 import type { SplitInputState } from '@aaeasy/core/split-input-state';
 import type { SplitRule } from '@aaeasy/core/split-types';
-import { actionRequest, formString } from '@/spa/api';
+import { actionRequest, ledgerQueryKeys, type ActionResult } from '@/spa/api';
 
-export type ExpenseActionState = {
-  ok: boolean;
-  error?: string;
-  expenseId?: string;
-};
+export type ExpenseActionState = ActionResult & { expenseId?: string };
 
-function body(formData: FormData) {
-  const date = formString(formData, 'occurredAt');
-  const splitRule = formString(formData, 'splitRule');
-  const splitInputState = formString(formData, 'splitInputState');
+/**
+ * What the expense editor submits.
+ *
+ * Typed on purpose: this used to travel as `FormData`, with `splitRule` and
+ * `splitInputState` stringified into hidden inputs and parsed back here — so
+ * every field arrived as `string` and a shape change went unnoticed until
+ * runtime.
+ */
+export interface ExpenseInputPayload {
+  groupId: string;
+  /** Calendar date, `yyyy-mm-dd`; the time of day is not meaningful here. */
+  occurredOn: string;
+  title: string;
+  note: string | null;
+  currency: string;
+  amount: string;
+  payerMemberId: string;
+  fxRateOverride?: string;
+  splitRule: SplitRule;
+  splitInputState: SplitInputState;
+  tags?: string[];
+}
+
+export interface UpdateExpensePayload extends ExpenseInputPayload {
+  expenseId: string;
+  expectedVersion: number;
+}
+
+function requestBody(input: ExpenseInputPayload) {
+  const date = input.occurredOn || new Date().toISOString().slice(0, 10);
   return {
-    occurredAt: new Date(`${date || new Date().toISOString().slice(0, 10)}T12:00:00`).toISOString(),
-    title: formString(formData, 'title'),
-    note: formString(formData, 'note') || null,
-    currency: formString(formData, 'currency') || 'CNY',
-    amount: formString(formData, 'amount') || undefined,
-    payerMemberId: formString(formData, 'payerMemberId'),
-    fxRateOverride: formString(formData, 'fxRateOverride') || undefined,
-    splitRule: splitRule ? (JSON.parse(splitRule) as SplitRule) : null,
-    splitInputState: splitInputState ? (JSON.parse(splitInputState) as SplitInputState) : null,
-    tags: formString(formData, 'tags')
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean),
+    occurredAt: new Date(`${date}T12:00:00`).toISOString(),
+    title: input.title,
+    note: input.note || null,
+    currency: input.currency || 'CNY',
+    amount: input.amount,
+    payerMemberId: input.payerMemberId,
+    fxRateOverride: input.fxRateOverride || undefined,
+    splitRule: input.splitRule,
+    splitInputState: input.splitInputState,
+    tags: input.tags ?? [],
   };
 }
 
 export async function createExpenseAction(
   _previous: ExpenseActionState,
-  formData: FormData,
+  input: ExpenseInputPayload,
 ): Promise<ExpenseActionState> {
-  const groupId = formString(formData, 'groupId');
-  return actionRequest(`/api/groups/${groupId}/expenses`, {
-    method: 'POST',
-    body: JSON.stringify(body(formData)),
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/expenses`,
+    { method: 'POST', body: JSON.stringify(requestBody(input)) },
+    ledgerQueryKeys(input.groupId),
+  );
 }
 
 export async function updateExpenseAction(
   _previous: ExpenseActionState,
-  formData: FormData,
+  input: UpdateExpensePayload,
 ): Promise<ExpenseActionState> {
-  const groupId = formString(formData, 'groupId');
-  const expenseId = formString(formData, 'expenseId');
-  return actionRequest(`/api/groups/${groupId}/expenses/${expenseId}`, {
-    method: 'PUT',
-    body: JSON.stringify({
-      ...body(formData),
-      expectedVersion: Number(formString(formData, 'expectedVersion')),
-    }),
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/expenses/${encodeURIComponent(input.expenseId)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ ...requestBody(input), expectedVersion: input.expectedVersion }),
+    },
+    ledgerQueryKeys(input.groupId),
+  );
 }
 
 export async function softDeleteExpenseAction(input: { groupId: string; expenseId: string }) {
-  return actionRequest(`/api/groups/${input.groupId}/expenses/${input.expenseId}`, {
-    method: 'DELETE',
-  });
+  return actionRequest(
+    `/api/groups/${encodeURIComponent(input.groupId)}/expenses/${encodeURIComponent(input.expenseId)}`,
+    { method: 'DELETE' },
+    ledgerQueryKeys(input.groupId),
+  );
 }

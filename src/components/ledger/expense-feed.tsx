@@ -115,8 +115,7 @@ function ExpenseFeedItem({
   // edit: a row that swallows taps reads as broken, so those open a menu that
   // shows the split breakdown and says there is nothing to do.
   const asMenu = isCompact;
-  const amountText =
-    expense.amountMinor === null ? '—' : formatMoney(expense.amountMinor, expense.currency, locale);
+  const amountText = formatMoney(expense.amountMinor, expense.currency, locale);
 
   const body = (
     <>

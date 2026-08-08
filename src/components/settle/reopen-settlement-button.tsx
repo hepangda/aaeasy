@@ -4,10 +4,16 @@ import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/hooks/use-async-action';
 import { reopenSettlementAction } from '@/spa/actions/settlements';
 
-export function ReopenSettlementButton({ settlementId }: { settlementId: string }) {
+export function ReopenSettlementButton({
+  groupId,
+  settlementId,
+}: {
+  groupId: string;
+  settlementId: string;
+}) {
   const t = useTranslations('settlements');
   const { run, pending } = useAsyncAction({
-    action: () => reopenSettlementAction({ settlementId }),
+    action: () => reopenSettlementAction({ groupId, settlementId }),
     confirm: { message: t('reopen_confirm'), destructive: false },
   });
 
